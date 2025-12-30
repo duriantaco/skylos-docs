@@ -1,0 +1,213 @@
+---
+title: "TypeScript Support"
+description: "Analyzing TypeScript and JavaScript files with Skylos"
+---
+
+Skylos provides analysis capabilities for TypeScript (`.ts`, `.tsx`) and JavaScript files using tree-sitter parsing.
+
+## Features
+
+TypeScript analysis includes:
+
+- **Dead code detection:** Unused functions, classes, and methods
+- **Security scanning:** `eval()`, unsafe `innerHTML`
+- **Complexity analysis:** Cyclomatic complexity for functions
+
+## How It Works
+
+Skylos uses [tree-sitter](https://tree-sitter.github.io/) with the TypeScript grammar to parse files into a syntax tree. This enables accurate analysis without requiring a full TypeScript compiler setup.
+
+### Parsing Pipeline
+
+1. Read source file as bytes
+2. Parse with tree-sitter TypeScript grammar
+3. Query for definitions (functions, classes, methods)
+4. Query for references (calls, property accesses)
+5. Cross-reference to find unused definitions
+
+## Dead Code Detection
+
+### Supported Definitions
+
+| Type | Detection Pattern |
+|------|-------------------|
+| Functions | `function foo() {}` |
+| Arrow functions | `const foo = () => {}` |
+| Classes | `class Foo {}` |
+| Methods | `class { method() {} }` |
+
+### Export Awareness
+
+Exported definitions are treated differently:
+
+```typescript
+// Not flagged - exported
+export function publicApi() {}
+
+// Flagged if not called internally
+function internalHelper() {}
+```
+
+## Security Rules
+
+### SKY-D501: eval()
+
+Detects use of `eval()`, which can execute arbitrary code.
+
+```typescript
+// Flagged
+eval(userInput);
+
+// Flagged
+const result = eval('1 + 2');
+```
+
+### SKY-D502: innerHTML
+
+Detects unsafe `innerHTML` assignments that could enable XSS.
+
+```typescript
+// Flagged
+element.innerHTML = userContent;
+
+// Flagged
+document.getElementById('app').innerHTML = data;
+```
+
+## Quality Rules
+
+### SKY-Q501: Function Complexity
+
+Measures cyclomatic complexity for TypeScript functions.
+
+**Complexity nodes:**
+
+- `if_statement`
+- `for_statement`
+- `while_statement`
+- `switch_case`
+- `catch_clause`
+- `ternary_expression`
+
+```typescript
+// Complexity: 4
+function process(data: Data) {
+  if (data.valid) {           // +1
+    for (const item of data.items) {  // +1
+      if (item.active) {      // +1
+        handle(item);
+      }
+    }
+  }
+}
+```
+
+### Configuration
+
+Override TypeScript thresholds separately from Python:
+
+```toml
+# [tool.skylos.languages.typescript]
+complexity = 15  # Higher threshold for TS
+nesting = 4
+```
+
+## Running Analysis
+
+Skylos automatically detects TypeScript files in the scan path:
+
+```bash
+# Scans both Python and TypeScript
+skylos ./src --danger --quality
+```
+
+### File Extensions
+
+Supported extensions:
+
+- `.ts` - TypeScript
+- `.tsx` - TypeScript with JSX
+
+## Output Example
+
+```
+──────────────────── Unreachable Functions ────────────────────
+ #   Name                 Location
+ 1   unusedHelper         src/utils.ts:45
+ 2   deprecatedFunc       src/legacy.ts:12
+
+───────────────────── Security Issues ─────────────────────────
+ #   Rule       Severity   Message                    Location
+ 1   SKY-D501   Critical   Use of eval() detected     src/dynamic.ts:23
+ 2   SKY-D502   High       Unsafe innerHTML           src/render.tsx:67
+
+────────────────────── Quality Issues ─────────────────────────
+ #   Type        Function       Detail                    Location
+ 1   Complexity  processData    Too complex (18)          src/processor.ts:30
+```
+
+## Limitations
+
+### Not Supported
+
+- **Type checking:** Skylos doesn't validate TypeScript types
+- **Import resolution:** Cross-file imports are not fully resolved
+- **Framework-specific patterns:** React hooks, Angular decorators are not specially handled
+- **JSDoc:** Documentation comments are not analyzed
+
+### Workarounds
+
+For React components that appear unused:
+
+```typescript
+// Components exported from index are often used externally
+export { MyComponent } from './MyComponent';  // Not flagged
+```
+
+For dynamic patterns:
+
+```typescript
+// noqa: skylos
+const handler = handlers[eventType];
+```
+
+## Dependencies
+
+TypeScript support requires:
+
+```
+tree-sitter>=0.25.2
+tree-sitter-typescript>=0.23.2
+```
+
+These are installed automatically with Skylos:
+
+
+**pip:**
+
+
+```bash install skylos
+```
+
+## Integration with Python Projects
+
+Skylos can analyze mixed-language projects:
+
+```
+my-project/
+├── backend/  # Python - fully analyzed
+│   ├── api/
+│   └── models/
+├── frontend/  # TypeScript - analyzed
+│   ├── src/
+│   └── components/
+└── pyproject.toml
+```
+
+```bash
+# Analyze everything
+skylos . --danger --quality
+
+# Analyze only frontend
+skylos ./frontend --quality
+```

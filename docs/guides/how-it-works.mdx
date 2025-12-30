@@ -1,0 +1,324 @@
+---
+title: "How Skylos Works"
+description: "Under the hood: the analysis pipeline that powers Skylos"
+---
+
+Skylos isn't a regex-based linter. It's a **multi-pass static analyzer** that builds a complete understanding of your codebase before reporting issues.
+
+## The Analysis Pipeline
+
+When you run `skylos .`, here's what happens:
+
+```mermaid
+flowchart TB
+    subgraph Phase1["Phase 1: Discovery"]
+        A[Find all .py files] --> B[Apply exclusion rules]
+        B --> C[Load configuration]
+    end
+    
+    subgraph Phase2["Phase 2: Parsing"]
+        D[Parse each file to AST] --> E[Extract definitions]
+        E --> F[Extract references]
+        F --> G[Detect frameworks]
+    end
+    
+    subgraph Phase3["Phase 3: Analysis"]
+        H[Build reference graph]
+        I[Run taint analysis]
+        J[Calculate complexity]
+        K[Scan for secrets]
+    end
+    
+    subgraph Phase4["Phase 4: Scoring"]
+        L[Cross-reference defs vs refs]
+        M[Apply framework rules]
+        N[Calculate confidence]
+    end
+    
+    subgraph Phase5["Phase 5: Output"]
+        O[Filter by threshold]
+        P[Format results]
+        Q[Check gate policies]
+    end
+    
+    Phase1 --> Phase2
+    Phase2 --> Phase3
+    H --> Phase4
+    I --> Phase4
+    J --> Phase4
+    K --> Phase4
+    Phase4 --> Phase5
+    
+    style Phase1 fill:#e0f2fe
+    style Phase2 fill:#ddd6fe
+    style Phase3 fill:#fce7f3
+    style Phase4 fill:#d1fae5
+    style Phase5 fill:#fef3c7
+```
+
+---
+
+## Phase 1: Discovery
+
+Skylos starts by mapping your project:
+
+```python
+# Pseudocode
+files = glob("**/*.py")
+files = filter_exclusions(files, config.exclude)
+# Result: list of files to analyze
+```
+
+**Default exclusions:** `__pycache__`, `.git`, `venv`, `.venv`, `node_modules`, `build`, `dist`
+
+These are skipped because they contain non-source files or third-party code you don't control.
+
+---
+
+## Phase 2: Parsing
+
+Each file is parsed into an **Abstract Syntax Tree (AST)**—a structured representation of your code:
+
+```mermaid
+flowchart LR
+    subgraph Source["Source Code"]
+        A["def hello():<br>    print('hi')"]
+    end
+    
+    subgraph AST["Abstract Syntax Tree"]
+        B[Module] --> C[FunctionDef: <br> hello]
+        C --> D[body]
+        D --> E[Expr]
+        E --> F[Call: print]
+        F --> G[Constant: 'hi']
+    end
+    
+    Source --> AST
+```
+
+From the AST, Skylos extracts:
+
+| Extraction | What It Captures |
+|------------|------------------|
+| **Definitions** | Functions, classes, methods, variables, imports |
+| **References** | Function calls, attribute access, name lookups |
+| **Framework signals** | Decorators, base classes, magic patterns |
+
+### Why AST, Not Regex?
+
+Regex can't understand code structure:
+
+```python
+# Regex sees "def unused" and might flag it
+"""
+def unused():  # This is in a docstring, not real code!
+    pass
+"""
+
+def real_function():
+    pass
+```
+
+AST parsing knows the difference between code and strings.
+
+---
+
+## Phase 3: Analysis Engines
+
+Skylos runs multiple analysis engines in parallel:
+
+### Reference Graph Builder
+
+Creates a map of what calls what:
+
+```mermaid
+flowchart LR
+    A[main] --> B[process_data]
+    A --> C[validate]
+    B --> D[transform]
+    B --> E[save]
+    
+    F[unused_helper]
+    
+    style F fill:#ff6b6b,color:#fff
+```
+
+Any definition with **zero incoming edges** is potentially dead code.
+
+### Taint Analysis Engine
+
+Traces data flow from sources to sinks:
+
+```mermaid
+flowchart LR
+    subgraph Sources["Taint Sources"]
+        A["request.args"]
+        B["request.form"]
+    end
+    
+    subgraph Propagation["Propagation"]
+        C["user_id = request.args.get('id')"]
+        D["query = f'SELECT * FROM users WHERE id = {user_id}'"]
+    end
+    
+    subgraph Sinks["Dangerous Sinks"]
+        E["cursor.execute(query)"]
+    end
+    
+    A --> C
+    C --> D
+    D --> E
+    
+    style A fill:#ff6b6b,color:#fff
+    style B fill:#ff6b6b,color:#fff
+    style E fill:#ffa502,color:#fff
+```
+
+The taint "flows" through assignments. When it reaches a sink, we flag it.
+
+### Complexity Calculator
+
+Walks function bodies counting decision points:
+
+
+**def:**
+
+
+```python example(x, y):      # Base: 1
+    if x > 0:           # +1 = 2
+        for i in y:     # +1 = 3
+            if i:       # +1 = 4
+                pass
+    return x            # Total: 4
+```
+
+### Secret Scanner
+
+Pattern-matches against known credential formats:
+
+```
+AKIA[0-9A-Z]{16}     → AWS Access Key
+ghp_[a-zA-Z0-9]{36}  → GitHub Token
+sk_live_[a-zA-Z0-9]+ → Stripe Key
+```
+
+---
+
+## Phase 4: Confidence Scoring
+
+Not every "unused" definition is actually dead. Skylos scores confidence based on signals:
+
+```mermaid
+flowchart LR
+    A["Initial confidence: 100%"] --> B{"Private name? <br> _helper"}
+    B -->|Yes| C["-80%"]
+    B -->|No| D["Keep 100%"]
+    
+    C --> E{"Framework decorator? <br> @app.route"}
+    D --> E
+    
+    E -->|Yes| F["-40%"]
+    E -->|No| G{"In __init__.py?"}
+    
+    F --> G
+    G -->|Yes| H["-15%"]
+    G -->|No| I["Final score"]
+    H --> I
+    
+    I --> J{"Score > threshold?"}
+    J -->|Yes| K["Report"]
+    J -->|No| L["Skip"]
+    
+    style K fill:#ff6b6b,color:#fff
+    style L fill:#2ed573,color:#fff
+```
+
+This is why Skylos has far fewer false positives than tools that do simple "is it referenced?" checks.
+
+---
+
+## Phase 5: Output & Gating
+
+Results are formatted and optionally checked against gate policies:
+
+```mermaid
+flowchart LR
+    A[Findings] --> B{Gate enabled?}
+    B -->|No| C[Output report]
+    B -->|Yes| D{Check thresholds}
+    
+    D --> E{"CRITICAL\nissues?"}
+    E -->|Yes| F["Gate FAIL"]
+    E -->|No| G{"Exceeds\nmax_security?"}
+    
+    G -->|Yes| F
+    G -->|No| H{"Exceeds\nmax_quality?"}
+    
+    H -->|Yes| F
+    H -->|No| I["Gate PASS"]
+    
+    I --> J[Run deploy command]
+    F --> K[Block & exit 1]
+    
+    style F fill:#ff6b6b,color:#fff
+    style I fill:#2ed573,color:#fff
+```
+
+---
+
+## Performance
+
+Skylos is designed for speed:
+
+| Optimization | How It Helps |
+|--------------|--------------|
+| **Parallel file parsing** | Multi-core AST parsing |
+| **Single-pass collection** | Definitions and references in one walk |
+| **Lazy taint analysis** | Only runs when `--danger` is enabled |
+| **Early filtering** | Exclusions applied before parsing |
+
+**Typical performance:**
+- 10K LOC: < 2 seconds
+- 100K LOC: < 10 seconds
+- 1M LOC: < 60 seconds
+
+---
+
+## Extensibility
+
+Skylos uses a rule-based architecture:
+
+
+**class:**
+
+
+```python
+# SkylosRule(ABC):
+    @property
+    def rule_id(self): ...      # e.g., "SKY-D210"
+    
+    @property
+    def name(self): ...         # e.g., "SQL Injection"
+    
+    def visit_node(self, node, context):
+        # Return findings or None
+        ...
+```
+
+Rules are organized by category:
+- `rules/danger/` — Security rules
+- `rules/quality/` — Complexity, nesting, structure
+- `rules/secrets.py` — Credential detection
+
+---
+
+## Next Steps
+
+
+  ### [Static Analysis Concepts](/concepts/static-analysis)
+    Learn the fundamentals of static analysis
+  
+  ### [Getting Started](/getting-started)
+    Run your first Skylos scan
+  
+

@@ -1,0 +1,359 @@
+---
+title: "Framework Awareness"
+description: "How Skylos understands Django, Flask, FastAPI, and other frameworks"
+---
+
+Skylos recognizes patterns from popular Python frameworks to reduce false positives in dead code detection. Framework-specific functions that are called implicitly by the framework are not flagged as unused.
+
+## Supported Frameworks
+
+- Django (views, signals, URL routing)
+- Flask (routes, error handlers)
+- FastAPI (routes, dependencies)
+- Pydantic (models, validators)
+- Celery (tasks)
+- Starlette (middleware)
+
+## How Detection Works
+
+Skylos identifies framework usage through:
+
+1. **Import scanning:** Detects `from flask import Flask`, `import django`, etc.
+2. **Decorator recognition:** Identifies `@app.route`, `@receiver`, `@pytest.fixture`
+3. **Base class analysis:** Recognizes `class MyView(APIView)`, `class Config(BaseModel)`
+4. **Pattern matching:** Identifies `urlpatterns`, `INSTALLED_APPS`, etc.
+
+## Django
+
+### Views
+
+Both function-based and class-based views are recognized:
+
+```python
+# Function-based view - not flagged
+def my_view(request):
+    return HttpResponse("Hello")
+
+# Class-based view - methods not flagged
+class MyView(View):
+    def get(self, request):
+        return HttpResponse("Hello")
+    
+    def post(self, request):
+        return HttpResponse("Created")
+```
+
+### URL Patterns
+
+Functions referenced in `urlpatterns` are marked as used:
+
+
+**urlpatterns:**
+
+
+```python = [
+    path('home/', home_view),  # home_view marked as used
+    path('api/', include('api.urls')),
+]
+```
+
+### Signals
+
+Signal receivers are recognized:
+
+
+**from:**
+
+
+```python django.db.models.signals import post_save
+from django.dispatch import receiver
+
+@receiver(post_save, sender=User)  # Not flagged
+def create_profile(sender, instance, created, **kwargs):
+    if created:
+        Profile.objects.create(user=instance)
+```
+
+### Django REST Framework
+
+ViewSet methods and serializer fields are recognized:
+
+
+**class:**
+
+
+```python
+# UserViewSet(viewsets.ModelViewSet):
+    # These methods are not flagged
+    def list(self, request):
+        pass
+    
+    def create(self, request):
+        pass
+    
+    def retrieve(self, request, pk=None):
+        pass
+```
+
+## Flask
+
+### Routes
+
+Route handlers are recognized via decorators:
+
+```python
+@app.route('/hello')  # Not flagged
+def hello():
+    return 'Hello, World!'
+
+@app.get('/users')  # Not flagged
+def get_users():
+    return jsonify(users)
+```
+
+### Error Handlers and Middleware
+
+```python
+@app.errorhandler(404)  # Not flagged
+def not_found(error):
+    return 'Not Found', 404
+
+@app.before_request  # Not flagged
+def before():
+    pass
+
+@app.after_request  # Not flagged
+def after(response):
+    return response
+```
+
+## FastAPI
+
+### Route Handlers
+
+```python
+@router.get('/items')  # Not flagged
+async def get_items():
+    return []
+
+@app.post('/items')  # Not flagged
+async def create_item(item: Item):
+    return item
+```
+
+### Dependency Injection
+
+Functions used as dependencies are recognized:
+
+
+**async:**
+
+
+```python def get_db():  # Recognized when used in Depends()
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+@app.get('/users')
+async def get_users(db: Session = Depends(get_db)):  # get_db not flagged
+    return db.query(User).all()
+```
+
+### Request Models
+
+Pydantic models used as type hints in routes are recognized:
+
+
+**class:**
+
+
+```python CreateUser(BaseModel):  # Not flagged - used in route
+    name: str
+    email: str
+
+@app.post('/users')
+async def create_user(user: CreateUser):  # CreateUser recognized
+    return user
+```
+
+## Pydantic
+
+### Models
+
+Classes inheriting from `BaseModel` have special handling:
+
+
+**class:**
+
+
+```python UserConfig(BaseModel):  # Not flagged if referenced
+    name: str
+    age: int
+    
+    class Config:  # Inner Config class not flagged
+        extra = 'forbid'
+```
+
+### Validators
+
+
+**class:**
+
+
+```python
+# User(BaseModel):
+    email: str
+    
+    @field_validator('email')  # Not flagged
+    def validate_email(cls, v):
+        if '@' not in v:
+            raise ValueError('Invalid email')
+        return v
+    
+    @model_validator(mode='after')  # Not flagged
+    def validate_model(self):
+        return self
+```
+
+### Computed Fields
+
+
+**class:**
+
+
+```python
+# Rectangle(BaseModel):
+    width: float
+    height: float
+    
+    @computed_field  # Not flagged
+    @property
+    def area(self) -> float:
+        return self.width * self.height
+```
+
+## Testing Frameworks
+
+### Pytest
+
+```python
+@pytest.fixture  # Not flagged
+def db_session():
+    session = create_session()
+    yield session
+    session.close()
+
+def test_user_creation(db_session):  # Not flagged - test_ prefix
+    user = User(name='Test')
+    db_session.add(user)
+```
+
+### Unittest
+
+
+**class:**
+
+
+```python
+# TestUser(unittest.TestCase):
+    def setUp(self):  # Not flagged
+        self.user = User()
+    
+    def tearDown(self):  # Not flagged
+        pass
+    
+    def test_name(self):  # Not flagged
+        self.assertEqual(self.user.name, 'default')
+```
+
+## Decorator Patterns
+
+Skylos recognizes these decorator patterns:
+
+```python
+# Route decorators
+@*.route
+@*.get, @*.post, @*.put, @*.delete, @*.patch
+@*.head, @*.options, @*.trace
+
+# Lifecycle decorators
+@*.before_request, @*.after_request
+@*.teardown_*, @*.on_event
+
+# Middleware
+@*.middleware, @*.exception_handler
+
+# Auth decorators
+@*_required, @login_required, @permission_required
+
+# Validators (Pydantic)
+@validator, @field_validator, @model_validator
+@root_validator, @field_serializer, @model_serializer
+```
+
+## Function Name Patterns
+
+Functions matching these patterns are recognized as framework callbacks:
+
+```python
+# HTTP methods (class-based views)
+get, post, put, patch, delete, head, options, trace
+
+# Django CBV methods
+get_queryset, get_object, get_context_data
+form_valid, form_invalid, get_form_*
+```
+
+## Confidence Penalties
+
+When framework patterns are detected, Skylos applies confidence penalties to reduce false positives:
+
+| Pattern | Confidence Penalty |
+|---------|-------------------|
+| Framework decorator | -40 |
+| Dynamic module access | -40 |
+| Test-related code | -100 |
+| Settings/Config class attributes | 0 (fully excluded) |
+
+## Configuration Class Handling
+
+Classes named `Settings`, `Config`, or ending with those suffixes have their attributes excluded from dead code detection:
+
+
+**class:**
+
+
+```python AppSettings:  # Attributes not flagged
+    DEBUG = True
+    DATABASE_URL = "postgresql://..."
+    
+class Config:  # Attributes not flagged
+    SECRET_KEY = "..."
+```
+
+## Limitations
+
+Framework awareness is based on static analysis and cannot detect all usage patterns:
+
+- **Dynamic routing:** Routes defined at runtime may not be detected
+- **Plugin systems:** Code loaded via plugins may appear unused
+- **Meta-programming:** Heavily meta-programmed code may produce false positives
+
+For these cases, use inline suppression or lower the confidence threshold:
+
+
+**def:**
+
+
+```python dynamic_handler():  # noqa: skylos
+    pass
+```
+
+
+**skylos:**
+
+
+```bash . --confidence 40
+```

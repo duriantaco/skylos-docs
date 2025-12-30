@@ -1,0 +1,174 @@
+---
+title: "CLI Reference"
+description: "Complete reference for all Skylos command-line options"
+---
+
+## Basic Usage
+```bash
+skylos <path> [options]
+```
+
+The `<path>` argument can be a directory (scans recursively) or a single file.
+
+## Commands
+
+### `skylos init`
+
+Initialize Skylos configuration in the current directory.
+```bash
+skylos init
+```
+
+Creates or appends a `[tool.skylos]` section to `pyproject.toml` with default settings.
+
+### `skylos run`
+
+Start the local analysis server with a web UI.
+```bash
+skylos run [--exclude-folder <folder>] [--include-folder <folder>] [--no-default-excludes]
+```
+
+Launches a Flask server at `http://localhost:5000` for interactive analysis. Requires `flask` and `flask-cors`.
+
+### `skylos <path>`
+
+Run static analysis on the specified path.
+```bash
+skylos . --danger --quality
+```
+
+## Output Options
+
+| Flag | Description |
+|------|-------------|
+| `--json` | Output raw JSON to stdout |
+| `--output`, `-o <file>` | Write results to a file |
+| `--tree` | Display findings in a hierarchical tree format |
+| `--table` | *(Deprecated)* Display findings in table format |
+
+## Analysis Flags
+
+| Flag | Description |
+|------|-------------|
+| `--danger` | Enable security vulnerability scanning |
+| `--secrets` | Enable API key and secret detection |
+| `--quality` | Enable code quality checks (complexity, nesting, etc.) |
+| `--trace` | Run tests with call tracing to capture dynamic dispatch (visitor patterns, getattr, plugins) |
+| `--confidence`| Confidence threshold (0-100). Lower values include more uncertain findings. Default: `60` |
+
+## Folder Exclusion
+
+| Flag | Description |
+|------|-------------|
+| `--exclude-folder <folder>` | Exclude a folder from analysis. Can be used multiple times. |
+| `--include-folder <folder>` | Force include a folder that would otherwise be excluded. |
+| `--no-default-excludes` | Do not exclude default folders (`__pycache__`, `.git`, `venv`, etc.) |
+| `--list-default-excludes` | Print the default excluded folders and exit |
+
+**Example:**
+```bash
+# Exclude tests and migrations, but include venv
+skylos . --exclude-folder tests --exclude-folder migrations --include-folder venv
+```
+
+## Interactive Mode
+
+| Flag | Description |
+|------|-------------|
+| `--interactive`, `-i` | Interactively select which findings to act on |
+| `--dry-run` | Show what would be removed without making changes |
+| `--comment-out` | Comment out dead code instead of deleting it |
+
+Interactive mode requires the `inquirer` package.
+
+## AI-Powered Features
+
+| Flag | Description |
+|------|-------------|
+| `--fix` | Use AI to automatically fix detected issues |
+| `--audit` | Deep scan files using AI for logic and security review |
+| `--model <model>` | Specify the LLM model (default: `gpt-4.1`). Use `claude-*` for Anthropic models. |
+
+These features require an API key. Skylos checks:
+
+1. Environment variables (`OPENAI_API_KEY` or `ANTHROPIC_API_KEY`)
+2. System keyring (saved from previous sessions)
+3. Interactive prompt (if neither is found)
+
+## Runtime Analysis
+
+| Flag | Description |
+|------|-------------|
+| `--trace` | Run pytest with `sys.settrace()` to record all function calls, reducing false positives from dynamic code |
+
+### When to Use `--trace`
+
+Use `--trace` when static analysis flags code you know is used:
+
+- **Visitor patterns** (`visit_FunctionDef` called via `getattr`)
+- **Plugin hooks** (`pytest_configure`, `pytest_addoption`)
+- **Dynamic dispatch** (`getattr(obj, method_name)()`)
+```bash
+skylos . --trace
+```
+
+:::note
+The `.skylos_trace` file is saved in your project root. Commit it to skip re-running tests on subsequent scans.
+:::
+
+## Quality Gate
+```bash
+skylos <path> --gate [command...]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--gate` | Run as a quality gate. Blocks if thresholds are exceeded. |
+
+If the gate passes, Skylos either runs the provided command or launches the deployment wizard. If the gate fails, it shows reasons and (unless `strict = true`) offers a bypass prompt.
+
+**Example:**
+```bash
+skylos . --danger --gate npm run deploy
+```
+
+## Other Options
+
+| Flag | Description |
+|------|-------------|
+| `--version` | Print version and exit |
+| `--verbose`, `-v` | Enable verbose logging |
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success (no issues or gate passed) |
+| `1` | Failure (analysis error or gate failed) |
+
+## Examples
+
+**Basic dead code scan:**
+```bash
+skylos .
+```
+
+**Full analysis with JSON output:**
+```bash
+skylos . --danger --secrets --quality --json -o report.json
+```
+
+**Interactive cleanup:**
+```bash
+skylos . -i --dry-run
+```
+
+**CI/CD gate that blocks on critical issues:**
+```bash
+skylos . --danger --quality --gate
+```
+
+**AI-powered audit of changed files:**
+```bash
+skylos . --audit --model claude-sonnet-4-20250514
+```

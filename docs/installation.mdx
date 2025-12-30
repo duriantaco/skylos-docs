@@ -1,0 +1,65 @@
+---
+title: Installation
+description: 'Get up and running with Skylos in under 2 minutes.'
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+## Prerequisites
+
+* Python 3.9+
+* Pip or UV
+
+## Install
+
+<Tabs>
+  <TabItem value="pip" label="pip" default>
+```bash
+pip install skylos
+```
+
+  </TabItem>
+  <TabItem value="uv" label="uv">
+```bash
+uv pip install skylos
+```
+
+  </TabItem>
+</Tabs>
+
+## Initialization
+
+Run the init command to create a default configuration in your project root.
+```bash 
+skylos init
+```
+
+This will create or append to your `pyproject.toml` file.
+
+## Configuration
+
+Skylos uses standard `pyproject.toml` configuration. You can tune complexity thresholds and ignore specific rules.
+```toml
+[tool.skylos]
+# Analysis Settings
+complexity = 15  # Max Cyclomatic complexity (Default: 10)
+nesting = 5  # Max indentation depth (Default: 3)
+max_args = 5  # Max arguments per function
+max_lines = 100  # Max lines per function
+ignore = ["SKY-L002"] # List of Rule IDs to ignore
+
+# Gatekeeper Settings (skylos --gate)
+[tool.skylos.gate]
+fail_on_critical = true
+max_security = 0
+max_quality = 10
+strict = false  # Set true to disable interactive bypass in CI
+```
+
+## Verify Installation
+
+Run a scan on your current directory to verify everything is working.
+```bash
+skylos --version
+```

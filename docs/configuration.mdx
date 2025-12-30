@@ -1,0 +1,113 @@
+---
+title: "Configuration"
+description: "Customize Skylos behavior through pyproject.toml"
+---
+
+Skylos uses `pyproject.toml` for configuration. Run `skylos init` to generate a configuration file with sensible defaults, or add the `[tool.skylos]` section to an existing file.
+
+## Configuration File
+```toml
+[tool.skylos]
+# Quality thresholds
+complexity = 10
+nesting = 3
+max_args = 5
+max_lines = 50
+
+# Rules to ignore (by rule ID)
+ignore = []
+
+# AI model for --fix and --audit
+model = "gpt-4.1"
+
+[tool.skylos.languages.typescript]
+# Language-specific overrides
+complexity = 15
+nesting = 4
+
+[tool.skylos.gate]
+# Quality gate settings
+fail_on_critical = true
+max_security = 0
+max_quality = 10
+strict = false
+```
+
+## Configuration Options
+
+### Quality Thresholds
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `complexity` | int | `10` | Maximum cyclomatic complexity before flagging a function |
+| `nesting` | int | `3` | Maximum nesting depth before flagging |
+| `max_args` | int | `5` | Maximum function arguments before flagging |
+| `max_lines` | int | `50` | Maximum function length in lines |
+
+### Analysis Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `ignore` | list | `[]` | List of rule IDs to suppress (e.g., `["SKY-L002", "SKY-Q301"]`) |
+| `model` | string | `"gpt-4.1"` | LLM model for AI-powered features |
+
+### Gate Configuration
+
+The `[tool.skylos.gate]` section controls the quality gate behavior when using `--gate`:
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `fail_on_critical` | bool | `true` | Block deployment if CRITICAL security issues or secrets are found |
+| `max_security` | int | `0` | Maximum allowed security findings before gate fails |
+| `max_quality` | int | `10` | Maximum allowed quality findings before gate fails |
+| `strict` | bool | `false` | When `true`, prevents bypassing a failed gate interactively |
+
+## Language-Specific Overrides
+
+You can override global settings for specific languages under `[tool.skylos.languages.<lang>]`:
+```toml
+[tool.skylos.languages.typescript]
+complexity = 15
+nesting = 4
+```
+
+Currently supported languages for overrides: `typescript`.
+
+## Configuration Resolution
+
+Skylos searches for `pyproject.toml` by walking up from the target path to the filesystem root. The first file containing `[tool.skylos]` is used. If no configuration is found, Skylos applies the built-in defaults.
+
+This approach was chosen over per-directory configuration to keep analysis consistent across monorepos while still allowing project-level customization.
+
+## Default Excluded Folders
+
+Skylos automatically excludes common non-source directories:
+```
+__pycache__
+.git
+.pytest_cache
+.mypy_cache
+.tox
+htmlcov
+.coverage
+build
+dist
+*.egg-info
+venv
+.venv
+```
+
+To see the current exclusion list:
+```bash
+skylos . --list-default-excludes
+```
+
+To disable default exclusions:
+```bash
+skylos . --no-default-excludes
+```
+
+To force-include a normally excluded folder:
+```bash
+skylos . --include-folder venv
+```

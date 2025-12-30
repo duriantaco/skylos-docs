@@ -1,0 +1,121 @@
+---
+slug: /
+sidebar_position: 1
+title: "Getting Started"
+description: "Prerequisites, installation, and project initialization."
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+This guide covers the setup process for using Skylos on a local machine.
+
+## Prerequisites
+
+Before installing Skylos, ensure your environment meets the following requirements:
+
+* **Operating System:** macOS, Linux, or Windows (WSL2 recommended).
+* **Python:** Version 3.9, 3.10, 3.11, or 3.12.
+* **Package Manager:** `pip` or `uv`.
+
+:::note
+**Browser Support:** Skylos is a CLI tool and does not require a web browser, although it can generate HTML reports that support Chrome, Edge, Firefox, and Safari.
+:::
+
+## Step 1: Installation
+
+Skylos is distributed via PyPI. Install it globally or within your project's virtual environment.
+
+<Tabs>
+  <TabItem value="pip" label="pip" default>
+```bash
+pip install skylos
+```
+
+  </TabItem>
+  <TabItem value="uv" label="uv">
+```bash
+uv pip install skylos
+```
+
+  </TabItem>
+</Tabs>
+
+To verify the installation, run:
+```bash
+skylos --version
+```
+
+## Step 2: Initialize a Project
+
+To scan a repository, you must initialize Skylos in the project root. This creates the configuration file required to define your quality policies.
+
+1. Navigate to your project folder.
+2. Run the initialization command:
+```bash
+skylos init
+```
+
+This will create (or append to) a `pyproject.toml` file with default settings:
+```toml
+[tool.skylos]
+complexity = 10
+nesting = 3
+max_args = 5
+```
+
+## Step 3: Configure AI Access (Optional)
+
+Skylos does not require a proprietary token. However, to use Auto-Fix (`--fix`) or Audit (`--audit`) features, you must provide an API key for a supported LLM provider.
+
+Skylos checks for keys in the following priority:
+
+1. **Environment Variables**: `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`.
+2. **System Keyring**: Keys saved via previous interactive sessions.
+3. **Interactive Prompt**: You will be prompted to paste a key if none is found.
+
+<Tabs>
+  <TabItem value="bash" label="Bash" default>
+```bash
+export OPENAI_API_KEY="sk-..."
+```
+
+  </TabItem>
+  <TabItem value="powershell" label="PowerShell">
+```powershell
+$env:OPENAI_API_KEY="sk-..."
+```
+
+  </TabItem>
+</Tabs>
+
+## Step 4: Run Your First Scan
+
+Once installed and initialized, you can perform a static analysis scan.
+```bash
+skylos .
+```
+
+### Reviewing Results
+
+The CLI will output a summary of findings grouped by category:
+
+- **Dead Code**: Unreachable functions, classes, and variables.
+- **Security**: Vulnerabilities detected by the Taint Engine.
+- **Quality**: Complexity and structural violations.
+
+To see a detailed breakdown of security issues, use the danger flag:
+```bash
+skylos . --danger
+```
+
+### Reducing False Positives
+
+If Skylos flags code you know is used (common with visitor patterns or dynamic dispatch), enable tracing:
+```bash
+skylos . --trace
+```
+
+This runs your test suite and records which functions were actually called, eliminating false positives from dynamic code.
+
+See [Smart Tracing](/smart-tracing) for details.

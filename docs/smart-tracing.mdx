@@ -1,0 +1,260 @@
+---
+title: "Smart Tracing"
+description: "Capture dynamic dispatch with runtime call tracing"
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+## The Problem: Static Analysis Has Limits
+
+Static analysis reads your code without running it. This works great for direct calls:
+```python
+def helper():
+    return "I help"
+
+def main():
+    helper()  # Static analysis sees this call
+```
+
+But Python is dynamic. Code can call functions without naming them directly:
+```python
+class Visitor(ast.NodeVisitor):
+    def visit_FunctionDef(self, node):  # Flagged as unused!
+        return self.generic_visit(node)
+
+# Called via: getattr(self, 'visit_' + node.__class__.__name__)
+visitor.visit(some_node)
+```
+
+Static analysis sees `visitor.visit()` but can't know that `visit_FunctionDef` gets called internally via `getattr()`.
+
+---
+
+## The Solution: Runtime Call Tracing
+
+The `--trace` flag runs your test suite with Python's `sys.settrace()` enabled, recording **every function that actually gets called**.
+```bash
+skylos . --trace
+```
+
+This:
+
+1. Runs `pytest` with call tracing enabled
+2. Records every function call to `.skylos_trace`
+3. Runs static analysis
+4. Cross-references findings with trace data
+5. Removes false positives
+```mermaid
+flowchart LR
+    A["skylos . --trace"] --> B["Run pytest"]
+    B --> C["sys.settrace()"]
+    C --> D["Record calls"]
+    D --> E[".skylos_trace"]
+    E --> F["Static analysis"]
+    F --> G["Cross-reference"]
+    G --> H["Accurate results"]
+    
+    style E fill:#8B5CF6,color:#fff
+    style H fill:#2ed573,color:#fff
+```
+
+---
+
+## What Gets Captured
+
+| Pattern | Static Analysis | With `--trace` |
+|---------|----------------|----------------|
+| `visitor.visit(node)` → `visit_FunctionDef` | Missed | Caught |
+| `getattr(obj, "method")()` | Missed | Caught |
+| `globals()["func_name"]()` | Missed | Caught |
+| Plugin hooks (`pytest_configure`) | Missed | Caught |
+| Signal handlers (`@receiver`) | Missed | Caught |
+| Dynamic imports + calls | Missed | Caught |
+
+---
+
+## When to Use `--trace`
+
+**Use It:**
+- AST/CST visitor patterns
+- Plugin architectures
+- Heavy `getattr()` / reflection
+- Many false positives from static analysis
+- Projects with good test coverage
+
+**Skip It:**
+- Simple codebases with direct calls
+- No test suite
+- CI where speed is critical
+- Already getting accurate results
+
+---
+
+## How It Works
+
+### 1. Call Recording
+
+When you run `skylos . --trace`, Skylos executes:
+```python
+import sys
+
+def trace_calls(frame, event, arg):
+    if event == 'call':
+        filename = frame.f_code.co_filename
+        func_name = frame.f_code.co_name
+        line = frame.f_code.co_firstlineno
+        # Record: (filename, func_name, line)
+    return trace_calls
+
+sys.settrace(trace_calls)
+pytest.main(["-q"])
+sys.settrace(None)
+```
+
+### 2. Trace File
+
+The results are saved to `.skylos_trace`:
+```json
+{
+  "version": 1,
+  "calls": [
+    {
+      "file": "/project/visitor.py",
+      "function": "visit_FunctionDef",
+      "line": 42,
+      "count": 156
+    },
+    {
+      "file": "/project/plugin.py",
+      "function": "pytest_configure",
+      "line": 10,
+      "count": 1
+    }
+  ]
+}
+```
+
+### 3. Cross-Reference
+
+During analysis, Skylos checks each "unused" function against the trace:
+```
+Definition: visit_FunctionDef at visitor.py:42
+Trace: visit_FunctionDef at visitor.py:42 (called 156 times)
+Result: Mark as used
+```
+
+---
+
+## Usage
+
+### Basic
+```bash
+skylos . --trace
+```
+
+### With Other Flags
+```bash
+skylos . --trace --danger --quality
+```
+
+### Reusing Trace Data
+
+The `.skylos_trace` file persists. On subsequent runs, Skylos uses it automatically:
+```bash
+# First run - generates trace
+skylos . --trace
+
+# Later runs - reuses existing trace
+skylos .
+```
+
+:::tip
+**Commit `.skylos_trace` to your repo** if your test suite is stable. CI runs will use it without re-running tests.
+:::
+
+---
+
+## Best Practices
+
+### 1. Good Test Coverage = Better Trace
+
+The trace only captures functions that run during tests. If a function isn't tested, it won't appear in the trace.
+```bash
+# Check your coverage first
+pytest --cov=. --cov-report=term-missing
+```
+
+### 2. Regenerate After Major Changes
+
+If you add new dynamic patterns, regenerate the trace:
+```bash
+rm .skylos_trace
+skylos . --trace
+```
+
+### 3. Exclude Test Files from Trace
+
+By default, Skylos excludes pytest internals. Your test functions themselves are recorded, which is correct - they verify that test code is executed.
+
+### 4. CI Integration
+```yaml
+# .github/workflows/skylos.yml
+- name: Run Skylos with Tracing
+  run: |
+    # Use cached trace if available
+    if [ ! -f .skylos_trace ]; then
+      skylos . --trace
+    else
+      skylos .
+    fi
+```
+
+---
+
+## Comparison
+
+| Approach | Accuracy | Speed | Setup |
+|----------|----------|-------|-------|
+| Static only | 70-85% | Fast | None |
+| Static + Framework rules | 85-95% | Fast | None |
+| Static + `--trace` | 95-99% | Slower (runs tests) | Requires tests |
+
+---
+
+## Troubleshooting
+
+### "No tests ran"
+
+The trace runs `pytest` by default. If your tests are elsewhere:
+```bash
+# Ensure pytest can find your tests
+pytest --collect-only
+```
+
+### Trace file not created
+
+Check if pytest is failing:
+```bash
+pytest -q
+```
+
+### Still getting false positives
+
+Some patterns can't be traced:
+- Code only called in production (not in tests)
+- External process calls
+- C extensions
+
+For these, use `# pragma: no skylos` to suppress:
+```python
+def production_only_handler():  # pragma: no skylos
+    ...
+```
+
+---
+
+## Next Steps
+
+- [Dead Code Detection](/dead-code-detection) - Learn how Skylos finds unused code
+- [Framework Awareness](/framework-awareness) - Built-in patterns for Django, Flask, FastAPI

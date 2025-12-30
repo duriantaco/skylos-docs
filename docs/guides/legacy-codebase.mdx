@@ -1,0 +1,494 @@
+---
+title: "Tutorial: Clean Up a Legacy Codebase"
+description: "Step-by-step guide to safely removing dead code from an existing project"
+---
+
+You've inherited a codebase. It's big, it's messy, and nobody knows what's actually used. This tutorial walks you through using Skylos to clean it up **safely**.
+
+## Before You Start
+
+:::warning
+  **Prerequisites:**
+  - Git repository with clean working tree
+  - Test suite (even partial coverage helps)
+  - 2-4 hours of uninterrupted time
+:::
+
+
+**git:**
+
+
+```bash status  # Should be clean
+git branch  # Create a cleanup branch
+git checkout -b cleanup/dead-code-removal
+```
+
+---
+
+## Phase 1: Assessment (30 min)
+
+First, understand the scope of the problem.
+
+### Step 1: Initial Scan
+
+
+**pip:**
+
+
+```bash install skylos
+skylos . --json -o baseline.json
+```
+
+### Step 2: Review the Numbers
+
+
+**skylos:**
+
+
+```bash
+# .
+```
+
+```
+Skylos Python Static Analysis Results
+Analyzed 156 file(s)
+
+Unreachable: 47  Unused imports: 234  Unused params: 89  Unused vars: 56
+```
+
+**Don't panic.** These numbers are normal for legacy codebases.
+
+### Step 3: Categorize the Findings
+
+```bash
+# High-confidence findings (safe to act on)
+skylos . --confidence 80 --json -o high-confidence.json
+
+# Count them
+cat high-confidence.json | python -c "import json,sys; d=json.load(sys.stdin); print(sum(len(v) for v in d.values() if isinstance(v,list)))"
+```
+
+**Start with high-confidence findings.** These are the safest to remove.
+
+---
+
+## Phase 2: Quick Wins (1 hour)
+
+Remove obvious dead code that's safe to delete.
+
+### Step 1: Unused Imports
+
+Unused imports are the safest to remove—they can't break runtime behavior.
+
+```bash
+# See unused imports
+skylos . --confidence 90 | grep -A 100 "Unused Imports"
+```
+
+```
+────────────────────── Unused Imports ───────────────────────
+ #   Name                    Location
+ 1   json                    api/views.py:3
+ 2   Optional                models.py:1
+ 3   deprecated_lib          utils/helpers.py:5
+```
+
+### Step 2: Interactive Removal
+
+
+**skylos:**
+
+
+```bash . -i --dry-run
+```
+
+Select only imports for now:
+
+```
+? Select unused imports to act on (space to select)
+❯ ◉ json (api/views.py:3)
+  ◉ Optional (models.py:1)
+  ◉ deprecated_lib (utils/helpers.py:5)
+```
+
+### Step 3: Apply Changes
+
+```bash
+# Remove selected imports
+skylos . -i
+```
+
+### Step 4: Verify
+
+```bash
+# Run tests
+pytest
+
+# If tests pass, commit
+git add -A
+git commit -m "chore: remove unused imports (47 files)"
+```
+
+:::tip
+  **Commit frequently.** Small commits are easier to revert if something breaks.
+:::
+
+---
+
+## Phase 3: Dead Functions (1-2 hours)
+
+Functions are riskier than imports. Proceed carefully.
+
+### Step 1: List Candidates
+
+
+**skylos:**
+
+
+```bash . --confidence 80 | grep -A 100 "Unreachable Functions"
+```
+
+```
+─────────────────── Unreachable Functions ───────────────────
+ #   Name                    Location
+ 1   legacy_handler          api/legacy.py:45
+ 2   unused_helper           utils/helpers.py:120
+ 3   old_validator           models/validators.py:30
+```
+
+### Step 2: Investigate Before Deleting
+
+For each function, check:
+
+```bash
+# Is it called dynamically?
+grep -r "getattr.*legacy_handler" .
+grep -r "'legacy_handler'" .
+grep -r '"legacy_handler"' .
+
+# Is it in a public API?
+grep -r "from.*import.*legacy_handler" .
+
+# Is it referenced in configs?
+grep -r "legacy_handler" *.yaml *.json *.toml
+```
+
+### Step 3: Comment Out First (Safer)
+
+
+**skylos:**
+
+
+```bash . -i --comment-out
+```
+
+This adds markers instead of deleting:
+
+```python
+# SKYLOS DEADCODE: def legacy_handler():
+# SKYLOS DEADCODE:     """Old handler, replaced in v2."""
+# SKYLOS DEADCODE:     pass
+```
+
+### Step 4: Run Full Test Suite
+
+
+**pytest:**
+
+
+```bash
+# Or your full CI command
+make test
+```
+
+### Step 5: Verify in Staging
+
+If tests pass, deploy to staging:
+
+
+**git:**
+
+
+```bash add -A
+git commit -m "chore: comment out potentially dead functions"
+git push origin cleanup/dead-code-removal
+# Deploy to staging
+```
+
+Monitor for a few days. If nothing breaks, convert comments to deletions.
+
+### Step 6: Permanent Deletion
+
+After staging validation:
+
+```bash
+# Find all marked dead code
+grep -r "SKYLOS DEADCODE" . --include="*.py"
+
+# Delete the commented lines (or do it manually)
+# Then commit
+git commit -am "chore: remove confirmed dead functions"
+```
+
+---
+
+## Phase 4: Framework Code (30 min)
+
+Framework code needs special attention due to implicit calling.
+
+### Step 1: Lower Confidence Threshold
+
+
+**skylos:**
+
+
+```bash . --confidence 50 | grep -A 50 "Unreachable"
+```
+
+You'll see more findings, but also more false positives.
+
+### Step 2: Check Framework Patterns
+
+For each finding, verify it's not:
+
+```python
+# Django view (called via URL routing)
+def user_detail(request, pk):  # Check urls.py
+    pass
+
+# Flask route (called via decorator)
+@app.route("/users")
+def get_users():  # Skylos should catch this, but verify
+    pass
+
+# Celery task (called via .delay())
+@celery.task
+def process_job():  # Called asynchronously
+    pass
+
+# Signal receiver
+@receiver(post_save)
+def on_save():  # Called implicitly
+    pass
+```
+
+### Step 3: Add Exclusions for False Positives
+
+```toml
+# pyproject.toml
+[tool.skylos]
+ignore = ["specific_false_positive_function"]
+```
+
+Or inline:
+
+
+**def:**
+
+
+```python framework_callback():  # noqa: skylos
+    pass
+```
+
+---
+
+## Phase 5: Quality Issues (Optional)
+
+While you're cleaning up, address quality issues too.
+
+
+**skylos:**
+
+
+```bash . --quality
+```
+
+```
+────────────────────────── Quality Issues ──────────────────────────
+ #   Type        Function              Detail                      Location
+ 1   Complexity  process_order         McCabe=23 (target ≤10)      orders.py:45
+ 2   Nesting     validate_all          Depth 7 (target ≤3)         validators.py:23
+```
+
+### Prioritize by Severity
+
+| Severity | Action |
+|----------|--------|
+| CRITICAL | Fix now (complexity 25+) |
+| HIGH | Fix soon (complexity 15-24) |
+| MEDIUM | Add to backlog |
+
+### Quick Complexity Fixes
+
+```python
+# Before: Complexity 15
+def process(data):
+    if data.valid:
+        if data.type == "A":
+            for item in data.items:
+                if item.active:
+                    # nested logic...
+
+# After: Complexity 6 (extract + early return)
+def process(data):
+    if not data.valid:
+        return None
+    if data.type == "A":
+        return process_type_a(data)
+    return process_other(data)
+
+def process_type_a(data):
+    return [handle(item) for item in data.items if item.active]
+```
+
+---
+
+## Phase 6: Set Up Prevention
+
+Don't let dead code accumulate again.
+
+### Pre-commit Hook
+
+```yaml
+# .pre-commit-config.yaml
+repos:
+  - repo: https://github.com/duriantaco/skylos
+    rev: v2.6.0
+    hooks:
+      - id: skylos-scan
+        args: [".", "--confidence", "80", "--danger"]
+```
+
+### CI Gate
+
+```yaml
+# .github/workflows/quality.yml
+- name: Skylos Gate
+  run: skylos . --danger --quality --gate
+```
+
+### Scheduled Cleanup
+
+```yaml
+# .github/workflows/cleanup-reminder.yml
+name: Monthly Cleanup Reminder
+on:
+  schedule:
+    - cron: '0 9 1 * *'  # First of each month
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install skylos
+      - run: |
+          skylos . --json -o report.json
+          echo "## Monthly Skylos Report" >> $GITHUB_STEP_SUMMARY
+          skylos . >> $GITHUB_STEP_SUMMARY
+```
+
+---
+
+## Checklist
+
+```
+□ Create cleanup branch
+□ Run baseline scan
+□ Remove unused imports (commit)
+□ Comment out dead functions (commit)
+□ Run tests
+□ Deploy to staging
+□ Monitor for 3-5 days
+□ Convert comments to deletions (commit)
+□ Address high-severity complexity (commit)
+□ Set up pre-commit hook
+□ Set up CI gate
+□ Merge to main
+```
+
+---
+
+## Troubleshooting
+
+
+  <details>
+<summary>Tests fail after removing 'dead' code</summary>
+
+    The code wasn't dead—it was called dynamically or by tests.
+    
+    ```bash
+    # Revert
+    git checkout -- path/to/file.py
+    
+    # Add suppression
+    def not_actually_dead():  # noqa: skylos
+        pass
+    ```
+  </details>
+  
+  <details>
+<summary>Too many findings to review</summary>
+
+    Raise the confidence threshold:
+    
+    
+**skylos:**
+
+
+```bash . --confidence 90
+    ```
+    
+    Focus on the highest-confidence items first.
+  </details>
+  
+  <details>
+<summary>Framework code keeps getting flagged</summary>
+
+    Skylos might not recognize your specific framework pattern. Add inline suppression:
+    
+    ```python
+    @custom_framework_decorator  # noqa: skylos
+    def handler():
+        pass
+    ```
+  </details>
+  
+  <details>
+<summary>Production broke after removing code</summary>
+
+    If code was called dynamically and tests didn't catch it:
+    
+    1. Revert immediately: `git revert HEAD`
+    2. Add monitoring for that code path
+    3. Add suppression: `# noqa: skylos`
+    4. Consider adding a test for the dynamic call
+  </details>
+
+
+---
+
+## Expected Results
+
+After completing this tutorial:
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Unused imports | 234 | < 10 |
+| Dead functions | 47 | < 5 |
+| Lines of code | 50,000 | 42,000 |
+| Test coverage | 60% | 72% |
+| Build time | 45s | 38s |
+
+---
+
+## Next Steps
+
+
+  ### [CI/CD Integration](/ci-cd)
+    Set up automated quality gates
+  
+  ### [Quality Gate](/quality-gate)
+    Configure gate policies
+  
+

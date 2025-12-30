@@ -1,0 +1,126 @@
+---
+title: "Rule Reference"
+description: "Complete list of all Skylos detection rules"
+---
+
+This page lists all rules that Skylos can detect, organized by category.
+
+## Security Rules (`--danger`)
+
+### Dangerous Function Calls
+
+| Rule ID | Severity | Description |
+|---------|----------|-------------|
+| `SKY-D201` | HIGH | Use of `eval()` |
+| `SKY-D202` | HIGH | Use of `exec()` |
+| `SKY-D203` | CRITICAL | Untrusted deserialization via `pickle.load()` |
+| `SKY-D204` | CRITICAL | Untrusted deserialization via `pickle.loads()` |
+| `SKY-D205` | HIGH | `yaml.load()` without `SafeLoader` |
+| `SKY-D206` | MEDIUM | Weak hash function (MD5) |
+| `SKY-D207` | MEDIUM | Weak hash function (SHA1) |
+| `SKY-D208` | HIGH | `requests` call with `verify=False` |
+
+### Injection Vulnerabilities
+
+| Rule ID | Severity | Description |
+|---------|----------|-------------|
+| `SKY-D210` | CRITICAL | SQL injection via tainted input |
+| `SKY-D211` | CRITICAL | Command injection via `os.system()` |
+| `SKY-D212` | CRITICAL | Command injection via `subprocess` with `shell=True` |
+| `SKY-D214` | HIGH | Path traversal via tainted file path |
+| `SKY-D215` | HIGH | XSS via tainted input in `Markup()` |
+| `SKY-D216` | CRITICAL | SSRF via tainted URL in HTTP client |
+| `SKY-D217` | CRITICAL | SQL injection via `sqlalchemy.text()`, `pandas.read_sql()`, or Django `.raw()` |
+
+### TypeScript Security
+
+| Rule ID | Severity | Description |
+|---------|----------|-------------|
+| `SKY-D501` | CRITICAL | Use of `eval()` |
+| `SKY-D502` | HIGH | Unsafe `innerHTML` assignment |
+
+## Quality Rules (`--quality`)
+
+### Complexity
+
+| Rule ID | Severity | Description | Default Threshold |
+|---------|----------|-------------|-------------------|
+| `SKY-Q301` | WARN/HIGH/CRITICAL | Cyclomatic complexity exceeds threshold | 10 |
+| `SKY-Q302` | MEDIUM/HIGH/CRITICAL | Nesting depth exceeds threshold | 3 |
+
+### Structure
+
+| Rule ID | Severity | Description | Default Threshold |
+|---------|----------|-------------|-------------------|
+| `SKY-Q303` | MEDIUM | Function length exceeds threshold | 50 lines |
+| `SKY-Q304` | MEDIUM | Argument count exceeds threshold | 5 arguments |
+
+### Logic
+
+| Rule ID | Severity | Description |
+|---------|----------|-------------|
+| `SKY-L001` | HIGH | Mutable default argument (list, dict, set) |
+| `SKY-L002` | MEDIUM | Bare `except:` block |
+| `SKY-L003` | LOW | Comparison to `True`, `False`, or `None` using `==` instead of `is` |
+
+### Performance
+
+| Rule ID | Severity | Description |
+|---------|----------|-------------|
+| `SKY-P401` | LOW | Performance anti-patterns (repeated `len()`, string concatenation in loops) |
+
+### TypeScript Quality
+
+| Rule ID | Severity | Description |
+|---------|----------|-------------|
+| `SKY-Q501` | MEDIUM | Function complexity exceeds threshold |
+
+## Secret Detection (`--secrets`)
+
+| Provider | Pattern | Example |
+|----------|---------|---------|
+| AWS | `AKIA[0-9A-Z]{16}` | `AKIAIOSFODNN7EXAMPLE` |
+| GitHub | `ghp_`, `gho_`, `ghu_` prefixes | `ghp_xxxxxxxxxxxx` |
+| Slack | `xox[baprs]-` prefix | `xoxb-xxxxxxxxxxxx` |
+| Stripe | `sk_live_`, `rk_live_` prefixes | `sk_live_xxxxxxxxxxxx` |
+| Generic | Variable names like `api_key`, `secret`, `password` | `API_KEY = "..."` |
+
+## Severity Reference
+
+| Level | Priority | Gate Behavior | Description |
+|-------|----------|---------------|-------------|
+| `CRITICAL` | 1 (highest) | Blocks if `fail_on_critical = true` | Exploitable vulnerability or severe bug |
+| `HIGH` | 2 | Counted in `max_security` / `max_quality` | Serious issue that should be fixed |
+| `MEDIUM` | 3 | Counted in limits | Notable issue worth addressing |
+| `WARN` | 4 | Counted in limits | Minor issue to consider |
+| `LOW` | 5 (lowest) | Not counted | Informational, style suggestion |
+
+## Suppressing Rules
+
+### Inline Suppression
+
+
+**def:**
+
+
+```python internal_helper():  # noqa: skylos
+    eval(user_input)  # This specific line is suppressed
+```
+
+### Global Suppression
+
+In `pyproject.toml`:
+
+```toml
+# [tool.skylos]
+ignore = ["SKY-L002", "SKY-D206"]
+```
+
+## Rule Categories Summary
+
+| Category | Flag | Rule Prefix | Description |
+|----------|------|-------------|-------------|
+| Dead Code | *(always on)* | — | Unused functions, imports, classes, variables |
+| Security | `--danger` | `SKY-D` | Vulnerabilities and dangerous patterns |
+| Quality | `--quality` | `SKY-Q`, `SKY-L`, `SKY-P` | Complexity, structure, logic, performance |
+| Secrets | `--secrets` | — | Hardcoded credentials and API keys |

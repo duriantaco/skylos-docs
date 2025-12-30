@@ -1,0 +1,55 @@
+---
+title: "What is Skylos?"
+description: "Architecture, supported languages, and core concepts."
+---
+
+**Skylos** is a developer-security platform that runs entirely in your local environment or CI/CD pipeline. Unlike SaaS scanners that require code uploads, Skylos performs Static Application Security Testing (SAST) and runtime analysis on your infrastructure.
+
+## Core Capabilities
+
+Skylos is composed of four integrated engines:
+
+
+  ### Scanner (SAST)
+    Analyzes AST (Abstract Syntax Tree) to find security flaws, dead code, and logic bugs without running the code.
+  
+  ### Auto-Pilot
+    A runtime agent that hooks into your Python environment to track real-world function usage and detect "Zombie Code."
+  
+  ### Gatekeeper
+    A policy enforcer for CI/CD that blocks deployments based on security severity or quality metrics.
+  
+  ### Fixer
+    An auto-remediation engine using LibCST and Generative AI (OpenAI/Anthropic) to repair code safely.
+  
+
+
+## Supported Ecosystems
+
+Skylos currently supports the following languages and frameworks.
+
+### Languages
+
+| Language | Static Analysis | Runtime Tracking | AI Repair |
+| :--- | :---: | :---: | :---: |
+| **Python** (3.9+) | ✅ | ✅ | ✅ |
+| **TypeScript** | ✅ | ❌ | ❌ |
+| **JavaScript** | ⚠️ (Beta) | ❌ | ❌ |
+
+### Frameworks
+
+Skylos includes specific heuristics to support "magic" patterns in these frameworks [cite: 478-480]:
+
+* **Web:** Django, Flask, FastAPI, Starlette, Pydantic.
+* **Async:** Uvicorn, Celery.
+* **Testing:** Pytest, Unittest.
+
+## Architecture & Data Privacy
+
+Skylos operates on a **Local-First** model.
+
+* **No SaaS Account:** You do not need to create a Skylos account to run the scanner.
+* **Data Residency:** All scan results and usage telemetry (`.skylos_usage.json`) are stored on your local disk.
+* **AI Privacy:** When using `--fix` or `--audit`, code snippets are sent to your configured LLM provider (OpenAI or Anthropic) via their respective APIs. No code is stored by Skylos.
+
+---

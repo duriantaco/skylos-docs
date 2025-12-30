@@ -1,0 +1,250 @@
+---
+title: "AI-Powered Features"
+description: "Using LLMs for automated fixes and deep code audits"
+---
+
+Skylos integrates with OpenAI and Anthropic to provide AI-assisted code analysis and remediation.
+
+## Setup
+
+### API Key Configuration
+
+Skylos checks for API keys in this order:
+
+1. **Environment variables:** `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`
+2. **System keyring:** Keys saved from previous sessions
+3. **Interactive prompt:** If no key is found, you'll be prompted to enter one
+
+
+**Bash:**
+
+
+```bash
+export OPENAI_API_KEY="sk-..."
+```
+
+
+**Anthropic:**
+
+
+```bash
+export ANTHROPIC_API_KEY="sk-ant-..."
+```
+
+Keys entered interactively are saved to your system keyring for future use.
+
+### Model Selection
+
+Use the `--model` flag to specify which model to use:
+
+```bash
+# OpenAI (default)
+skylos . --fix --model gpt-4.1
+
+# Anthropic Claude
+skylos . --fix --model claude-sonnet-4-20250514
+```
+
+The model name determines which provider is used:
+- Names containing `claude` → Anthropic
+- All others → OpenAI
+
+## Auto-Fix (`--fix`)
+
+Automatically generate fixes for detected issues:
+
+
+**skylos:**
+
+
+```bash . --danger --quality --fix
+```
+
+### How It Works
+
+1. Skylos runs analysis and collects findings
+2. For each finding, it sends the relevant code context to the LLM
+3. The LLM generates a fix with an explanation
+4. You review and apply the changes
+
+### Output
+
+```
+Attempting to fix: Possible SQL injection in api/db.py:45
+
+File: api/db.py:45
+Problem: User input is concatenated directly into SQL query
+Change:  Use parameterized query with placeholder
+
+┌──────────── Proposed Code ───────────
+│ def get_user(user_id):                              │
+│     cursor.execute(                                 │
+│         "SELECT * FROM users WHERE id = %s",        │ 
+│         (user_id,)                                  │
+│     )                                               │
+│     return cursor.fetchone()                        │
+└──────────────────────────────────
+```
+
+### What Gets Fixed
+
+- Security vulnerabilities (SQL injection, command injection, etc.)
+- Code quality issues (complexity, mutable defaults, etc.)
+- Dead code (unused functions, imports, variables)
+
+### Limitations
+
+- Fixes are suggestions—always review before applying
+- Complex refactors may require manual adjustment
+- Context is limited to single-file analysis
+
+## Deep Audit (`--audit`)
+
+Perform comprehensive AI-powered code review:
+
+
+**skylos:**
+
+
+```bash . --audit
+```
+
+### How It Works
+
+1. **File selection:** Choose which files to audit (interactive or all)
+2. **Cost estimation:** See estimated API costs before proceeding
+3. **Deep analysis:** LLM reviews each file for logic errors, security issues, and improvements
+4. **Detailed report:** Get findings with explanations and fix suggestions
+
+### Interactive File Selection
+
+When auditing a directory, Skylos shows an interactive file picker:
+
+```
+? Select files to audit (Space to select)
+  ❯ ◉ [CHANGED] api/views.py (12.3 KB)
+    ◯ models.py (8.1 KB)
+    ◉ [CHANGED] utils/helpers.py (4.2 KB)
+    ◯ config.py (1.5 KB)
+```
+
+Files modified in git are pre-selected and marked with `[CHANGED]`.
+
+### Cost Estimation
+
+Before processing, Skylos estimates the API cost:
+
+```
+─────────────────────────────────────────
+Files:   3
+Cost:    ~$0.0234
+? Proceed? (Y/n)
+```
+
+:::warning
+  Auditing more than 10 files can be slow and costly. Consider auditing incrementally or focusing on changed files.
+:::
+
+### Audit Scope
+
+The audit examines:
+
+- **Logic errors:** Off-by-one, incorrect conditions, missing edge cases
+- **Security:** Vulnerabilities that static analysis might miss
+- **Best practices:** Idiomatic patterns, error handling, naming
+- **Performance:** Inefficient algorithms, unnecessary operations
+
+### Git Integration
+
+When auditing a directory, Skylos prioritizes files changed in git:
+
+
+**git:**
+
+
+```bash diff --name-only HEAD
+```
+
+Changed files appear first in the selection list and are pre-selected.
+
+## Provider Adapters
+
+Skylos uses a unified adapter interface for LLM providers:
+
+### OpenAI
+
+```python
+# Uses the Responses API
+model = "gpt-4.1"  # or gpt-4o, gpt-3.5-turbo, etc.
+```
+
+### Anthropic
+
+```python
+# Uses the Messages API
+model = "claude-sonnet-4-20250514"  # or claude-3-opus, etc.
+```
+
+## Best Practices
+
+### For Auto-Fix
+
+1. **Run analysis first:** Use `--danger --quality` to see findings before fixing
+2. **Review changes:** Never blindly apply AI-generated fixes
+3. **Test after:** Run your test suite after applying fixes
+4. **Fix incrementally:** Address one category of issues at a time
+
+### For Audit
+
+1. **Start small:** Audit a few critical files rather than the entire codebase
+2. **Focus on changes:** Prioritize recently modified code
+3. **Use with CI:** Run audits on PRs to catch issues before merge
+4. **Budget awareness:** Monitor costs, especially for large codebases
+
+## Configuration
+
+Set the default model in `pyproject.toml`:
+
+```toml
+# [tool.skylos]
+model = "gpt-4.1"
+```
+
+Override on the command line:
+
+
+**skylos:**
+
+
+```bash . --fix --model claude-sonnet-4-20250514
+```
+
+## Troubleshooting
+
+### "No API key found"
+
+Set the appropriate environment variable or enter the key when prompted:
+
+
+**export:**
+
+
+```bash
+# OPENAI_API_KEY="sk-..."
+```
+
+### "Model not found"
+
+Ensure the model name is correct and your API key has access to that model.
+
+### High costs
+
+- Reduce file count with selective auditing
+- Use smaller models for initial passes
+- Focus on changed files only
+
+### Slow responses
+
+- Audit fewer files at once
+- Use faster models (e.g., `gpt-4o-mini`)
+- Check your network connection

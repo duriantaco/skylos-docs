@@ -1,0 +1,240 @@
+---
+title: "FAQ"
+description: "Frequently asked questions about Skylos"
+---
+
+## General
+
+### What is Skylos?
+
+Skylos is a static analysis tool for Python (and TypeScript) that detects:
+
+- **Dead code:** Unused functions, imports, classes, variables
+- **Security vulnerabilities:** SQL injection, command injection, SSRF, XSS
+- **Code quality issues:** High complexity, deep nesting, mutable defaults
+
+Unlike simple linters, Skylos uses taint analysis to trace data flow and framework awareness to reduce false positives.
+
+### Is Skylos free?
+
+Yes. Skylos is open source and free to use. The AI-powered features (`--fix`, `--audit`) require your own OpenAI or Anthropic API key.
+
+### What Python versions are supported?
+
+Python 3.9, 3.10, 3.11, and 3.12 are supported.
+
+### Does Skylos work with my framework?
+
+Skylos has built-in awareness for Django, Flask, FastAPI, Pydantic, and Pytest. Other frameworks work but may have more false positives for implicitly-called code.
+
+### How is Skylos different from Pylint/Bandit?
+
+| Tool | Focus | Approach |
+|------|-------|----------|
+| Pylint | Style + errors | Pattern matching |
+| Bandit | Security | Pattern matching |
+| Skylos | Dead code + Security + Quality | Taint analysis + Framework awareness |
+
+Skylos catches vulnerabilities that pattern matchers miss (indirect data flows) and has fewer false positives for dead code (framework awareness).
+
+---
+
+## Installation & Setup
+
+### How do I install Skylos?
+```bash
+pip install skylos
+```
+
+Verify with `skylos --version`.
+
+### Do I need to configure anything?
+
+No. Skylos works out of the box with sensible defaults. For customization, run `skylos init` to create a `[tool.skylos]` section in your `pyproject.toml`.
+
+### How do I set up AI features?
+
+Set an environment variable and use the appropriate flag:
+```bash
+export OPENAI_API_KEY="sk-..."
+skylos . --fix
+```
+
+---
+
+## Usage
+
+### What's the basic command?
+```bash
+skylos .                              # Dead code only
+skylos . --danger --quality --secrets # Full analysis
+skylos . --danger --quality --gate    # With quality gate
+```
+
+### How do I scan a single file?
+```bash
+skylos path/to/file.py
+```
+
+### How do I exclude folders?
+```bash
+skylos . --exclude-folder tests --exclude-folder migrations
+```
+
+Or in `pyproject.toml`:
+```toml
+[tool.skylos]
+exclude = ["tests", "migrations"]
+```
+
+### How do I ignore specific rules?
+
+Inline suppression:
+```python
+def function():  # noqa: skylos
+    pass
+```
+
+Global suppression in `pyproject.toml`:
+```toml
+[tool.skylos]
+ignore = ["SKY-D201", "SKY-L002"]
+```
+
+### How do I get JSON output?
+```bash
+skylos . --json -o report.json
+```
+
+### What does --confidence do?
+
+Filters findings by certainty. Default is 60. Use `--confidence 80` for fewer, safer results or `--confidence 40` to include more uncertain findings.
+
+---
+
+## False Positives
+
+### Why is my Flask/Django route flagged as unused?
+
+Skylos should detect framework decorators. If it doesn't, ensure the file imports the framework, check for non-standard decorator patterns, or add `# noqa: skylos`. Report undetected patterns on GitHub.
+
+### Why is dynamically-called code flagged?
+
+Static analysis can't see runtime behavior like `getattr()` calls. Use `--trace` to capture runtime calls, add `# noqa: skylos`, or lower the confidence threshold.
+
+### Why are my test fixtures flagged?
+
+Skylos should recognize pytest fixtures. Ensure the file matches test patterns (`test_*.py`) and has the `@pytest.fixture` decorator. Report issues with a minimal example.
+
+### How do I report a false positive?
+
+Open an issue at [github.com/duriantaco/skylos](https://github.com/duriantaco/skylos) with a minimal code example, Skylos output, expected behavior, and version.
+
+---
+
+## Security Scanning
+
+### What vulnerabilities does Skylos detect?
+
+SQL injection, command injection, SSRF, XSS, path traversal, dangerous functions (eval, exec, pickle), weak cryptography, disabled SSL verification, and hardcoded secrets. See [Rule Reference](/rule-reference) for details.
+
+### What is taint analysis?
+
+Taint analysis tracks how untrusted data flows through your code. If tainted data reaches a dangerous function, it's flagged:
+```python
+user_id = request.args.get("id")                      # Source: tainted
+query = f"SELECT * FROM users WHERE id = {user_id}"   # Propagation
+cursor.execute(query)                                  # Sink: flagged
+```
+
+### How do I fix a SQL injection finding?
+
+Use parameterized queries:
+```python
+# Vulnerable
+cursor.execute(f"SELECT * FROM users WHERE id = {user_id}")
+
+# Safe
+cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+```
+
+### Why is my code flagged but I sanitize the input?
+
+Skylos may not recognize custom sanitization functions. Use standard library sanitization, add inline suppression with a comment, or report the pattern for recognition.
+
+---
+
+## Quality Gate
+
+### How does the quality gate work?
+
+The gate compares findings against thresholds in your config:
+```toml
+[tool.skylos.gate]
+fail_on_critical = true
+max_security = 0
+max_quality = 10
+```
+
+If thresholds are exceeded, `skylos --gate` exits with code 1.
+
+### Can I bypass the gate?
+
+In interactive terminals, you'll be prompted to bypass unless `strict = true`. In CI/CD, the gate cannot be bypassed.
+
+### How do I set up the gate in CI?
+```yaml
+- name: Quality Gate
+  run: skylos . --danger --quality --gate
+```
+
+See [CI/CD Integration](/ci-cd) for full examples.
+
+---
+
+## Performance
+
+### How fast is Skylos?
+
+| Codebase Size | Time |
+|---------------|------|
+| 10K lines | < 2 seconds |
+| 100K lines | < 10 seconds |
+| 1M lines | < 60 seconds |
+
+Security scanning (`--danger`) adds ~20% overhead.
+
+### How can I make it faster?
+
+Exclude non-essential folders, scan only changed files, or skip security scanning if you only need dead code detection.
+
+---
+
+## Troubleshooting
+
+### 'skylos' command not found
+
+Ensure you installed it with `pip install skylos` and your virtual environment is activated. Try `python -m skylos.cli .` as an alternative.
+
+### Analysis takes forever
+
+You may be scanning a large directory. Use `--verbose` to check what's being analyzed and add `--exclude-folder` for large non-source directories.
+
+### Getting different results locally vs CI
+
+Check for different Python versions, exclusion settings, or Skylos versions between environments. Pin the version in CI with `pip install skylos==2.6.0`.
+
+### Error parsing a file
+
+Skylos requires valid Python syntax. Verify with `python -m py_compile path/to/file.py` and fix any syntax errors.
+
+### AI features not working
+
+Verify your API key is set (`echo $OPENAI_API_KEY`), the key is valid, and you have available credits/quota.
+
+---
+
+## More Help
+
+- [GitHub Issues](https://github.com/duriantaco/skylos/issues) — Report bugs or request features
+- [Discussions](https://github.com/duriantaco/skylos/discussions) — Ask questions and share tips

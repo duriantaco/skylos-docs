@@ -1,0 +1,371 @@
+---
+title: "CI/CD Integration"
+description: "Integrate Skylos into your continuous integration pipeline"
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+Skylos integrates with popular CI/CD systems to enforce code quality standards automatically.
+
+## GitHub Actions
+
+### Basic Workflow
+```yaml
+name: Skylos Analysis
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  skylos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install Skylos
+        run: pip install skylos
+      
+      - name: Run Analysis
+        run: skylos . --danger --quality --output report.json
+      
+      - name: Upload Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: skylos-report
+          path: report.json
+```
+
+### With Quality Gate
+```yaml
+name: Skylos Gate
+
+on: [push, pull_request]
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install Skylos
+        run: pip install skylos
+      
+      - name: Run Quality Gate
+        run: skylos . --danger --quality --gate
+```
+
+### Full Workflow with Reporting
+```yaml
+name: Skylos CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install Skylos
+        run: pip install skylos
+      
+      - name: Run Skylos
+        id: scan
+        run: |
+          skylos . --danger --quality --secrets \
+            --confidence 70 \
+            --output skylos-report.json
+          echo "REPORT=skylos-report.json" >> $GITHUB_OUTPUT
+      
+      - name: Check Results
+        if: always()
+        run: |
+          python <<'PY'
+          import json, sys, os
+          report = os.environ.get("REPORT", "skylos-report.json")
+          data = json.load(open(report, "r", encoding="utf-8"))
+          count = sum(len(v) for v in data.values() if isinstance(v, list))
+          print(f"Findings: {count}")
+          if count > 0:
+              print(f"::warning title=Skylos::{count} potential issues found")
+          sys.exit(1 if count > 0 else 0)
+          PY
+        env:
+          REPORT: ${{ steps.scan.outputs.REPORT }}
+      
+      - name: Upload Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.scan.outputs.REPORT }}
+          path: ${{ steps.scan.outputs.REPORT }}
+      
+      - name: Add Summary
+        if: always()
+        run: |
+          echo "### Skylos Report" >> $GITHUB_STEP_SUMMARY
+          echo "Report: ${{ steps.scan.outputs.REPORT }}" >> $GITHUB_STEP_SUMMARY
+```
+
+## Pre-commit Hooks
+
+### Installation
+
+Add to `.pre-commit-config.yaml`:
+```yaml
+repos:
+  - repo: https://github.com/duriantaco/skylos
+    rev: v2.6.0
+    hooks:
+      - id: skylos-scan
+        name: Skylos Analysis
+        entry: python -m skylos.cli
+        language: python
+        types_or: [python]
+        pass_filenames: false
+        require_serial: true
+        args: [".", "--output", "report.json", "--confidence", "70", "--danger"]
+```
+
+### With Failure on Findings
+```yaml
+repos:
+  - repo: https://github.com/duriantaco/skylos
+    rev: v2.6.0
+    hooks:
+      - id: skylos-scan
+        name: skylos report
+        entry: python -m skylos.cli
+        language: python
+        types_or: [python]
+        pass_filenames: false
+        require_serial: true
+        args: [".", "--output", "report.json", "--confidence", "70", "--danger"]
+
+  - repo: local
+    hooks:
+      - id: skylos-fail-on-findings
+        name: skylos gate
+        language: python
+        language_version: python3
+        pass_filenames: false
+        require_serial: true
+        entry: >
+          python -c "import os, json, sys, pathlib;
+          p=pathlib.Path('report.json');
+          if not p.exists(): sys.exit(0);
+          data=json.loads(p.read_text(encoding='utf-8'));
+          count = sum(len(v) for v in data.values() if isinstance(v, list));
+          print(f'[skylos] findings: {count}');
+          sys.exit(0 if os.getenv('SKYLOS_SOFT') or count==0 else 1)"
+```
+
+Set `SKYLOS_SOFT=1` to report findings without blocking:
+```bash
+SKYLOS_SOFT=1 git commit -m "WIP"
+```
+
+### Install Pre-commit
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+## GitLab CI
+```yaml
+stages:
+  - test
+
+skylos:
+  stage: test
+  image: python:3.11-slim
+  script:
+    - pip install skylos
+    - skylos . --danger --quality --output report.json
+  artifacts:
+    paths:
+      - report.json
+    when: always
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+
+skylos-gate:
+  stage: test
+  image: python:3.11-slim
+  script:
+    - pip install skylos
+    - skylos . --danger --quality --gate
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+```
+
+## Jenkins
+
+### Jenkinsfile
+```groovy
+pipeline {
+    agent any
+    
+    stages {
+        stage('Setup') {
+            steps {
+                sh 'pip install skylos'
+            }
+        }
+        
+        stage('Skylos Analysis') {
+            steps {
+                sh 'skylos . --danger --quality --output report.json'
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'report.json', fingerprint: true
+                }
+            }
+        }
+        
+        stage('Quality Gate') {
+            steps {
+                sh 'skylos . --danger --quality --gate'
+            }
+        }
+    }
+}
+```
+
+## Azure DevOps
+```yaml
+trigger:
+  - main
+  - develop
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.11'
+  
+  - script: pip install skylos
+    displayName: 'Install Skylos'
+  
+  - script: skylos . --danger --quality --output $(Build.ArtifactStagingDirectory)/report.json
+    displayName: 'Run Skylos'
+  
+  - task: PublishBuildArtifacts@1
+    inputs:
+      pathToPublish: '$(Build.ArtifactStagingDirectory)/report.json'
+      artifactName: 'skylos-report'
+    condition: always()
+```
+
+## CircleCI
+```yaml
+version: 2.1
+
+jobs:
+  skylos:
+    docker:
+      - image: cimg/python:3.11
+    steps:
+      - checkout
+      - run:
+          name: Install Skylos
+          command: pip install skylos
+      - run:
+          name: Run Analysis
+          command: skylos . --danger --quality --output report.json
+      - store_artifacts:
+          path: report.json
+          destination: skylos-report
+
+workflows:
+  main:
+    jobs:
+      - skylos
+```
+
+## Best Practices
+
+### Incremental Adoption
+
+Start with reporting only, then enable blocking:
+```yaml
+# Phase 1: Report only
+- run: skylos . --danger --quality --output report.json || true
+
+# Phase 2: Fail on critical
+- run: skylos . --danger --gate  # Uses fail_on_critical = true
+
+# Phase 3: Full gate
+- run: skylos . --danger --quality --gate
+```
+
+### Cache Dependencies
+
+Speed up CI by caching pip packages:
+```yaml
+- uses: actions/cache@v4
+  with:
+    path: ~/.cache/pip
+    key: ${{ runner.os }}-pip-skylos
+```
+
+### Parallel Jobs
+
+Run different checks in parallel:
+```yaml
+jobs:
+  dead-code:
+    runs-on: ubuntu-latest
+    steps:
+      - run: skylos . --output dead-code.json
+  
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - run: skylos . --danger --secrets --output security.json
+  
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: skylos . --quality --output quality.json
+```
+
+### Branch-Specific Rules
+
+Apply stricter rules to main branches:
+```yaml
+- name: Quality Gate (strict)
+  if: github.ref == 'refs/heads/main'
+  run: skylos . --danger --quality --gate
+  env:
+    SKYLOS_STRICT: "1"
+
+- name: Quality Gate (permissive)
+  if: github.ref != 'refs/heads/main'
+  run: skylos . --danger --output report.json || true
+```
