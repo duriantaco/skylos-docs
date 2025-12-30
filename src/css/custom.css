@@ -294,27 +294,6 @@ details > *:not(summary) {
   opacity: 0.7;
 }
 
-/* CTA Button */
-/* .navbar-cta-button {
-  background: linear-gradient(135deg, #8B5CF6 0%, #4C1D95 100%);
-  color: white !important;
-  padding: 0.5rem 1rem !important;
-  border-radius: 8px;
-  font-weight: 600 !important;
-  font-size: 0.875rem !important;
-  transition: all 0.2s ease;
-  border: none;
-  box-shadow: 0 2px 4px rgba(76, 29, 149, 0.3);
-} */
-
-/* .navbar-cta-button:hover {
-  background: linear-gradient(135deg, #7c3aed 0%, #3b1673 100%);
-  color: white !important;
-  text-decoration: none;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(76, 29, 149, 0.4);
-} */
-
 [data-theme='dark'] .navbar-cta-button {
   background: linear-gradient(135deg, #8B5CF6 0%, #6d28d9 100%);
   box-shadow: 0 2px 4px rgba(139, 92, 246, 0.3);
