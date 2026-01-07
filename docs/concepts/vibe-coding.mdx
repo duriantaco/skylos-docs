@@ -7,11 +7,8 @@ description: "Why coding with AI assistants creates hidden problems—and how to
 
 ## The Rise of AI-Assisted Development
 
-
-**xychart:**
-
-
-```mermaid-beta
+```mermaid
+xychart-beta
     title "Developer AI Assistant Usage (2023-2025)"
     x-axis ["2023 Q1", "2023 Q3", "2024 Q1", "2024 Q3", "2025 Q1"]
     y-axis "% of Developers Using AI" 0 --> 100
@@ -136,22 +133,18 @@ def sum_numbers(
 
 AI creates helper functions you never call:
 
-
-**flowchart:**
-
-
 ```mermaid
-# TB
+flowchart TB
     A["You ask AI for feature"] --> B["AI generates main function"]
     B --> C["AI generates helper_1()"]
     B --> D["AI generates helper_2()"]
     B --> E["AI generates validate()"]
-    
+
     F["You use main()"] --> G["main() calls helper_1()"]
-    
+
     D --> H["Never called"]
     E --> H
-    
+
     style H fill:#ff6b6b,color:#fff
 ```
 
@@ -175,20 +168,16 @@ db.execute(f"INSERT INTO other VALUES ({data['id']})")
 
 ## The Vibe Coding Cycle
 
-
-**flowchart:**
-
-
 ```mermaid
-# LR
+flowchart LR
     A["Prompt AI"] --> B["Accept suggestion"]
     B --> C["It works!"]
     C --> D["Ship it"]
     D --> E["Accumulate debt"]
     E --> A
-    
+
     E --> F["6 months later:\n- 40% dead code\n- Security vulnerabilities\n- Complexity explosion"]
-    
+
     style F fill:#ff6b6b,color:#fff
 ```
 
@@ -230,11 +219,8 @@ Result: Less scrutiny per line
 
 Find the AI bloat:
 
-
-**skylos:**
-
-
-```bash . --confidence 70
+```bash
+skylos . --confidence 70
 ```
 
 ```
@@ -247,11 +233,8 @@ Unused parameters: 12
 
 Catch what AI didn't consider:
 
-
-**skylos:**
-
-
-```bash . --danger
+```bash
+skylos . --danger
 ```
 
 ```
@@ -263,11 +246,8 @@ SKY-D212 CRITICAL: Command injection in utils/shell.py:12
 
 Flag AI's over-engineering:
 
-
-**skylos:**
-
-
-```bash . --quality
+```bash
+skylos . --quality
 ```
 
 ```
@@ -279,11 +259,8 @@ SKY-Q304: Function 'parse_config' has 5 parameters (threshold: 5)
 
 Prevent AI debt from shipping:
 
-
-**skylos:**
-
-
-```bash . --danger --quality --gate
+```bash
+skylos . --danger --quality --gate
 ```
 
 **Block PRs** that introduce vulnerabilities or dead code.
@@ -308,12 +285,9 @@ Prevent AI debt from shipping:
 <summary>2. Delete AI's unused suggestions</summary>
 
     AI gives you 5 functions. You need 2. Delete the other 3.
-    
-    
-**skylos:**
 
-
-```bash . -i  # Interactive mode
+    ```bash
+    skylos . -i  # Interactive mode
     ```
   </details>
   
