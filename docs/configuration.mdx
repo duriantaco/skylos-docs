@@ -20,6 +20,27 @@ ignore = []
 # AI model for --fix and --audit
 model = "gpt-4.1"
 
+[tool.skylos.whitelist]
+# Glob patterns to ignore as unused
+names = [
+    "handle_*",
+    "visit_*",
+    "*Plugin",
+]
+
+[tool.skylos.whitelist.documented]
+# Patterns with reasons (recommended for teams)
+"dark_logic" = "Called via globals() string manipulation"
+"BasePlugin" = "Discovered via __subclasses__()"
+
+[tool.skylos.whitelist.temporary]
+# Temporary whitelist - warns when expired
+"legacy_handler" = { reason = "Migration - JIRA-123", expires = "2026-03-01" }
+
+[tool.skylos.overrides."src/plugins/*"]
+# Per-path whitelist rules
+whitelist = ["*Plugin", "*Handler"]
+
 [tool.skylos.languages.typescript]
 # Language-specific overrides
 complexity = 15
@@ -61,6 +82,104 @@ The `[tool.skylos.gate]` section controls the quality gate behavior when using `
 | `max_security` | int | `0` | Maximum allowed security findings before gate fails |
 | `max_quality` | int | `10` | Maximum allowed quality findings before gate fails |
 | `strict` | bool | `false` | When `true`, prevents bypassing a failed gate interactively |
+
+## Whitelist Configuration
+
+Suppress false positives permanently without cluttering your code with inline comments.
+
+### CLI Commands
+```bash
+# Add a glob pattern
+skylos whitelist 'handle_*'
+
+# Add with reason (recommended for teams)
+skylos whitelist dark_logic --reason "Called via globals() in dispatcher"
+
+# View current whitelist
+skylos whitelist --show
+```
+
+### Whitelist Sections
+
+#### `[tool.skylos.whitelist]`
+
+Simple glob patterns for names to ignore:
+```toml
+[tool.skylos.whitelist]
+names = [
+    "handle_*",      # Event handlers called via getattr
+    "visit_*",       # AST visitor methods
+    "*Plugin",       # Plugin classes discovered via __subclasses__
+    "*_callback",    # Callback functions
+]
+```
+
+#### `[tool.skylos.whitelist.documented]`
+
+Patterns with reasons - shows up in `skylos whitelist --show` and helps teams understand why something is whitelisted:
+```toml
+[tool.skylos.whitelist.documented]
+"dark_logic" = "Called via globals() string manipulation in trigger_blindspots()"
+"BasePlugin" = "Discovered via __subclasses__() at runtime"
+"legacy_api" = "Called by external service - do not remove"
+```
+
+#### `[tool.skylos.whitelist.temporary]`
+
+Patterns with expiration dates - Skylos warns when these expire to prevent whitelist rot:
+```toml
+[tool.skylos.whitelist.temporary]
+"legacy_handler" = { reason = "Migration in progress - JIRA-123", expires = "2026-03-01" }
+"old_api_v1" = { reason = "Deprecated, removing in Q2", expires = "2026-06-30" }
+```
+
+#### `[tool.skylos.overrides."path/*"]`
+
+Per-file or per-folder whitelist rules:
+```toml
+[tool.skylos.overrides."src/plugins/*"]
+whitelist = ["*Plugin", "*Handler"]
+
+[tool.skylos.overrides."src/events/*"]
+whitelist = ["on_*", "*_listener"]
+```
+
+### Inline Ignores
+
+For one-off exceptions, use inline comments instead of config:
+```python
+# Single line ignore
+def dynamic_handler():  # skylos: ignore
+    pass
+
+# Alternative syntaxes (all equivalent)
+def another():  # noqa: skylos
+    pass
+
+def yet_another():  # pragma: no skylos
+    pass
+
+# Block ignore (multiple functions)
+# skylos: ignore-start
+def block_one():
+    pass
+
+def block_two():
+    pass
+# skylos: ignore-end
+```
+
+### Whitelist Summary
+
+| Want to... | Do this |
+|------------|---------|
+| Whitelist a pattern | `skylos whitelist 'handle_*'` or add to `names = []` |
+| Document why | `skylos whitelist x --reason "why"` or add to `[tool.skylos.whitelist.documented]` |
+| Temporary whitelist | Add to `[tool.skylos.whitelist.temporary]` with `expires` date |
+| Per-folder rules | Add `[tool.skylos.overrides."path/*"]` section |
+| View all whitelists | `skylos whitelist --show` |
+| Inline ignore | `# skylos: ignore` comment |
+| Block ignore | `# skylos: ignore-start` ... `# skylos: ignore-end` |
 
 ## Language-Specific Overrides
 
