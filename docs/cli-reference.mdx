@@ -30,6 +30,27 @@ skylos run [--exclude-folder <folder>] [--include-folder <folder>] [--no-default
 
 Launches a Flask server at `http://localhost:5000` for interactive analysis. Requires `flask` and `flask-cors`.
 
+### `skylos whitelist`
+
+Manage the whitelist for suppressing false positives.
+```bash
+# Add a glob pattern
+skylos whitelist 'handle_*'
+
+# Add with reason (recommended for teams)
+skylos whitelist my_func --reason "Called via registry lookup"
+
+# View current whitelist
+skylos whitelist --show
+```
+
+| Flag | Description |
+|------|-------------|
+| `--reason`, `-r` | Add reason/documentation for the whitelist entry |
+| `--show`, `-s` | Display all current whitelist entries |
+
+Patterns are saved to `[tool.skylos.whitelist]` in `pyproject.toml`.
+
 ### `skylos <path>`
 
 Run static analysis on the specified path.
@@ -171,4 +192,10 @@ skylos . --danger --quality --gate
 **AI-powered audit of changed files:**
 ```bash
 skylos . --audit --model claude-sonnet-4-20250514
+```
+
+**Whitelist a dynamic pattern:**
+```bash
+skylos whitelist 'handle_*'
+skylos whitelist --show
 ```
