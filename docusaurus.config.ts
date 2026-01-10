@@ -77,7 +77,6 @@ const config: Config = {
       },
     },
 
-    // Announcement bar (optional - remove if you don't want it)
     announcementBar: {
       id: 'announcement',
       content: '⭐ If you like Skylos, give it a star on <a target="_blank" rel="noopener noreferrer" href="https://github.com/duriantaco/skylos">GitHub</a>',
