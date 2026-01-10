@@ -7,12 +7,13 @@ Skylos recognizes patterns from popular Python frameworks to reduce false positi
 
 ## Supported Frameworks
 
-- Django (views, signals, URL routing)
+- Django (views, signals, URL routing, DRF)
 - Flask (routes, error handlers)
 - FastAPI (routes, dependencies)
 - Pydantic (models, validators)
 - Celery (tasks)
-- Starlette (middleware)
+- Pytest (fixtures, hooks)
+- AST visitors (libcst, lark, etc.)
 
 ## How Detection Works
 
@@ -21,37 +22,167 @@ Skylos identifies framework usage through:
 1. **Import scanning:** Detects `from flask import Flask`, `import django`, etc.
 2. **Decorator recognition:** Identifies `@app.route`, `@receiver`, `@pytest.fixture`
 3. **Base class analysis:** Recognizes `class MyView(APIView)`, `class Config(BaseModel)`
-4. **Pattern matching:** Identifies `urlpatterns`, `INSTALLED_APPS`, etc.
+4. **Pattern matching:** Identifies `urlpatterns`, `INSTALLED_APPS`, naming conventions
+5. **Known patterns:** Applies confidence penalties to names like `handle_*`, `visit_*`
+
+## Confidence System
+
+Skylos assigns a confidence score (0-100%) to each finding. Higher confidence = more certain it's dead code.
+
+### How Confidence is Calculated
+```
+Starting confidence: 100%
+  - Soft pattern penalties (e.g., handle_* = -20)
+  - Dynamic module penalty (file has eval/exec = -10)
+  - Framework detection (route decorator = 0%, skip entirely)
+  - Private name penalty (_helper = -80)
+  = Final confidence
+```
+
+### Confidence Thresholds
+
+| Confidence | Meaning | Action |
+|------------|---------|--------|
+| 100% | Definitely unused | Safe to delete |
+| 80-99% | Very likely unused | Review briefly |
+| 60-79% | Probably unused | Review carefully |
+| < 60% | Not flagged | Below threshold (default) |
+| 0% | Whitelisted/Framework | Never flagged |
+```bash
+skylos . -c 60  # Default: only flag >= 60% confidence
+skylos . -c 40  # Include more uncertain findings
+skylos . -c 0   # Show everything (debug mode)
+```
+
+## Hard Entrypoints (Confidence = 0%)
+
+These are **never** flagged - Python or frameworks call them automatically:
+
+### Magic Methods
+```python
+__init__, __new__, __del__, __repr__, __str__
+__enter__, __exit__, __iter__, __next__
+__getattr__, __setattr__, __getitem__, __setitem__
+__call__, __len__, __hash__, __eq__, __lt__
+__post_init__  # dataclasses
+# ... and all other dunder methods
+```
+
+### Pytest Hooks
+```python
+pytest_configure, pytest_unconfigure, pytest_addoption
+pytest_collection_modifyitems, pytest_runtest_setup
+pytest_fixture_setup, pytest_generate_tests
+```
+
+### Unittest Lifecycle
+```python
+setUp, tearDown, setUpClass, tearDownClass
+setUpModule, tearDownModule
+```
+
+### Django Methods (with base class check)
+
+These are only skipped when the class inherits from the correct base:
+
+| Method | Required Base Class |
+|--------|---------------------|
+| `save`, `delete`, `clean` | `Model` |
+| `get`, `post`, `put`, `delete` | `View`, `APIView`, etc. |
+| `get_queryset`, `get_context_data` | `View` subclasses |
+| `list`, `create`, `retrieve`, `update`, `destroy` | `ViewSet` |
+| `validate`, `to_representation` | `Serializer` |
+| `has_permission`, `has_object_permission` | `BasePermission` |
+```python
+# This is skipped (correct base class)
+class UserView(APIView):
+    def get(self, request):  # confidence = 0%
+        pass
+
+# This is NOT skipped (no framework base)
+class Helper:
+    def get(self, request):  # confidence = 100% (flagged)
+        pass
+```
+
+## Soft Patterns (Confidence Penalties)
+
+These patterns **reduce** confidence but don't skip entirely. The function is still flagged if confidence remains above threshold.
+
+| Pattern | Penalty | Reason |
+|---------|---------|--------|
+| `test_*` | -40 | Test discovery (only in test files) |
+| `*_test` | -40 | Test discovery (only in test files) |
+| `clean_*` | -25 | Django form validation (only if Django detected) |
+| `validate_*` | -25 | Django/DRF validation (only if Django detected) |
+| `visit_*` | -25 | AST visitor dispatch via `getattr(self, f"visit_{node_type}")` |
+| `leave_*` | -25 | libcst visitor pattern |
+| `handle_*` | -20 | Event dispatch via `getattr(obj, f"handle_{action}")` |
+| `*_handler` | -20 | Callback/event handlers |
+| `*_callback` | -20 | Async callbacks |
+| `*Plugin` | -20 | Plugin discovery via `Base.__subclasses__()` |
+| `on_*` | -15 | Event listener pattern |
+| `pytest_*` | -30 | Pytest hook functions |
+
+### Example Calculation
+```python
+# File has eval() somewhere, so dynamic_module penalty applies
+
+def handle_secret():  # 100 - 20 (handle_*) - 10 (dynamic) = 70%
+    pass
+
+def visit_Name():     # 100 - 25 (visit_*) - 10 (dynamic) = 65%
+    pass
+
+def totally_dead():   # 100 - 10 (dynamic) = 90%
+    pass
+```
+
+### Context-Aware Penalties
+
+Some penalties are reduced when context doesn't match:
+```python
+# In a test file (tests/test_user.py):
+def test_login():  # 100 - 40 = 60% (full penalty)
+    pass
+
+# In a non-test file (app.py):
+def test_login():  # 100 - 10 = 90% (penalty / 4)
+    pass
+```
+
+## Other Penalties
+
+| Condition | Penalty | Reason |
+|-----------|---------|--------|
+| Dynamic module (`eval`/`exec` in file) | -10 | Functions might be called dynamically |
+| Private name (`_helper`) | -80 | Less likely to be public API |
+| In `__init__.py` | -15 | Often re-exports |
 
 ## Django
 
 ### Views
 
 Both function-based and class-based views are recognized:
-
 ```python
-# Function-based view - not flagged
+# Function-based view - not flagged if in urlpatterns
 def my_view(request):
     return HttpResponse("Hello")
 
-# Class-based view - methods not flagged
+# Class-based view - methods not flagged (base class detected)
 class MyView(View):
-    def get(self, request):
+    def get(self, request):   # confidence = 0%
         return HttpResponse("Hello")
     
-    def post(self, request):
+    def post(self, request):  # confidence = 0%
         return HttpResponse("Created")
 ```
 
 ### URL Patterns
 
 Functions referenced in `urlpatterns` are marked as used:
-
-
-**urlpatterns:**
-
-
-```python = [
+```python
+urlpatterns = [
     path('home/', home_view),  # home_view marked as used
     path('api/', include('api.urls')),
 ]
@@ -60,15 +191,11 @@ Functions referenced in `urlpatterns` are marked as used:
 ### Signals
 
 Signal receivers are recognized:
-
-
-**from:**
-
-
-```python django.db.models.signals import post_save
+```python
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-@receiver(post_save, sender=User)  # Not flagged
+@receiver(post_save, sender=User)  # confidence = 0%
 def create_profile(sender, instance, created, **kwargs):
     if created:
         Profile.objects.create(user=instance)
@@ -77,21 +204,16 @@ def create_profile(sender, instance, created, **kwargs):
 ### Django REST Framework
 
 ViewSet methods and serializer fields are recognized:
-
-
-**class:**
-
-
 ```python
-# UserViewSet(viewsets.ModelViewSet):
-    # These methods are not flagged
-    def list(self, request):
+class UserViewSet(viewsets.ModelViewSet):
+    # These methods are not flagged (base class detected)
+    def list(self, request):       # confidence = 0%
         pass
     
-    def create(self, request):
+    def create(self, request):     # confidence = 0%
         pass
     
-    def retrieve(self, request, pk=None):
+    def retrieve(self, request, pk=None):  # confidence = 0%
         pass
 ```
 
@@ -100,29 +222,27 @@ ViewSet methods and serializer fields are recognized:
 ### Routes
 
 Route handlers are recognized via decorators:
-
 ```python
-@app.route('/hello')  # Not flagged
+@app.route('/hello')  # confidence = 0%
 def hello():
     return 'Hello, World!'
 
-@app.get('/users')  # Not flagged
+@app.get('/users')    # confidence = 0%
 def get_users():
     return jsonify(users)
 ```
 
 ### Error Handlers and Middleware
-
 ```python
-@app.errorhandler(404)  # Not flagged
+@app.errorhandler(404)  # confidence = 0%
 def not_found(error):
     return 'Not Found', 404
 
-@app.before_request  # Not flagged
+@app.before_request     # confidence = 0%
 def before():
     pass
 
-@app.after_request  # Not flagged
+@app.after_request      # confidence = 0%
 def after(response):
     return response
 ```
@@ -130,13 +250,12 @@ def after(response):
 ## FastAPI
 
 ### Route Handlers
-
 ```python
-@router.get('/items')  # Not flagged
+@router.get('/items')   # confidence = 0%
 async def get_items():
     return []
 
-@app.post('/items')  # Not flagged
+@app.post('/items')     # confidence = 0%
 async def create_item(item: Item):
     return item
 ```
@@ -144,12 +263,8 @@ async def create_item(item: Item):
 ### Dependency Injection
 
 Functions used as dependencies are recognized:
-
-
-**async:**
-
-
-```python def get_db():  # Recognized when used in Depends()
+```python
+async def get_db():  # Recognized when used in Depends()
     db = SessionLocal()
     try:
         yield db
@@ -164,12 +279,8 @@ async def get_users(db: Session = Depends(get_db)):  # get_db not flagged
 ### Request Models
 
 Pydantic models used as type hints in routes are recognized:
-
-
-**class:**
-
-
-```python CreateUser(BaseModel):  # Not flagged - used in route
+```python
+class CreateUser(BaseModel):  # confidence = 0% (used in route below)
     name: str
     email: str
 
@@ -183,12 +294,8 @@ async def create_user(user: CreateUser):  # CreateUser recognized
 ### Models
 
 Classes inheriting from `BaseModel` have special handling:
-
-
-**class:**
-
-
-```python UserConfig(BaseModel):  # Not flagged if referenced
+```python
+class UserConfig(BaseModel):  # Not flagged if referenced
     name: str
     age: int
     
@@ -197,81 +304,69 @@ Classes inheriting from `BaseModel` have special handling:
 ```
 
 ### Validators
-
-
-**class:**
-
-
 ```python
-# User(BaseModel):
+class User(BaseModel):
     email: str
     
-    @field_validator('email')  # Not flagged
+    @field_validator('email')   # confidence = 0%
     def validate_email(cls, v):
         if '@' not in v:
             raise ValueError('Invalid email')
         return v
     
-    @model_validator(mode='after')  # Not flagged
+    @model_validator(mode='after')  # confidence = 0%
     def validate_model(self):
         return self
 ```
 
-### Computed Fields
+## AST Visitors
 
-
-**class:**
-
-
+Skylos recognizes the visitor pattern used by `ast`, `libcst`, `lark`, etc.:
 ```python
-# Rectangle(BaseModel):
-    width: float
-    height: float
+class MyVisitor(ast.NodeVisitor):
+    def visit_FunctionDef(self, node):  # confidence = 75% (100 - 25)
+        pass
     
-    @computed_field  # Not flagged
-    @property
-    def area(self) -> float:
-        return self.width * self.height
+    def visit_Name(self, node):         # confidence = 75% (100 - 25)
+        pass
+    
+    def leave_FunctionDef(self, node):  # confidence = 75% (100 - 25)
+        pass
 ```
+
+These are called via `getattr(self, f"visit_{node.__class__.__name__}")`, so they appear unused in static analysis.
 
 ## Testing Frameworks
 
 ### Pytest
-
 ```python
-@pytest.fixture  # Not flagged
+@pytest.fixture  # confidence = 0%
 def db_session():
     session = create_session()
     yield session
     session.close()
 
-def test_user_creation(db_session):  # Not flagged - test_ prefix
+def test_user_creation(db_session):  # confidence = 0% (test_ prefix in test file)
     user = User(name='Test')
     db_session.add(user)
 ```
 
 ### Unittest
-
-
-**class:**
-
-
 ```python
-# TestUser(unittest.TestCase):
-    def setUp(self):  # Not flagged
+class TestUser(unittest.TestCase):
+    def setUp(self):       # confidence = 0%
         self.user = User()
     
-    def tearDown(self):  # Not flagged
+    def tearDown(self):    # confidence = 0%
         pass
     
-    def test_name(self):  # Not flagged
+    def test_name(self):   # confidence = 0%
         self.assertEqual(self.user.name, 'default')
 ```
 
 ## Decorator Patterns
 
-Skylos recognizes these decorator patterns:
-
+Skylos recognizes these decorator patterns (confidence = 0%):
 ```python
 # Route decorators
 @*.route
@@ -291,46 +386,51 @@ Skylos recognizes these decorator patterns:
 # Validators (Pydantic)
 @validator, @field_validator, @model_validator
 @root_validator, @field_serializer, @model_serializer
+
+# Testing
+@pytest.fixture, @pytest.mark.*
 ```
-
-## Function Name Patterns
-
-Functions matching these patterns are recognized as framework callbacks:
-
-```python
-# HTTP methods (class-based views)
-get, post, put, patch, delete, head, options, trace
-
-# Django CBV methods
-get_queryset, get_object, get_context_data
-form_valid, form_invalid, get_form_*
-```
-
-## Confidence Penalties
-
-When framework patterns are detected, Skylos applies confidence penalties to reduce false positives:
-
-| Pattern | Confidence Penalty |
-|---------|-------------------|
-| Framework decorator | -40 |
-| Dynamic module access | -40 |
-| Test-related code | -100 |
-| Settings/Config class attributes | 0 (fully excluded) |
 
 ## Configuration Class Handling
 
-Classes named `Settings`, `Config`, or ending with those suffixes have their attributes excluded from dead code detection:
-
-
-**class:**
-
-
-```python AppSettings:  # Attributes not flagged
+Classes named `Settings`, `Config`, or ending with those suffixes have their attributes excluded:
+```python
+class AppSettings:       # Attributes not flagged
     DEBUG = True
     DATABASE_URL = "postgresql://..."
     
-class Config:  # Attributes not flagged
+class Config:            # Attributes not flagged
     SECRET_KEY = "..."
+```
+
+## Suppressing False Positives
+
+If Skylos flags something incorrectly, you have several options:
+
+### 1. Inline Ignore (one-off)
+```python
+def dynamic_handler():  # skylos: ignore
+    pass
+```
+
+### 2. Whitelist Pattern (permanent)
+```bash
+skylos whitelist 'handle_*'
+skylos whitelist my_func --reason "Called via registry"
+```
+
+### 3. Config File
+```toml
+[tool.skylos.whitelist]
+names = ["handle_*", "*Plugin"]
+
+[tool.skylos.whitelist.documented]
+"my_func" = "Called dynamically via registry lookup"
+```
+
+### 4. Lower Confidence Threshold
+```bash
+skylos . -c 40  # Include more uncertain findings
 ```
 
 ## Limitations
@@ -340,20 +440,9 @@ Framework awareness is based on static analysis and cannot detect all usage patt
 - **Dynamic routing:** Routes defined at runtime may not be detected
 - **Plugin systems:** Code loaded via plugins may appear unused
 - **Meta-programming:** Heavily meta-programmed code may produce false positives
+- **String dispatch:** `globals()[func_name]()` patterns need `--trace` to detect
 
-For these cases, use inline suppression or lower the confidence threshold:
-
-
-**def:**
-
-
-```python dynamic_handler():  # noqa: skylos
-    pass
-```
-
-
-**skylos:**
-
-
-```bash . --confidence 40
+For dynamic patterns, use `--trace` to cross-reference with runtime data:
+```bash
+skylos . --trace  # Run tests with tracing, then analyze
 ```
