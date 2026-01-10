@@ -34,6 +34,7 @@ const sidebars = {
       items: [
         'concepts/static-analysis',
         'concepts/dead-code',
+        'concepts/pattern-detection',
         'concepts/vibe-coding',
       ],
     },
@@ -45,6 +46,7 @@ const sidebars = {
       collapsible: false,
       items: [
         'guides/how-it-works',
+        'guides/penalty-system',
         'guides/legacy-codebase',
       ],
     },
@@ -73,6 +75,7 @@ const sidebars = {
       className: 'sb-shield',
       collapsible: false,
       items: [
+        { type: 'doc', id: 'rules-reference', label: 'Rules Reference'},
         { type: 'doc', id: 'cli-reference', label: 'CLI Reference' },
         { type: 'doc', id: 'configuration', label: 'Configuration' },
         { type: 'doc', id: 'faq', label: 'FAQ' },
