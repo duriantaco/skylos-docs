@@ -1,0 +1,655 @@
+---
+title: "Rules Reference"
+description: "Complete reference for all Skylos static analysis rules"
+---
+
+## Rule Categories
+
+| Prefix | Category | Description |
+|--------|----------|-------------|
+| `SKY-D` | Security | Vulnerabilities that could be exploited |
+| `SKY-S` | Secrets | Hardcoded credentials and sensitive data |
+| `SKY-Q` | Quality | Complexity and nesting issues |
+| `SKY-C` | Structure | Function size and parameter count |
+| `SKY-L` | Logic | Common bug patterns |
+| `SKY-P` | Performance | Performance anti-patterns |
+| `SKY-U` | Dead Code | Unused code that should be removed |
+| `SKY-UC` | Unreachable Code | Code that is unreachable |
+| `SKY-E` | Empty File | Files that are empty |
+
+---
+
+## Quick Reference Tables
+
+### Security Rules (SKY-D)
+
+| Rule ID | Name | Severity | Description |
+|---------|------|----------|-------------|
+| `SKY-D201` | Dangerous Call: `eval` | HIGH | Use of `eval()` |
+| `SKY-D202` | Dangerous Call: `exec` | HIGH | Use of `exec()` |
+| `SKY-D203` | Dangerous Call: `os.system`| HIGH | `os.system(...)` usage (constant sink) |
+| `SKY-D205` | Dangerous Call: `pickle.loads`| CRITICAL | Untrusted deserialization via `pickle.loads` |
+| `SKY-D206` | Dangerous Call: `yaml.load`| HIGH | `yaml.load` without SafeLoader |
+| `SKY-D207` | Weak Hash: `MD5` | MEDIUM | `hashlib.md5` |
+| `SKY-D208` | Weak Hash: `SHA1` | MEDIUM | `hashlib.sha1` |
+| `SKY-D209` | Dangerous Call: `subprocess shell=True` | HIGH | `subprocess.*(..., shell=True)` |
+| `SKY-D210` | TLS Verify Disabled | HIGH | `requests.*(verify=False)` |
+| `SKY-D211` | SQL Injection | CRITICAL | Tainted/interpolated SQL in `execute` / `executescript`/ `executemany` |
+| `SKY-D212` | Command Injection | CRITICAL | Tainted input flows to `os.system()` or `shell=True` |
+| `SKY-D215` | Path Traversal | HIGH | Tainted input used in filesystem path |
+| `SKY-D216` | SSRF | CRITICAL | Tainted URL passed to HTTP client |
+| `SKY-D217` | SQL Injection | CRITICAL | Tainted input in SQL query |
+| `SKY-D226` | XSS (Markup) | CRITICAL | Untrusted content passed to `Markup()` or `mark_safe()` |
+| `SKY-D227` | XSS (Template) | HIGH | Template uses `|safe` or disables autoescape |
+| `SKY-D228` | XSS (HTML Build) | HIGH | HTML string built with unescaped user input |
+
+### Secret Rules (SKY-S)
+
+| Rule ID | Name | Severity | Description |
+|---------|------|----------|-------------|
+| `SKY-S101` | Hardcoded Secret | CRITICAL | API keys, passwords, tokens, private keys in code |
+
+### Quality Rules (SKY-Q)
+
+| Rule ID | Name | Severity | Default Threshold |
+|---------|------|----------|-------------------|
+| `SKY-Q301` | Cyclomatic Complexity | MEDIUM | 10 |
+| `SKY-Q302` | Deep Nesting | MEDIUM | 3 levels |
+| `SKY-Q501` | High Complexity (TypeScript) | MEDIUM | 10 |
+
+### Structure Rules (SKY-C)
+
+| Rule ID | Name | Severity | Default Threshold |
+|---------|------|----------|-------------------|
+| `SKY-C303` | Too Many Arguments | MEDIUM | 5 arguments |
+| `SKY-C304` | Function Too Long | MEDIUM | 50 lines |
+
+### Logic Rules (SKY-L)
+
+| Rule ID | Name | Severity | Description |
+|---------|------|----------|-------------|
+| `SKY-L001` | Mutable Default Argument | HIGH | `def f(x=[])` - list/dict shared across calls |
+| `SKY-L002` | Bare Except Block | MEDIUM | `except:` catches everything including `KeyboardInterrupt` |
+| `SKY-L003` | Dangerous Comparison | MEDIUM | `== None` instead of `is None` |
+| `SKY-L004` | Anti-Pattern Try Block | LOW | Overly broad try/except hiding errors |
+
+### Performance Rules (SKY-P)
+
+| Rule ID | Name | Severity | Description |
+|---------|------|----------|-------------|
+| `SKY-P401` | Memory Load | MEDIUM | `file.read()` / `file.readlines()` loads entire file |
+| `SKY-P402` | Pandas Memory Risk | LOW | `read_csv()` without `chunksize` for large files |
+| `SKY-P403` | Nested Loop | LOW | O(N²) nested loop detected |
+
+### Dead Code Rules (SKY-U)
+
+| Rule ID | Name | Severity | Description |
+|---------|------|----------|-------------|
+| `SKY-U001` | Unreachable Code | LOW | Function defined but never called |
+| `SKY-U002` | Unused Import | LOW | Module imported but never used |
+| `SKY-U003` | Unused Variable | LOW | Variable assigned but never read |
+| `SKY-U004` | Unused Class | LOW | Class defined but never instantiated |
+
+---
+
+## Suppressing Rules
+
+Add a comment on the same line or line above:
+```python
+import os  # skylos:ignore SKY-U002 - used dynamically
+```
+
+For TypeScript/JavaScript:
+```typescript
+// skylos:ignore SKY-D200
+eval(trustedSource)
+```
+
+Block suppression for multiple lines:
+```python
+# skylos:ignore-start SKY-Q301
+def complex_but_necessary():
+    ...
+# skylos:ignore-end
+```
+
+:::note
+Suppressions can also be managed in the Dashboard under Project Settings → Suppressions.
+:::
+
+---
+
+## Detailed Rule Reference
+
+### SKY-D200 · Dangerous Function Calls
+
+| | |
+|---|---|
+| **Severity** | CRITICAL |
+| **What** | Use of `eval()`, `exec()`, `compile()`, or similar |
+| **Risk** | Arbitrary code execution |
+
+```python
+# ❌ Bad
+result = eval(user_expression)
+
+# ✅ Good
+import ast
+result = ast.literal_eval(user_expression)
+```
+
+---
+
+### SKY-D212 · Command Injection
+
+| | |
+|---|---|
+| **Severity** | CRITICAL |
+| **What** | Tainted input flows to `os.system()` or `subprocess` with `shell=True` |
+| **Risk** | Attackers can execute arbitrary shell commands |
+
+```python
+# ❌ Bad
+user_input = request.args.get("cmd")
+os.system(f"echo {user_input}")
+
+# ✅ Good
+subprocess.run(["echo", user_input])  # No shell=True
+```
+
+---
+
+### SKY-D215 · Path Traversal
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **What** | Tainted input used in filesystem path |
+| **Risk** | Attackers can read/write arbitrary files |
+
+```python
+# ❌ Bad
+file_path = f"/uploads/{user_filename}"
+open(file_path)
+
+# ✅ Good
+safe_name = os.path.basename(user_filename)
+file_path = os.path.join("/uploads", safe_name)
+```
+
+---
+
+### SKY-D216 · SSRF
+
+| | |
+|---|---|
+| **Severity** | CRITICAL |
+| **What** | Tainted URL passed to HTTP client (`requests.get`, `urllib.urlopen`) |
+| **Risk** | Access internal services, cloud metadata endpoints |
+
+```python
+# ❌ Bad
+response = requests.get(user_url)
+
+# ✅ Good
+ALLOWED_HOSTS = ["api.example.com"]
+parsed = urlparse(user_url)
+if parsed.netloc not in ALLOWED_HOSTS:
+    raise ValueError("Host not allowed")
+response = requests.get(user_url)
+```
+
+---
+
+### SKY-D217 · SQL Injection
+
+| | |
+|---|---|
+| **Severity** | CRITICAL |
+| **What** | Tainted input in SQL query (execute, text(), read_sql, .raw()) |
+| **Risk** | Database compromise, data theft |
+
+```python
+# ❌ Bad
+query = f"SELECT * FROM users WHERE id = {user_id}"
+cursor.execute(query)
+
+# ✅ Good
+cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+```
+
+---
+
+### SKY-D226 · XSS via Markup
+
+| | |
+|---|---|
+| **Severity** | CRITICAL |
+| **What** | Untrusted content passed to `Markup()` or `mark_safe()` |
+| **Risk** | Script injection, session hijacking |
+
+```python
+# ❌ Bad
+from markupsafe import Markup
+return Markup(user_input)
+
+# ✅ Good
+from markupsafe import Markup, escape
+return Markup(f"<b>{escape(user_input)}</b>")
+```
+
+---
+
+### SKY-D227 · XSS (Template)
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **What** | Template uses `|safe` filter or disables autoescape |
+| **Risk** | Script injection |
+
+```jinja2
+{# ❌ Bad #}
+{{ user_input | safe }}
+
+{# ✅ Good #}
+{{ user_input }}
+```
+
+---
+
+### SKY-D228 · XSS (HTML Build)
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **What** | HTML string built with unescaped user input |
+| **Risk** | Script injection |
+
+```python
+# ❌ Bad
+html = f"<div>{user_input}</div>"
+
+# ✅ Good
+from markupsafe import escape
+html = f"<div>{escape(user_input)}</div>"
+```
+
+---
+
+### SKY-S101 · Hardcoded Secret
+
+| | |
+|---|---|
+| **Severity** | CRITICAL |
+| **What** | API keys, passwords, tokens, or private keys in source code |
+| **Risk** | Credentials exposed in git history, logs, client bundles |
+
+```python
+# ❌ Bad
+API_KEY = "sk_live_1234567890abcdef"
+DB_PASSWORD = "supersecret123"
+
+# ✅ Good
+import os
+API_KEY = os.environ["API_KEY"]
+DB_PASSWORD = os.environ["DB_PASSWORD"]
+```
+
+**Detected patterns include:**
+- AWS keys (`AKIA...`)
+- Stripe keys (`sk_live_...`, `pk_live_...`)
+- GitHub tokens (`ghp_...`, `gho_...`)
+- Slack tokens (`xoxb-...`, `xoxp-...`)
+- Generic high-entropy strings near keywords like `password`, `secret`, `token`
+
+---
+
+### SKY-Q301 · Cyclomatic Complexity
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Threshold** | 10 (configurable) |
+| **What** | Function has too many branches (if/else/for/while/try) |
+
+```python
+# ❌ Bad - complexity > 10
+def process(data):
+    if condition1:
+        if condition2:
+            for item in items:
+                if condition3:
+                    ...
+
+# ✅ Good - extract helper functions
+def process(data):
+    if not is_valid(data):
+        return handle_invalid(data)
+    return process_valid(data)
+```
+
+---
+
+### SKY-Q302 · Deep Nesting
+
+| | |
+|---|---|
+| **Severity** | MEDIUM-CRITICAL (scales with depth) |
+| **Threshold** | 3 levels (configurable) |
+| **What** | Code nested too deeply |
+
+```python
+# ❌ Bad - nesting depth 4
+for item in items:
+    if item.valid:
+        if item.ready:
+            if item.approved:
+                do_thing(item)
+
+# ✅ Good - use early returns/continues
+for item in items:
+    if not item.valid:
+        continue
+    if not item.ready:
+        continue
+    if not item.approved:
+        continue
+    do_thing(item)
+```
+
+---
+
+### SKY-Q501 · High Complexity (TypeScript)
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Threshold** | 10 (configurable) |
+| **What** | TypeScript/JavaScript function has high cyclomatic complexity |
+
+Same fix as SKY-Q301 - split into smaller functions.
+
+---
+
+### SKY-C303 · Too Many Arguments
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Threshold** | 5 arguments (configurable) |
+| **What** | Function has too many parameters |
+
+```python
+# ❌ Bad - 7 arguments
+def create_user(name, email, age, city, country, phone, role):
+    ...
+
+# ✅ Good - use dataclass or dict
+@dataclass
+class UserData:
+    name: str
+    email: str
+    age: int
+    city: str
+    country: str
+    phone: str
+    role: str
+
+def create_user(data: UserData):
+    ...
+```
+
+---
+
+### SKY-C304 · Function Too Long
+
+| | |
+|---|---|
+| **Severity** | MEDIUM-HIGH (scales with length) |
+| **Threshold** | 50 lines (configurable) |
+| **What** | Function exceeds line limit |
+
+```python
+# ❌ Bad - 150 lines
+def do_everything():
+    # ... 150 lines of code ...
+
+# ✅ Good - extract logical sections
+def do_everything():
+    data = fetch_data()
+    validated = validate(data)
+    processed = process(validated)
+    return format_output(processed)
+```
+
+---
+
+### SKY-L001 · Mutable Default Argument
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **What** | Mutable object (list, dict, set) as default argument |
+| **Risk** | Default is created once and shared across all calls |
+
+```python
+# ❌ Bad - list is shared across calls!
+def add_item(item, items=[]):
+    items.append(item)
+    return items
+
+add_item(1)  # [1]
+add_item(2)  # [1, 2] - unexpected!
+
+# ✅ Good
+def add_item(item, items=None):
+    if items is None:
+        items = []
+    items.append(item)
+    return items
+```
+
+---
+
+### SKY-L002 · Bare Except Block
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **What** | `except:` without exception type |
+| **Risk** | Catches `KeyboardInterrupt`, `SystemExit`, hides real errors |
+
+```python
+# ❌ Bad
+try:
+    do_thing()
+except:
+    pass  # Swallows ALL exceptions
+
+# ✅ Good
+try:
+    do_thing()
+except ValueError as e:
+    logger.error(f"Validation failed: {e}")
+except Exception as e:
+    logger.error(f"Unexpected error: {e}")
+    raise
+```
+
+---
+
+### SKY-L003 · Dangerous Comparison
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **What** | Using `== None` instead of `is None` |
+| **Risk** | Can be fooled by objects with custom `__eq__` |
+
+```python
+# ❌ Bad
+if value == None:
+    ...
+
+# ✅ Good
+if value is None:
+    ...
+```
+
+---
+
+### SKY-L004 · Anti-Pattern Try Block
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **What** | Overly broad try/except that hides errors |
+
+---
+
+### SKY-P401 · Memory Load
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **What** | `file.read()` or `file.readlines()` loads entire file into RAM |
+| **Risk** | Memory exhaustion on large files |
+
+```python
+# ❌ Bad - loads entire file
+content = open("huge.log").read()
+
+# ✅ Good - iterate line by line
+with open("huge.log") as f:
+    for line in f:
+        process(line)
+```
+
+---
+
+### SKY-P402 · Pandas Memory Risk
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **What** | `pd.read_csv()` without `chunksize` |
+| **Risk** | Memory exhaustion on large CSV files |
+
+```python
+# ❌ Bad
+df = pd.read_csv("huge.csv")
+
+# ✅ Good
+for chunk in pd.read_csv("huge.csv", chunksize=10000):
+    process(chunk)
+```
+
+---
+
+### SKY-P403 · Nested Loop
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **What** | Nested for loop detected |
+| **Risk** | O(N²) complexity can cause performance issues |
+
+---
+
+### SKY-U001 · Unused Function
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **What** | Function defined but never called |
+
+```python
+# Flagged as unused
+def old_helper():
+    return "legacy"
+```
+
+:::note
+Use `--trace` to detect functions called dynamically (visitor patterns, plugins).
+:::
+
+---
+
+### SKY-U002 · Unused Import
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **What** | Module imported but never referenced |
+
+```python
+# ❌ Bad
+import os  # Never used
+import json
+
+data = json.loads(text)
+```
+
+---
+
+### SKY-U003 · Unused Variable
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **What** | Variable assigned but never read |
+
+```python
+# ❌ Bad
+result = calculate()  # Never used
+return other_value
+
+# ✅ Good - prefix with _ if intentional
+_result = calculate()  # Intentionally unused
+return other_value
+```
+
+---
+
+### SKY-U004 · Unused Class
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **What** | Class defined but never instantiated or subclassed |
+
+---
+
+---
+
+### SKY-E002 · Empty File
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **What** | Empty File |
+
+---
+
+## Configuring Thresholds
+
+In `pyproject.toml`:
+```toml
+[tool.skylos]
+complexity = 12      # SKY-Q301 threshold
+nesting = 4          # SKY-Q302 threshold
+max_function_lines = 60   # SKY-C304 threshold
+max_args = 6         # SKY-C303 threshold
+```
+
+Or via **Dashboard → Project Settings → Analysis Rules**.
+
+---
+
+## References
+
+| Resource | Link |
+|----------|------|
+| OWASP Top 10 | https://owasp.org/www-project-top-ten/ |
+| CWE Database | https://cwe.mitre.org/ |
