@@ -1,0 +1,404 @@
+# Skylos Workflow Guide
+
+Dead code and security scanner for Python. Follow the steps in order.
+
+---
+
+## Part 1: Getting Started
+
+### Step 1: Install
+
+```bash
+pip install skylos
+```
+
+Verify it worked:
+
+```bash
+skylos --version
+```
+
+
+### Step 2: Run Your First Scan
+
+Go to your Python project:
+
+```bash
+cd /path/to/your/project
+skylos .
+```
+
+You'll see a list of unused functions and imports.
+
+
+### Step 3: Understand the Output
+
+Each finding has a confidence score (0-100). Higher = more certain it's dead.
+
+```
+────────────────── Unused Functions ──────────────────
+#   Name              Location        Conf
+1   old_handler       app.py:16       90%    ← Safe to delete
+2   maybe_used        utils.py:42     60%    ← Review first
+```
+
+**Rule of thumb:**
+- 90-100%: Delete it
+- 60-89%: Look at it first
+- Below 60%: Probably a false positive
+
+
+### Step 4: Remove Dead Code
+
+**Option A: Manual**
+
+Open the file, delete the code yourself.
+
+**Option B: Interactive Mode**
+
+```bash
+skylos . -i
+```
+
+Use arrow keys to select, spacebar to toggle, enter to confirm.
+
+Preview first without changing anything:
+
+```bash
+skylos . -i --dry-run
+```
+
+
+### Step 5: Add Security + Quality Scans
+
+```bash
+skylos . --danger --secrets --quality
+```
+
+| Flag | What it finds |
+|------|---------------|
+| `--danger` | SQL injection, command injection, unsafe eval, weak crypto |
+| `--secrets` | Hardcoded API keys, passwords, private keys |
+| `--quality` | Complex functions, deep nesting, too many arguments |
+
+---
+
+**You're done with the basics.** Everything below is optional.
+
+---
+
+## Part 2: Skylos Cloud (Dashboard + History)
+
+Cloud gives you:
+- Dashboard to view all scans
+- Scan history
+- Team-wide suppressions (Pro)
+- PR blocking that developers can't bypass (Pro)
+
+### Step 1: Create a Project
+
+1. Go to [skylos.dev](https://skylos.dev)
+2. Sign in with GitHub
+3. Create a project
+4. Go to **Dashboard → Settings**
+5. Copy your API token
+
+
+### Step 2: Connect Your Machine
+
+```bash
+skylos sync connect
+```
+
+Paste your token when prompted. This saves it to `~/.skylos/credentials.json`.
+
+Now you can upload scans:
+
+```bash
+skylos . --upload                # Scan + upload results
+skylos . --danger --upload       # Security scan + upload
+```
+
+View results at: `https://skylos.dev/dashboard`
+
+---
+
+## Part 3: Understand the Flags
+
+| Flag | What it does |
+|------|--------------|
+| `--danger` | Security vulnerabilities (SQLi, command injection, unsafe eval) |
+| `--secrets` | Hardcoded API keys, passwords, private keys |
+| `--quality` | Code complexity, deep nesting, long functions |
+| `--upload` | Send results to Skylos Cloud |
+| `--strict` | Exit code 1 if gate fails (use with `--upload` in CI) |
+| `--gate` | Exit code 1 if gate fails (local only, no upload) |
+| `--force` | Bypass quality gate (emergency override) |
+
+---
+
+## Part 4: CI/CD Setup
+
+### Option A: One-Command Setup (Recommended)
+
+```bash
+skylos sync setup
+```
+
+This wizard will:
+1. Connect to Skylos Cloud (if not already)
+2. Ask what you want to install:
+   - **Git hooks** — blocks `git push` if scan fails
+   - **Pre-commit config** — blocks `git commit` if scan fails
+   - **GitHub Actions** — blocks PR merges if scan fails
+
+Just answer the prompts.
+
+---
+
+### Option B: Manual GitHub Actions
+
+Create `.github/workflows/skylos.yml`:
+
+```yaml
+name: Skylos Quality Gate
+
+on:
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  skylos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install skylos
+      - name: Run Skylos
+        env:
+          SKYLOS_TOKEN: ${{ secrets.SKYLOS_TOKEN }}
+        run: skylos . --danger --upload --strict
+```
+
+Then add your token to GitHub:
+
+1. Go to your repo → **Settings → Secrets and variables → Actions**
+2. Click **New repository secret**
+3. Name: `SKYLOS_TOKEN`
+4. Value: your token from Skylos dashboard
+
+---
+
+### What `--strict` Does
+
+| Flag | Behavior |
+|------|----------|
+| `--upload` | Upload results to dashboard. If gate fails, shows warning but continues. |
+| `--upload --strict` | Upload results. If gate fails, exits with code 1 (blocks CI). |
+| `--gate` | Local only. Exits with code 1 if gate fails. No upload. |
+
+---
+
+## Part 5: Install GitHub App (Pro — Enforced Checks)
+
+The GitHub App creates status checks that **cannot be bypassed** by deleting workflow files.
+
+### Step A: Install the App
+
+1. Go to **Skylos Dashboard → Settings → GitHub Integration**
+2. Click **Install GitHub App**
+3. Select your repository
+4. Click Install
+
+### Step B: Protect Your Branch
+
+In your GitHub repo:
+
+1. Go to **Settings → Branches**
+2. Click **Add branch protection rule**
+3. Branch name pattern: `main`
+4. Check **Require status checks to pass before merging**
+5. Search for and select **Skylos Quality Gate**
+6. Click **Create**
+
+Now PRs cannot merge until Skylos passes. No exceptions.
+
+---
+
+## Part 6: Sync Team Config (Pro)
+
+Pull shared suppressions and policies:
+
+```bash
+skylos sync pull
+```
+
+Creates:
+- `.skylos/config.yaml` — quality thresholds
+- `.skylos/suppressions.json` — team-wide false positive rules
+
+---
+
+
+## Free vs Pro
+
+| Feature | Free | Pro | Enterprise |
+|---------|------|-----|------------|
+| Local scans | ✅ | ✅ | ✅ |
+| Upload to dashboard | ✅ | ✅ | ✅ |
+| Scan history | 10 | 500 | 10,000 |
+| GitHub Actions (`--strict`) | ✅ | ✅ | ✅ |
+| GitHub App (enforced checks) | ❌ | ✅ | ✅ |
+| PR diff checks | ❌ | ✅ | ✅ |
+| Team suppressions | ❌ | ✅ | ✅ |
+| Override failed gates | ❌ | ✅ | ✅ |
+| Slack/Discord alerts | ❌ | ✅ | ✅ |
+| SARIF import | ❌ | ✅ | ✅ |
+
+**GitHub Actions vs GitHub App:**
+- **Actions** — Uses `--strict` to exit with code 1. Developers can delete the workflow file to bypass.
+- **App** — Creates a GitHub status check via the `skylos-gate` app. Cannot be bypassed.
+- **Override:** Manually approve a failed gate in the dashboard (emergency bypass with audit trail).
+- **PR diff checks:** Marks findings as "new" (in changed lines) or "legacy" (existed before).
+
+---
+
+## Part 7: Handling False Positives
+
+### Option 1: Inline Comment
+
+```python
+def dynamic_handler():  # pragma: no skylos
+    pass
+```
+
+### Option 2: Whitelist (Local)
+
+```bash
+skylos whitelist 'handle_*'
+skylos whitelist 'visit_*' --reason "AST visitor pattern"
+```
+
+This saves to `pyproject.toml`.
+
+### Option 3: Suppressions (Cloud - Pro)
+
+In the dashboard, click "Suppress" on any finding. This syncs to your team via:
+
+```bash
+skylos sync pull
+```
+
+---
+
+## Part 8: AI-Powered Analysis
+
+### Setup
+
+You can run `skylos key` to run an interactive setup or the manual way below.
+
+```bash
+export OPENAI_API_KEY="sk-..."
+# or
+export ANTHROPIC_API_KEY="sk-ant-..."
+```
+
+### Run AI Analysis
+
+```bash
+skylos agent analyze .          # Hybrid static + AI
+skylos agent analyze . --fix    # AI auto-fix
+skylos agent review             # Only changed files (for PRs)
+```
+
+### Use Local LLMs (No API Key)
+
+```bash
+# Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull qwen2.5-coder:7b
+
+# Run with local model
+skylos agent analyze . \
+  --provider openai \
+  --base-url http://localhost:11434/v1 \
+  --model qwen2.5-coder:7b
+```
+
+---
+
+## Cheatsheet
+
+| I want to... | Command |
+|--------------|---------|
+| Find dead code | `skylos .` |
+| Find security issues | `skylos . --danger` |
+| Find hardcoded secrets | `skylos . --secrets` |
+| Check code quality | `skylos . --quality` |
+| Run all scans | `skylos . --danger --secrets --quality` |
+| Remove code interactively | `skylos . -i` |
+| Preview without changing | `skylos . -i --dry-run` |
+| Upload to cloud | `skylos . --upload` |
+| Upload + block on fail | `skylos . --upload --strict` |
+| Local gate (no upload) | `skylos . --gate` |
+| One-command CI setup | `skylos sync setup` |
+| Connect to cloud | `skylos sync connect` |
+| Check connection | `skylos sync status` |
+| Pull team config | `skylos sync pull` |
+| Disconnect | `skylos sync disconnect` |
+| AI analysis | `skylos agent analyze .` |
+| AI auto-fix | `skylos agent analyze . --fix` |
+| Launch web UI | `skylos run` |
+| Add to whitelist | `skylos whitelist 'pattern'` |
+| View whitelist | `skylos whitelist --show` |
+| Lower confidence threshold | `skylos . -c 30` |
+| Export JSON | `skylos . --json` |
+| Save to file | `skylos . -o report.txt` |
+
+---
+
+## Troubleshooting
+
+**"Q: No token found"**
+
+```bash
+skylos sync connect
+```
+
+**"Q: Invalid API token"**
+
+Your token expired or was rotated. Get a new one from Dashboard → Settings, then:
+
+```bash
+skylos sync connect
+```
+
+**"Q: Quality gate failed but continuing"**
+
+You're on Free plan. Gate shows the failure but doesn't block. Upgrade to Pro or use `--strict` in CI.
+
+**"Q: Nothing showed up"**
+
+Your code might be clean. Or lower the threshold:
+
+```bash
+skylos . -c 30
+```
+
+**"Q: Too many false positives"**
+
+Raise the threshold or whitelist patterns:
+
+```bash
+skylos . -c 80
+skylos whitelist 'handle_*'
+```
+
+---
+
+## Getting Help
+
+- GitHub Issues: [github.com/duriantaco/skylos/issues](https://github.com/duriantaco/skylos/issues)
+- Email: aaronoh2015@gmail.com
