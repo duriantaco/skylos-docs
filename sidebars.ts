@@ -8,6 +8,12 @@ const sidebars = {
     },
     { 
       type: 'doc', 
+      id: 'quick-start', 
+      label: 'Quick Start', 
+      className: 'sb-quickstart' 
+    },
+    { 
+      type: 'doc', 
       id: 'installation', 
       label: 'Installation', 
       className: 'sb-download' 
