@@ -1,124 +1,208 @@
 ---
 title: "AI-Powered Features"
-description: "Using LLMs for automated fixes and deep code audits"
+description: "Using LLMs for automated fixes, security audits, and hybrid analysis"
 ---
 
-Skylos integrates with OpenAI and Anthropic to provide AI-assisted code analysis and remediation.
+Skylos uses LiteLLM as its LLM gateway, giving you one interface across cloud and local providers (OpenAI-compatible APIs). You can use OpenAI, Anthropic, and local runtimes like Ollama / LM Studio / vLLM by changing the model name and (optionally) the base URL—without changing Skylos code.
+
+## Architecture Overview
+
+Skylos uses a **hybrid analysis approach** that combines the strengths of both static analysis and LLMs:
+
+```
+┌─────────────────────┐         ┌─────────────────────┐
+│   Static Analysis   │         │    LLM Analysis     │
+│   (Deterministic)   │         │  (Context-Aware)    │
+│                     │         │                     │
+│  • Fast & Free      │         │  • Logic bugs       │
+│  • Pattern matching │         │  • Understands      │
+│  • AST-based        │         │    intent           │
+│  • No hallucinations│         │  • Explains issues  │
+└──────────┬──────────┘         └──────────┬──────────┘
+           │                               │
+           └───────────┬───────────────────┘
+                       ▼
+            ┌─────────────────────┐
+            │   Merge & Classify  │
+            │                     │
+            │  Both found → HIGH  │
+            │  Static only → MED  │
+            │  LLM only → REVIEW  │
+            └─────────────────────┘
+```
+
+This approach catches more issues than either method alone while maintaining high confidence through cross-validation.
+
+## Why Hybrid Analysis (And Why LLMs Alone Are Not Enough)
+
+LLMs are powerful at understanding *intent* — but they are **not reliable static analyzers**.
+
+Static analysis is deterministic and rule-based. LLMs are probabilistic and can behave differently across runs. That means an LLM-only scanner can miss real issues or invent issues that don’t exist.
+
+### What LLMs are bad at (and why Skylos doesn’t rely on them alone)
+
+LLMs struggle with:
+
+- **Determinism:** the same file may produce different results across runs, temperatures, or providers  
+- **Completeness:** token limits force truncation → the model may miss code paths or entire files
+- **Precision:** models sometimes report issues that sound plausible but are not actually present
+- **Exactness:** line numbers, symbol names, call graphs, and imports can be wrong
+- **Large codebases:** cross-file reasoning is limited by context size and missing definitions
+- **Ground truth guarantees:** an LLM cannot prove reachability, data flow, or exploitability
+
+Because of these limitations, Skylos uses static analysis as the **truth layer** and uses LLMs to provide **contextual reasoning and remediation suggestions**, not as the source of truth.
+
+**Best practice:** Treat LLM findings as a *review layer*, not a final verdict.
+
 
 ## Setup
 
 ### API Key Configuration
 
-Skylos checks for API keys in this order:
+Skylos resolves API keys per provider:
 
-1. **Environment variables:** `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`
-2. **System keyring:** Keys saved from previous sessions
-3. **Interactive prompt:** If no key is found, you'll be prompted to enter one
-
-
-**Bash:**
-
+1. `skylos key` (stored in system keyring)
+2. Environment variables (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.)
+3. Interactive prompt (only if allowed and no key is found)
 
 ```bash
-export OPENAI_API_KEY="sk-..."
+skylos key
 ```
 
-
-**Anthropic:**
-
-
 ```bash
+# OpenAI
+export OPENAI_API_KEY="sk-..."
+
+# Anthropic
 export ANTHROPIC_API_KEY="sk-ant-..."
 ```
 
 Keys entered interactively are saved to your system keyring for future use.
 
-### Model Selection
+### Local LLM Configuration (Ollama / LM Studio / vLLM)
 
-Use the `--model` flag to specify which model to use:
+For local LLMs, an API key is usually not required (depends on how your local server is configured). Set the base URL:
 
 ```bash
-# OpenAI (default)
-skylos . --fix --model gpt-4.1
+# Ollama
+export SKYLOS_LLM_BASE_URL="http://localhost:11434/v1"
 
-# Anthropic Claude
-skylos . --fix --model claude-sonnet-4-20250514
+# LM Studio
+export SKYLOS_LLM_BASE_URL="http://localhost:1234/v1"
+
+# vLLM
+export SKYLOS_LLM_BASE_URL="http://localhost:8000/v1"
 ```
 
-The model name determines which provider is used:
-- Names containing `claude` → Anthropic
-- All others → OpenAI
+Or pass it directly via CLI:
 
-## Auto-Fix (`--fix`)
-
-Automatically generate fixes for detected issues:
-
-
-**skylos:**
-
-
-```bash . --danger --quality --fix
+```bash
+skylos agent analyze . --base-url http://localhost:11434/v1 --model qwen2.5-coder:7b
 ```
 
-### How It Works
+### Provider Selection
 
-1. Skylos runs analysis and collects findings
-2. For each finding, it sends the relevant code context to the LLM
-3. The LLM generates a fix with an explanation
-4. You review and apply the changes
+Skylos automatically detects the provider from the model name, or you can force it:
 
-### Output
+```bash
+# Auto-detect (default)
+skylos agent analyze . --model gpt-4.1
+skylos agent analyze . --model claude-sonnet-4-20250514
 
-```
-Attempting to fix: Possible SQL injection in api/db.py:45
-
-File: api/db.py:45
-Problem: User input is concatenated directly into SQL query
-Change:  Use parameterized query with placeholder
-
-┌──────────── Proposed Code ───────────
-│ def get_user(user_id):                              │
-│     cursor.execute(                                 │
-│         "SELECT * FROM users WHERE id = %s",        │ 
-│         (user_id,)                                  │
-│     )                                               │
-│     return cursor.fetchone()                        │
-└──────────────────────────────────
+# Force provider explicitly
+skylos agent analyze . --provider openai --model my-custom-model
+skylos agent analyze . --provider anthropic --model my-custom-model
 ```
 
-### What Gets Fixed
+:::note
+If you force a provider, make sure the model name is valid for that provider/base URL.
+:::
 
-- Security vulnerabilities (SQL injection, command injection, etc.)
-- Code quality issues (complexity, mutable defaults, etc.)
-- Dead code (unused functions, imports, variables)
+Environment variable alternative:
 
-### Limitations
-
-- Fixes are suggestions—always review before applying
-- Complex refactors may require manual adjustment
-- Context is limited to single-file analysis
-
-## Deep Audit (`--audit`)
-
-Perform comprehensive AI-powered code review:
-
-
-**skylos:**
-
-
-```bash . --audit
+```bash
+export SKYLOS_LLM_PROVIDER=openai
+export SKYLOS_LLM_BASE_URL=http://localhost:11434/v1
 ```
 
-### How It Works
+## Commands
 
-1. **File selection:** Choose which files to audit (interactive or all)
-2. **Cost estimation:** See estimated API costs before proceeding
-3. **Deep analysis:** LLM reviews each file for logic errors, security issues, and improvements
-4. **Detailed report:** Get findings with explanations and fix suggestions
+### `skylos agent analyze`
 
-### Interactive File Selection
+Run hybrid AI-powered analysis with full project context:
 
-When auditing a directory, Skylos shows an interactive file picker:
+```bash
+skylos agent analyze ./src
+```
+
+**How it works:**
+
+1. Runs static analysis first to build project context (`defs_map`)
+2. Passes the context to LLM agents for deeper analysis
+3. Merges findings and assigns confidence scores
+4. Detects issues static analysis can't: logic bugs, hallucinated function calls, business logic flaws
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--model` | Model to use (default: `gpt-4.1`) |
+| `--provider` | Force provider: `openai` or `anthropic` |
+| `--base-url` | Custom endpoint for local LLMs |
+| `--format` | Output format: `table`, `tree`, `json`, `sarif` |
+| `--output`, `-o` | Write output to file |
+| `--min-confidence` | Filter by confidence: `high`, `medium`, `low` |
+| `--fix` | Generate fix proposals for findings |
+| `--apply` | Apply approved fixes to files |
+| `--yes` | Auto-approve prompts (use with `--apply`) |
+
+**Examples:**
+
+```bash
+# Basic analysis
+skylos agent analyze ./src
+
+# With local Ollama
+skylos agent analyze ./src \
+  --provider openai \
+  --base-url http://localhost:11434/v1 \
+  --model codellama:13b
+
+# Generate and apply fixes
+skylos agent analyze ./src --fix --apply
+
+# Output as SARIF for CI integration
+skylos agent analyze ./src --format sarif --output results.sarif
+```
+
+### `skylos agent security-audit`
+
+Security audit to catch security vulnerabilities:
+
+```bash
+skylos agent security-audit ./src
+```
+
+**How it works:**
+
+1. Collects Python files under the target path
+2. If `--interactive` is set (and inquirer is installed), shows a file picker
+3. Estimates API cost before proceeding
+4. Runs comprehensive analysis on selected files
+5. Reports findings with explanations and suggestions
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--model` | Model to use (default: `gpt-4.1`) |
+| `--provider` | Force provider: `openai` or `anthropic` |
+| `--base-url` | Custom endpoint for local LLMs |
+| `--format` | Output format: `table`, `tree`, `json`, `sarif` |
+| `--output`, `-o` | Write output to file |
+| `--interactive`, `-i` | Force interactive file selection |
+
+**Interactive file selection:**
 
 ```
 ? Select files to audit (Space to select)
@@ -128,123 +212,221 @@ When auditing a directory, Skylos shows an interactive file picker:
     ◯ config.py (1.5 KB)
 ```
 
-Files modified in git are pre-selected and marked with `[CHANGED]`.
-
-### Cost Estimation
-
-Before processing, Skylos estimates the API cost:
+**Cost estimation:**
 
 ```
-─────────────────────────────────────────
-Files:   3
-Cost:    ~$0.0234
+Audit: 3 files, ~12,500 tokens, ~$0.0234
 ? Proceed? (Y/n)
 ```
 
-:::warning
-  Auditing more than 10 files can be slow and costly. Consider auditing incrementally or focusing on changed files.
+### `skylos agent fix`
+
+Generate a fix for a specific issue:
+
+```bash
+skylos agent fix ./src/api.py --line 45 --message "SQL injection vulnerability"
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--line`, `-l` | Line number of the issue (required) |
+| `--message`, `-m` | Description of the issue (required) |
+| `--model` | Model to use |
+| `--provider` | Force provider |
+| `--base-url` | Custom endpoint |
+
+### `skylos agent review`
+
+Review only git-changed files:
+
+```bash
+skylos agent review
+```
+
+This is a convenience command that:
+1. Finds files changed in git (`git diff --name-only HEAD`)
+2. Runs analysis only on those files
+3. Perfect for pre-commit or PR review workflows
+
+## Legacy Commands
+
+The following flags still work on the main command for quick, single-file operations:
+
+### `--fix` flag
+
+```bash
+skylos . --danger --quality --fix
+```
+
+:::note
+For best results, use `skylos agent analyze` and `skylos agent security-audit` instead. They provide full project context to the LLM, enabling detection of cross-file issues and hallucinated function calls.
 :::
 
-### Audit Scope
+## What Gets Detected
 
-The audit examines:
+### Static Analysis Finds
 
-- **Logic errors:** Off-by-one, incorrect conditions, missing edge cases
-- **Security:** Vulnerabilities that static analysis might miss
-- **Best practices:** Idiomatic patterns, error handling, naming
-- **Performance:** Inefficient algorithms, unnecessary operations
+- Unused functions, imports, variables, classes
+- Security patterns (SQL injection, command injection, XSS)
+- Code quality issues (complexity, nesting depth)
+- Hardcoded secrets
 
-### Git Integration
+### LLM Analysis Adds
 
-When auditing a directory, Skylos prioritizes files changed in git:
+- **Logic bugs:** Off-by-one errors, incorrect conditions, missing edge cases
+- **Hallucinations:** Calls to functions that don't exist in your codebase
+- **Business logic flaws:** Authentication bypasses, broken access control
+- **Context-dependent issues:** Problems that require understanding intent
 
+### Confidence Scoring
 
-**git:**
+Findings are scored based on source:
 
+| Source | Confidence | Meaning |
+|--------|------------|---------|
+| Static + LLM agree | **HIGH** | Very likely a real issue |
+| Static only | **MEDIUM** | Deterministic match |
+| LLM only | **MEDIUM** | Needs human review |
+| Conflict | **REVIEW** | Flagged for manual inspection |
 
-```bash diff --name-only HEAD
+## Local LLM Setup
+
+### Ollama (Recommended)
+
+```bash
+# Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Pull a code model
+ollama pull qwen2.5-coder:7b
+
+# Use with Skylos
+skylos agent analyze ./src \
+  --provider openai \
+  --base-url http://localhost:11434/v1 \
+  --model qwen2.5-coder:7b
 ```
 
-Changed files appear first in the selection list and are pre-selected.
+### LM Studio
 
-## Provider Adapters
+1. Download from [lmstudio.ai](https://lmstudio.ai)
+2. Load a model (e.g., `codellama-13b-instruct`)
+3. Start the local server (default port: 1234)
+4. Use with Skylos:
 
-Skylos uses a unified adapter interface for LLM providers:
-
-### OpenAI
-
-```python
-# Uses the Responses API
-model = "gpt-4.1"  # or gpt-4o, gpt-3.5-turbo, etc.
+```bash
+skylos agent analyze ./src \
+  --provider openai \
+  --base-url http://localhost:1234/v1 \
+  --model codellama-13b-instruct
 ```
 
-### Anthropic
+### Recommended Models
 
-```python
-# Uses the Messages API
-model = "claude-sonnet-4-20250514"  # or claude-3-opus, etc.
-```
-
-## Best Practices
-
-### For Auto-Fix
-
-1. **Run analysis first:** Use `--danger --quality` to see findings before fixing
-2. **Review changes:** Never blindly apply AI-generated fixes
-3. **Test after:** Run your test suite after applying fixes
-4. **Fix incrementally:** Address one category of issues at a time
-
-### For Audit
-
-1. **Start small:** Audit a few critical files rather than the entire codebase
-2. **Focus on changes:** Prioritize recently modified code
-3. **Use with CI:** Run audits on PRs to catch issues before merge
-4. **Budget awareness:** Monitor costs, especially for large codebases
+| Model | Size | Use Case |
+|-------|------|----------|
+| `qwen2.5-coder:7b` | 4GB | Fast, good for most tasks |
+| `codellama:13b` | 8GB | Better reasoning |
+| `deepseek-coder:6.7b` | 4GB | Strong code understanding |
+| `codellama:34b` | 20GB | Best accuracy, requires GPU |
 
 ## Configuration
 
-Set the default model in `pyproject.toml`:
+### pyproject.toml
 
 ```toml
-# [tool.skylos]
+[tool.skylos]
 model = "gpt-4.1"
+
+[tool.skylos.llm]
+provider = "openai"
+# base_url = "http://localhost:11434/v1"  # Uncomment for local
 ```
 
-Override on the command line:
+### Environment Variables
 
+| Variable | Description |
+|----------|-------------|
+| `OPENAI_API_KEY` | OpenAI API key |
+| `ANTHROPIC_API_KEY` | Anthropic API key |
+| `SKYLOS_LLM_PROVIDER` | Force provider: `openai` or `anthropic` |
+| `SKYLOS_LLM_BASE_URL` | Custom base URL for OpenAI-compatible APIs |
+| `OPENAI_BASE_URL` | Alternative to `SKYLOS_LLM_BASE_URL` |
 
-**skylos:**
+## Best Practices
 
+### For Analysis
 
-```bash . --fix --model claude-sonnet-4-20250514
+1. **Use `skylos agent analyze`** for full project context
+2. **Start with static analysis** (`skylos .`) to see baseline findings for free
+3. **Review LLM-only findings carefully** — they may need validation
+4. **Trust HIGH confidence findings** — both engines agree
+
+### For Fixes
+
+1. **Never blindly apply fixes** — always review the diff
+2. **Run tests after applying** — verify functionality
+3. **Fix incrementally** — one category at a time
+
+### For CI/CD
+
+```yaml
+# GitHub Actions example
+- name: Skylos Security Scan
+  run: |
+    skylos agent analyze ./src \
+      --format sarif \
+      --output skylos-results.sarif \
+      --min-confidence high
+
+- name: Upload SARIF
+  uses: github/codeql-action/upload-sarif@v2
+  with:
+    sarif_file: skylos-results.sarif
 ```
 
 ## Troubleshooting
 
 ### "No API key found"
 
-Set the appropriate environment variable or enter the key when prompted:
-
-
-**export:**
-
-
+For cloud providers:
 ```bash
-# OPENAI_API_KEY="sk-..."
+export OPENAI_API_KEY="sk-..."
+# or
+export ANTHROPIC_API_KEY="sk-ant-..."
 ```
+
+For local LLMs, ensure `--base-url` points to your server (and provide a key only if your server requires one):
+```bash
+skylos agent analyze . --base-url http://localhost:11434/v1 --model qwen2.5-coder:7b
+```
+
+### "Connection refused" (local LLM)
+
+1. Verify your LLM server is running:
+   ```bash
+   curl http://localhost:11434/v1/models  # Ollama
+   curl http://localhost:1234/v1/models   # LM Studio
+   ```
+2. Check the port matches your `--base-url`
 
 ### "Model not found"
 
-Ensure the model name is correct and your API key has access to that model.
+- **Cloud:** Verify your API key has access to the model
+- **Ollama:** Run `ollama pull <model-name>` first
+- **LM Studio:** Load the model in the UI before using
 
 ### High costs
 
-- Reduce file count with selective auditing
-- Use smaller models for initial passes
-- Focus on changed files only
+- Use `--min-confidence high` to reduce output noise
+- Use `skylos agent review` to analyze only changed files
+- Switch to local LLMs for development iteration
+- Use smaller models (e.g., `gpt-4o-mini`, `claude-haiku`)
 
 ### Slow responses
 
-- Audit fewer files at once
-- Use faster models (e.g., `gpt-4o-mini`)
-- Check your network connection
+- Use local LLMs with GPU acceleration
+- Reduce file count with selective auditing
+- Try smaller context with `--max-chunk-tokens`

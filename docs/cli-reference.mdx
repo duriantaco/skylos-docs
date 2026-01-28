@@ -104,17 +104,23 @@ Interactive mode requires the `inquirer` package.
 
 ## AI-Powered Features
 
+| Feature | Command | Description |
+|---------|---------|-------------|
+| **AI-Powered Analysis** | `skylos agent analyze . --model gpt-4.1` | Hybrid static + LLM analysis with project context |
+| **AI Audit** | `skylos agent security-audit .` | Deep LLM review with interactive file selection |
+| **Automated Repair** | `skylos agent analyze . --fix` | Let the LLM fix what it found |
+| **PR Review** | `skylos agent review` | Analyze only git-changed files |
+| **Local LLM** | `skylos agent analyze . --base-url http://localhost:11434/v1 --model codellama` | Use Ollama/LM Studio (no API key needed) |
+
+You can use the `--model` flag to specify the model that you want. We support Gemini, Groq, Anthropic, ChatGPT and Mistral.
+
+## Cloud & CI Flags
+
 | Flag | Description |
 |------|-------------|
-| `--fix` | Use AI to automatically fix detected issues |
-| `--audit` | Deep scan files using AI for logic and security review |
-| `--model <model>` | Specify the LLM model (default: `gpt-4.1`). Use `claude-*` for Anthropic models. |
-
-These features require an API key. Skylos checks:
-
-1. Environment variables (`OPENAI_API_KEY` or `ANTHROPIC_API_KEY`)
-2. System keyring (saved from previous sessions)
-3. Interactive prompt (if neither is found)
+| `--upload` | Upload scan results to Skylos Cloud (requires `skylos sync connect` first) |
+| `--strict` | Exit with code 1 if quality gate fails (use in CI to block merges) |
+| `--force`, `-f` | Bypass quality gate locally (still uploads if `--upload` is set) |
 
 ## Runtime Analysis
 
@@ -150,7 +156,7 @@ If the gate passes, Skylos either runs the provided command or launches the depl
 
 **Example:**
 ```bash
-skylos . --danger --gate npm run deploy
+skylos . --danger --gate
 ```
 
 ## Other Options
@@ -166,6 +172,19 @@ skylos . --danger --gate npm run deploy
 |------|---------|
 | `0` | Success (no issues or gate passed) |
 | `1` | Failure (analysis error or gate failed) |
+
+## AI-Powered Features (Deprecated)
+
+| Flag | Description |
+|------|-------------|
+| `--fix` | Use AI to automatically fix detected issues |
+| `--audit` | Deep scan files using AI for logic and security review |
+
+These features require an API key. Skylos checks:
+
+1. Environment variables (`OPENAI_API_KEY` or `ANTHROPIC_API_KEY`)
+2. System keyring (saved from previous sessions)
+3. Interactive prompt (if neither is found)
 
 ## Examples
 
