@@ -127,6 +127,8 @@
 .sb-book-open .menu__link::before { -webkit-mask-image: url('/img/sidebar/book-open.svg'); mask-image: url('/img/sidebar/book-open.svg'); }
 .sb-dog .menu__link::before      { -webkit-mask-image: url('/img/sidebar/dog.svg'); mask-image: url('/img/sidebar/dog.svg'); }
 .sb-shield .menu__link::before   { -webkit-mask-image: url('/img/sidebar/shield.svg'); mask-image: url('/img/sidebar/shield.svg'); }
+.sb-cloud .menu__link::before {-webkit-mask-image: url('/img/sidebar/cloud.svg'); mask-image: url('/img/sidebar/cloud.svg');}
+.sb-quickstart .menu__link::before {-webkit-mask-image: url('/img/sidebar/quickstart.svg'); mask-image: url('/img/sidebar/quickstart.svg');}
 
 .menu__list .menu__list {
   padding-left: 0.8rem;
@@ -140,7 +142,6 @@
   content: none !important;
 }
 
-/* 4. CLEANUP CATEGORY STYLE */
 .menu__link--sublist::after {
   display: none !important;
 }
@@ -272,9 +273,6 @@ details > *:not(summary) {
   letter-spacing: 0.05em;
 }
 
-/* ============================================
-   NAVBAR ENHANCEMENTS
-   ============================================ */
 
 /* GitHub icon link */
 .header-github-link::before {
