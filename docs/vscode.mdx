@@ -1,0 +1,270 @@
+---
+title: 'VS Code Extension'
+description: 'Real-time AI-powered code analysis as you type'
+---
+
+:::info
+  **Prerequisites**:
+  - VS Code version 1.87 or higher
+  - Python 3.10+ (for Skylos CLI)
+  - OpenAI or Anthropic API key (for AI features)
+:::
+
+The Skylos VS Code extension brings real-time bug detection to your editor. It combines static analysis from the Skylos CLI with AI-powered code review that runs as you type.
+
+<img 
+  src="/img/screenshot1.png" 
+  alt="Skylos VS Code extension" 
+  style={{ borderRadius: '0.5rem', marginTop: '1.5rem', marginBottom: '1.5rem' }} 
+/>
+
+## Installation
+
+### 1. Install the extension
+
+Search for "Skylos" in the VS Code marketplace, or install directly:
+
+**VS Code:**
+```bash
+ext install oha.skylos-vscode-extension
+```
+
+### 2. Install the Skylos CLI
+
+The extension uses the Skylos CLI for static analysis. Install it with pip:
+
+**pip:**
+```bash
+pip install skylos
+```
+
+Verify the installation:
+
+**bash:**
+```bash
+skylos --version
+```
+
+### 3. Add your API key
+
+For AI features, add your OpenAI or Anthropic API key:
+
+1. Open VS Code Settings (`Cmd + ,` on Mac, `Ctrl + ,` on Windows)
+2. Search for `skylos`
+3. Add your API key to `skylos.openaiApiKey` or `skylos.anthropicApiKey`
+
+**settings.json:**
+```json
+{
+  "skylos.openaiApiKey": "sk-...",
+  "skylos.aiProvider": "openai"
+}
+```
+
+## How It Works
+
+The extension provides two layers of protection:
+
+### Layer 1: Skylos CLI (on save)
+
+When you save a Python file, the Skylos CLI runs and detects:
+- Dead code (unused functions, imports, classes, variables)
+- Hardcoded secrets and API keys
+- Dangerous patterns (`eval`, `pickle`, `shell=True`)
+
+### Layer 2: AI Watcher (on idle)
+
+When you stop typing for 2 seconds, the AI analyzes changed functions and detects:
+- Logic errors and bugs
+- Undefined variables
+- Type mismatches
+- Security vulnerabilities
+
+## Features
+
+### Real-time Analysis
+
+The AI watcher only analyzes functions that have changed, using content hashing to skip unchanged code. Results are cached for 60 seconds to avoid redundant API calls.
+
+### CodeLens Buttons
+
+When the AI finds an issue, clickable buttons appear above the error line:
+
+- **Fix with AI** — Generates a fix and shows a diff preview
+- **Dismiss** — Removes the diagnostic without adding a pragma comment
+
+### Streaming Fixes
+
+When you click "Fix with AI", the extension streams the response from the LLM. You'll see progress in the status bar:
+
+**Status bar:**
+```
+$(sync~spin) Fixing... 234 chars
+```
+
+### Diff Preview
+
+Before applying any fix, you'll see a side-by-side diff comparing your original code with the AI's suggestion. Click "Apply" to accept or "Cancel" to reject.
+
+## Configuration
+
+All settings are under the `skylos.*` namespace:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `skylos.path` | `"skylos"` | Path to the Skylos CLI executable |
+| `skylos.aiProvider` | `"openai"` | AI provider: `"openai"` or `"anthropic"` |
+| `skylos.openaiApiKey` | `""` | Your OpenAI API key |
+| `skylos.anthropicApiKey` | `""` | Your Anthropic API key |
+| `skylos.openaiModel` | `"gpt-4o-mini"` | OpenAI model for analysis |
+| `skylos.anthropicModel` | `"claude-sonnet-4-20250514"` | Anthropic model for analysis |
+| `skylos.idleMs` | `2000` | Milliseconds to wait after typing stops |
+| `skylos.popupCooldownMs` | `15000` | Cooldown between popup alerts |
+| `skylos.runOnSave` | `true` | Run Skylos CLI when saving |
+| `skylos.enableSecrets` | `true` | Scan for hardcoded secrets |
+| `skylos.enableDanger` | `true` | Flag dangerous code patterns |
+| `skylos.enableQuality` | `true` | Include code quality checks |
+| `skylos.confidence` | `60` | Confidence threshold (0-100) |
+| `skylos.excludeFolders` | `["venv", ".venv", "build", "dist", ".git", "__pycache__"]` | Folders to exclude |
+
+### Using Claude instead of GPT
+
+To use Anthropic's Claude:
+
+**settings.json:**
+```json
+{
+  "skylos.aiProvider": "anthropic",
+  "skylos.anthropicApiKey": "sk-ant-...",
+  "skylos.anthropicModel": "claude-sonnet-4-20250514"
+}
+```
+
+### Adjusting sensitivity
+
+If the AI is too noisy, increase the idle time:
+
+**settings.json:**
+```json
+{
+  "skylos.idleMs": 5000,
+  "skylos.popupCooldownMs": 30000
+}
+```
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `Skylos: Scan Workspace` | Manually trigger a full scan |
+| `Skylos: Fix Issue` | Fix the issue at cursor with AI |
+
+Access commands via the Command Palette (`Cmd + Shift + P`).
+
+## Quick Fix Menu
+
+When you see a squiggly line, click the lightbulb or press `Cmd + .` to see quick fix options:
+
+- **Skylos: ignore on this line** — Adds `# pragma: no skylos` comment
+
+## Output Panel
+
+View detailed scan results in the Output panel:
+
+1. Open Output (`Ctrl + Shift + U`)
+2. Select "skylos" from the dropdown
+
+The output shows all findings grouped by category and severity:
+
+**Output:**
+```
+============================================================
+DETAILED RESULTS
+============================================================
+
+SECURITY
+------------------------------------------------------------
+
+  HIGH (1)
+ 1. [DANGER-001] Use of eval() with user input
+    File: app/utils.py:42
+
+DEAD CODE
+------------------------------------------------------------
+
+  INFO (3)
+ 1. Unused import: os
+    File: app/main.py:2
+ 2. Unused function: deprecated_handler
+    File: app/views.py:89
+ 3. Unused variable: temp
+    File: app/models.py:156
+
+============================================================
+Total: 4 issue(s)
+```
+
+## Troubleshooting
+
+<details>
+<summary>Issue: "Skylos failed: command not found"</summary>
+
+The Skylos CLI is not installed or not in your PATH.
+
+**Solution:**
+1. Install the CLI: `pip install skylos`
+2. Or set the full path in settings: `"skylos.path": "/path/to/skylos"`
+</details>
+
+<details>
+<summary>Issue: AI features not working</summary>
+
+Check that you've added your API key:
+
+1. Open Settings (`Cmd + ,`)
+2. Search for `skylos.openaiApiKey` or `skylos.anthropicApiKey`
+3. Paste your API key
+
+Also verify `skylos.aiProvider` matches your key type.
+</details>
+
+<details>
+<summary>Issue: No popups appearing</summary>
+
+Popups only appear for **error** severity issues (not warnings). They also have a cooldown (default 15 seconds) and won't show the same issue twice.
+
+To see all issues, check the Problems panel (`Cmd + Shift + M`) or the Output panel.
+</details>
+
+<details>
+<summary>Issue: Python version errors with Skylos CLI</summary>
+
+Skylos requires Python 3.10+. Check your version:
+```bash
+python --version
+```
+
+If you're on an older version, upgrade Python or use a virtual environment with 3.10+.
+</details>
+
+<details>
+<summary>Issue: "TypeError: unsupported operand type(s) for |"</summary>
+
+This happens when running Skylos with Python 3.9 or earlier. The `|` type union syntax requires Python 3.10+.
+
+**Solution:** Upgrade to Python 3.10 or higher.
+</details>
+
+## Privacy
+
+- **Skylos CLI** runs 100% locally — no network calls
+- **AI features** send only changed function code to OpenAI/Anthropic
+- Your API keys are stored in VS Code settings (local to your machine)
+- No telemetry or analytics are collected
+
+## Feedback
+
+Found a bug or have a feature request?
+
+- [GitHub Issues](https://github.com/oha/skylos/issues)
+- Use the thumbs down button in VS Code to report problems
