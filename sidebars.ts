@@ -18,7 +18,12 @@ const sidebars = {
       label: 'Installation', 
       className: 'sb-download' 
     },
-
+    { 
+      type: 'doc', 
+      id: 'vscode', 
+      label: 'VSC Extension', 
+      className: 'sb-box' 
+    },
     {
       type: 'category',
       label: 'Scanning',
