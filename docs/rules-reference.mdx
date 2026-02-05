@@ -55,6 +55,7 @@ description: "Complete reference for all Skylos static analysis rules"
 |---------|------|----------|-------------------|
 | `SKY-Q301` | Cyclomatic Complexity | MEDIUM | 10 |
 | `SKY-Q302` | Deep Nesting | MEDIUM | 3 levels |
+| `SKY-Q401` | Async Blocking | MEDIUM | - |
 | `SKY-Q501` | High Complexity (TypeScript) | MEDIUM | 10 |
 
 ### Structure Rules (SKY-C)
@@ -359,6 +360,23 @@ for item in items:
 ```
 
 ---
+
+### SKY-Q401 · Async Blocking
+
+
+# ❌ Bad - blocks the entire event loop
+async def fetch_data():
+    time.sleep(1)
+    response = requests.get("http://example.com")
+    subprocess.run(["ls"])
+
+# ✅ Good - use async alternatives
+async def fetch_data():
+    await asyncio.sleep(1)
+    async with httpx.AsyncClient() as client:
+        response = await client.get("http://example.com")
+    proc = await asyncio.create_subprocess_exec("ls")
+
 
 ### SKY-Q501 · High Complexity (TypeScript)
 
