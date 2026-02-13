@@ -130,6 +130,7 @@
 .sb-cloud .menu__link::before {-webkit-mask-image: url('/img/sidebar/cloud.svg'); mask-image: url('/img/sidebar/cloud.svg');}
 .sb-quickstart .menu__link::before {-webkit-mask-image: url('/img/sidebar/quickstart.svg'); mask-image: url('/img/sidebar/quickstart.svg');}
 .sb-box .menu__link::before {-webkit-mask-image: url('/img/sidebar/box.svg'); mask-image: url('/img/sidebar/box.svg');}
+.sb-activity .menu__link::before {-webkit-mask-image: url('/img/sidebar/activity.svg'); mask-image: url('/img/sidebar/activity.svg');}
 
 .menu__list .menu__list {
   padding-left: 0.8rem;

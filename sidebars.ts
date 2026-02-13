@@ -24,6 +24,12 @@ const sidebars = {
       label: 'VSC Extension', 
       className: 'sb-box' 
     },
+    { 
+      type: 'doc', 
+      id: 'mcp-server', 
+      label: 'MCP Server', 
+      className: 'sb-activity' 
+    },
     {
       type: 'category',
       label: 'Scanning',

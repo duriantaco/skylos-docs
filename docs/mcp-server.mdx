@@ -1,0 +1,395 @@
+---
+title: "MCP Server"
+description: "Connect Skylos to Claude Desktop, Cursor, and other AI assistants via the Model Context Protocol"
+---
+
+## What is the Skylos MCP Server?
+
+The Skylos MCP server exposes Skylos's full static analysis engine as a set of tools that AI assistants can call directly. Instead of copy-pasting code into a chat window, you can ask Claude (or any MCP-compatible client) to scan your project — and it runs the real Skylos engine under the hood.
+
+```
+You: "Scan my project for security issues"
+Claude -> calls security_scan("./my-project")
+     -> Skylos runs full taint analysis, dangerous-call detection, etc.
+     -> Returns structured findings
+Claude: "I found 3 issues: SQL injection on line 42, SSRF on line 87, ..."
+```
+
+This is not a summarizer or wrapper — it runs the same analysis as `skylos . --danger` on the CLI.
+
+## What Skylos Detects
+
+Skylos is a hybrid static analysis tool for Python (and TypeScript). Through MCP, your AI assistant gets access to:
+
+| Capability | What It Finds | Rule IDs |
+|------------|---------------|----------|
+| **Dead Code** | Unused functions, imports, classes, variables | SKY-U001–U004 |
+| **Security** | SQL injection, XSS, SSRF, command injection, path traversal, CORS, JWT, mass assignment, MCP server vulnerabilities | SKY-D201–D244 |
+| **Secrets** | Hardcoded API keys (AWS, Stripe, OpenAI, GitHub, Slack, etc.) | SKY-S101 |
+| **Quality** | Cyclomatic complexity, deep nesting, async blocking, god classes | SKY-Q301–Q501 |
+| **Logic Bugs** | Mutable defaults, bare except, dangerous comparisons, inconsistent returns | SKY-L001–L006 |
+| **Supply Chain** | Hallucinated dependencies (don't exist on PyPI), undeclared imports | SKY-D222–D223 |
+| **Remediation** | Auto-fix issues via LLM, validate with tests, revert if broken | — |
+
+For the full rules reference, see [Rules Reference](/docs/rules-reference).
+
+## Setup
+
+### Prerequisites
+
+```bash
+pip install skylos
+```
+
+### Claude Desktop
+
+Add to your Claude Desktop config:
+
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Linux**: `~/.config/claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "skylos": {
+      "command": "python",
+      "args": ["-m", "skylos_mcp.server"]
+    }
+  }
+}
+```
+
+Restart Claude Desktop. You should see "skylos" listed in the tools menu (hammer icon).
+
+### Cursor / VS Code with MCP
+
+If your editor supports MCP servers, add the same configuration to your editor's MCP settings. The command is the same:
+
+```bash
+python -m skylos_mcp.server
+```
+
+### Virtual Environment
+
+If Skylos is installed in a virtual environment, point to the venv Python:
+
+```json
+{
+  "mcpServers": {
+    "skylos": {
+      "command": "/path/to/venv/bin/python",
+      "args": ["-m", "skylos_mcp.server"]
+    }
+  }
+}
+```
+
+### Custom Results Directory
+
+By default, analysis results are stored in `~/.skylos/mcp_results/`. Override with:
+
+```json
+{
+  "mcpServers": {
+    "skylos": {
+      "command": "python",
+      "args": ["-m", "skylos_mcp.server"],
+      "env": {
+        "SKYLOS_MCP_RESULTS_DIR": "/path/to/results"
+      }
+    }
+  }
+}
+```
+
+## Available Tools
+
+### `analyze`
+
+Scans for dead code — unused functions, imports, classes, variables, and parameters.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `path` | string | required | Path to scan |
+| `confidence` | int | 60 | Confidence threshold (0–100). Lower = more findings, higher = fewer false positives |
+| `exclude_folders` | list | auto | Folders to skip (defaults: `__pycache__`, `.git`, `venv`, etc.) |
+
+**Example prompt**: "Find all dead code in my project"
+
+**Returns**: Unused functions, imports, classes, variables, parameters, and empty files with confidence scores.
+
+---
+
+### `security_scan`
+
+Runs the full security scanner — taint analysis, dangerous function detection, and vulnerability checks.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `path` | string | required | Path to scan |
+| `confidence` | int | 60 | Confidence threshold |
+| `exclude_folders` | list | auto | Folders to skip |
+
+**Example prompt**: "Scan src/ for security vulnerabilities"
+
+**Returns**: All danger findings (SKY-D rules) with file, line, severity, and description.
+
+**What it detects**:
+- SQL injection (taint tracking from request params to `cursor.execute()`)
+- Command injection (`os.system()`, `subprocess(shell=True)` with user input)
+- SSRF (tainted URLs in `requests.get()`, `httpx`, `urllib`)
+- Path traversal (user input in `open()`, `Path()`)
+- XSS (`mark_safe()`, disabled autoescape, HTML string building)
+- Dangerous calls (`eval`, `exec`, `pickle`, `yaml.load`)
+- Weak cryptography (`md5`, `sha1`)
+- CORS misconfiguration, JWT vulnerabilities, mass assignment
+- MCP server security issues (D240–D244)
+- Supply chain risks (hallucinated/undeclared dependencies)
+
+---
+
+### `quality_check`
+
+Analyzes code quality — complexity, nesting, structure, and logic patterns.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `path` | string | required | Path to scan |
+| `confidence` | int | 60 | Confidence threshold |
+| `exclude_folders` | list | auto | Folders to skip |
+
+**Example prompt**: "Check the code quality of my utils/ directory"
+
+**Returns**: Quality findings (SKY-Q, SKY-C, SKY-L, SKY-P rules), circular dependency analysis, and custom rule violations.
+
+---
+
+### `secrets_scan`
+
+Detects hardcoded credentials and sensitive data.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `path` | string | required | Path to scan |
+| `confidence` | int | 60 | Confidence threshold |
+| `exclude_folders` | list | auto | Folders to skip |
+
+**Example prompt**: "Find any hardcoded secrets in my project"
+
+**Returns**: All SKY-S101 findings — API keys, tokens, passwords, and private keys with the file, line number, and detected provider.
+
+**Scanned file types**: `.py`, `.pyi`, `.pyw`, `.env`, `.yaml`, `.yml`, `.json`, `.toml`, `.ini`, `.cfg`, `.conf`, `.ts`, `.tsx`, `.js`, `.jsx`, `.go`
+
+**Detected providers**: AWS, Stripe, GitHub, GitLab, Slack, Google, SendGrid, Twilio, OpenAI, Anthropic, and generic high-entropy strings.
+
+---
+
+### `remediate`
+
+End-to-end remediation: scan for issues, generate LLM-based fixes, validate each fix by running your test suite, and optionally apply them.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `path` | string | required | Path to scan and fix |
+| `max_fixes` | int | 5 | Maximum number of fixes to attempt |
+| `dry_run` | bool | true | If true, shows plan without applying. Set to false to apply fixes. |
+| `model` | string | "gpt-4.1" | LLM model for fix generation |
+| `test_cmd` | string | null | Custom test command (default: auto-detect pytest/unittest) |
+| `severity` | string | null | Minimum severity filter: `critical`, `high`, `medium`, `low` |
+
+**Example prompt**: "Fix the top 3 security issues in my project, but don't apply yet — show me the plan"
+
+**Returns**: Remediation plan with status for each finding (fixed, skipped, test_failed, not_resolved).
+
+:::caution
+Set `dry_run=false` only when you're ready to modify files. Fixes that break tests are automatically reverted.
+:::
+
+**Safety guardrails**:
+- Dry run by default — nothing changes unless you explicitly set `dry_run=false`
+- Fixes that break tests are automatically reverted
+- Low-confidence fixes are skipped
+- After applying a fix, Skylos re-scans to confirm the finding is actually resolved
+- Maximum fixes capped at `max_fixes` to prevent runaway changes
+
+:::note
+The `remediate` tool requires an LLM API key. Set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` in the MCP server's environment, or configure keys via `skylos key`.
+:::
+
+## Available Resources
+
+Resources provide access to stored analysis results.
+
+| Resource URI | Description |
+|-------------|-------------|
+| `skylos://results/latest` | The most recent analysis result |
+| `skylos://results/{run_id}` | A specific analysis result by run ID |
+| `skylos://results` | List all stored analysis runs |
+
+Every tool call returns a `_run_id` in its response. Use this ID to retrieve the full result later:
+
+```
+You: "What was the last security scan result?"
+Claude → reads skylos://results/latest
+```
+
+Results are persisted to `~/.skylos/mcp_results/` so they survive server restarts.
+
+## Example Conversations
+
+### Security audit
+
+```
+You: "Run a security scan on my project at ./backend"
+
+Claude: I'll scan your backend for security vulnerabilities.
+[Calls security_scan(path="./backend")]
+
+I found 5 security issues:
+1. CRITICAL: SQL injection on line 42 of api/users.py (SKY-D211)
+2. HIGH: Path traversal on line 87 of api/files.py (SKY-D215)
+3. HIGH: CORS misconfiguration in config.py (SKY-D231)
+4. MEDIUM: Weak hash (MD5) on line 15 of utils/crypto.py (SKY-D207)
+5. MEDIUM: Undeclared dependency 'httpx' (SKY-D223)
+```
+
+### Finding dead code
+
+```
+You: "Find unused code in src/ with high confidence only"
+
+Claude: I'll scan for dead code with a high confidence threshold.
+[Calls analyze(path="src/", confidence=80)]
+
+Found 12 unused items:
+- 4 unused functions (90%+ confidence)
+- 6 unused imports
+- 2 unused classes
+```
+
+### Remediation workflow
+
+```
+You: "Fix the critical security issues but show me the plan first"
+
+Claude: I'll generate a remediation plan for critical issues.
+[Calls remediate(path="./backend", severity="critical", dry_run=true)]
+
+Remediation plan:
+1. SKY-D211 (SQL injection, api/users.py:42) → Will parameterize the query
+2. SKY-D204 (pickle.load, data/loader.py:15) → Will replace with json.loads
+
+Ready to apply? Say "apply the fixes" to proceed.
+
+You: "Apply the fixes"
+[Calls remediate(path="./backend", severity="critical", dry_run=false, max_fixes=2)]
+
+Results:
+- api/users.py: Fixed (tests pass, finding resolved)
+- data/loader.py: Fixed (tests pass, finding resolved)
+```
+
+### Checking for secrets before deploy
+
+```
+You: "Any hardcoded secrets in the codebase?"
+
+Claude: Let me scan for secrets.
+[Calls secrets_scan(path=".")]
+
+Found 2 secrets:
+1. AWS access key (AKIA...) in config/aws.py:8
+2. Stripe key (sk_live_...) in billing/checkout.py:23
+
+Recommendation: Move these to environment variables or a secrets manager.
+```
+
+## How It Works
+
+```
+┌─────────────────────┐      stdio/SSE      ┌──────────────────────┐
+│  Claude Desktop /   │ ◄──────────────────► │  skylos_mcp.server   │
+│  Cursor / Any MCP   │    MCP Protocol      │  (FastMCP)           │
+│  Client             │                      │                      │
+└─────────────────────┘                      └──────────┬───────────┘
+                                                        │
+                                                        ▼
+                                             ┌──────────────────────┐
+                                             │  skylos.analyzer     │
+                                             │  (Core Engine)       │
+                                             ├──────────────────────┤
+                                             │  AST parsing         │
+                                             │  Taint analysis      │
+                                             │  Pattern matching    │
+                                             │  Tree-sitter (TS)    │
+                                             │  Secrets scanning    │
+                                             │  Quality rules       │
+                                             │  Dependency checks   │
+                                             └──────────┬───────────┘
+                                                        │
+                                             ┌──────────▼───────────┐
+                                             │  Results Cache       │
+                                             │  ~/.skylos/          │
+                                             │  mcp_results/        │
+                                             └──────────────────────┘
+```
+
+1. **MCP client** (Claude Desktop, Cursor, etc.) connects to the Skylos server via stdio
+2. **Tool calls** are routed to Skylos's core `analyzer.analyze()` function — the same engine used by the CLI
+3. **Results** are stored in-memory and on disk (`~/.skylos/mcp_results/`) for later retrieval via resources
+4. **Remediation** uses Skylos's LLM orchestrator to generate, apply, test, and verify fixes
+
+The MCP server runs 100% locally. Your code never leaves your machine (unless you use the `remediate` tool, which sends code snippets to your configured LLM provider for fix generation).
+
+## Troubleshooting
+
+### Server not appearing in Claude Desktop
+
+1. Verify the config file path is correct for your OS
+2. Check that `python -m skylos_mcp.server` works from your terminal
+3. Restart Claude Desktop after editing the config
+4. Check Claude Desktop logs for connection errors
+
+### "Module not found" error
+
+Skylos must be installed in the Python that the config points to:
+
+```bash
+# Check which python
+which python
+
+# Install skylos there
+python -m pip install skylos
+
+# Or use absolute path in config
+/Users/you/venv/bin/python -m skylos_mcp.server
+```
+
+### Analysis returns empty results
+
+- Check that the `path` parameter points to a valid directory with Python/TypeScript files
+- Lower the `confidence` threshold (e.g., `confidence=40`) to see more findings
+- Verify the directory isn't excluded by default (check `--list-default-excludes`)
+
+### Remediate tool fails
+
+- Ensure an LLM API key is set: `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`
+- Check that the model name is valid (e.g., `gpt-4.1`, `claude-sonnet-4-20250514`)
+- For local LLMs, configure `SKYLOS_LLM_BASE_URL` in the environment
+
+## Privacy
+
+- **Static analysis**: Runs 100% locally. No data leaves your machine.
+- **Secrets scanning**: 100% local. Detected secrets are never transmitted.
+- **Remediation**: Sends code snippets to your configured LLM provider (OpenAI, Anthropic, or local). Use a local LLM (Ollama) for full privacy.
+- **Results storage**: Stored locally at `~/.skylos/mcp_results/`. No telemetry or data collection.
+
+## References
+
+| Resource | Link |
+|----------|------|
+| MCP Specification | https://modelcontextprotocol.io |
+| Skylos GitHub | https://github.com/duriantaco/skylos |
+| Rules Reference | [Rules Reference](/docs/rules-reference) |
+| Claude Desktop MCP Setup | https://modelcontextprotocol.io/quickstart/user |
