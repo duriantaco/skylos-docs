@@ -9,9 +9,9 @@ Skylos provides analysis capabilities for TypeScript (`.ts`, `.tsx`) and JavaScr
 
 TypeScript analysis includes:
 
-- **Dead code detection:** Unused functions, classes, and methods
-- **Security scanning:** `eval()`, unsafe `innerHTML`
-- **Complexity analysis:** Cyclomatic complexity for functions
+- **Dead code detection:** Unused functions, classes, interfaces, enums, type aliases, variables, methods, and imports
+- **Security scanning:** `eval()`, unsafe `innerHTML`, `document.write()`, `new Function()`, `outerHTML`, string-based timers, command injection
+- **Quality analysis:** Cyclomatic complexity, nesting depth, function length, and parameter count
 
 ## How It Works
 
@@ -21,8 +21,8 @@ Skylos uses [tree-sitter](https://tree-sitter.github.io/) with the TypeScript gr
 
 1. Read source file as bytes
 2. Parse with tree-sitter TypeScript grammar
-3. Query for definitions (functions, classes, methods)
-4. Query for references (calls, property accesses)
+3. Query for definitions (functions, classes, interfaces, enums, type aliases, methods, variables, imports)
+4. Query for references (calls, property accesses, type references, decorators, exports, inheritance)
 5. Cross-reference to find unused definitions
 
 ## Dead Code Detection
@@ -34,7 +34,12 @@ Skylos uses [tree-sitter](https://tree-sitter.github.io/) with the TypeScript gr
 | Functions | `function foo() {}` |
 | Arrow functions | `const foo = () => {}` |
 | Classes | `class Foo {}` |
+| Interfaces | `interface Foo {}` |
+| Enums | `enum Foo {}` |
+| Type aliases | `type Foo = ...` |
 | Methods | `class { method() {} }` |
+| Top-level variables | `const foo = value` |
+| Imports | `import { foo } from '...'` |
 
 ### Export Awareness
 
@@ -48,6 +53,26 @@ export function publicApi() {}
 function internalHelper() {}
 ```
 
+### Lifecycle Method Exclusions
+
+Framework lifecycle methods are automatically excluded from dead code detection:
+
+- **React:** `constructor`, `render`, `componentDidMount`, `componentWillUnmount`, `componentDidUpdate`, `shouldComponentUpdate`, `getDerivedStateFromProps`, `getSnapshotBeforeUpdate`
+- **Angular:** `ngOnInit`, `ngOnDestroy`, `ngOnChanges`, `ngAfterViewInit`
+- **Web Components:** `connectedCallback`, `disconnectedCallback`, `attributeChangedCallback`
+
+### Reference Tracking
+
+Skylos tracks references across many usage patterns:
+
+- Function calls and `new` expressions
+- Property accesses and member expressions
+- Callback arguments, return values, and spread elements
+- Array storage and object shorthand properties
+- Type annotations and type references
+- Decorator usage (decorated classes are not flagged)
+- Export specifiers and `extends` clauses
+
 ## Security Rules
 
 ### SKY-D501: eval()
@@ -55,11 +80,8 @@ function internalHelper() {}
 Detects use of `eval()`, which can execute arbitrary code.
 
 ```typescript
-// Flagged
+// Flagged (CRITICAL)
 eval(userInput);
-
-// Flagged
-const result = eval('1 + 2');
 ```
 
 ### SKY-D502: innerHTML
@@ -67,16 +89,65 @@ const result = eval('1 + 2');
 Detects unsafe `innerHTML` assignments that could enable XSS.
 
 ```typescript
-// Flagged
+// Flagged (HIGH)
 element.innerHTML = userContent;
+```
 
-// Flagged
-document.getElementById('app').innerHTML = data;
+### SKY-D503: document.write()
+
+Detects `document.write()` calls that can lead to XSS vulnerabilities.
+
+```typescript
+// Flagged (HIGH)
+document.write(data);
+```
+
+### SKY-D504: new Function()
+
+Detects `new Function()` constructor which is equivalent to `eval()`.
+
+```typescript
+// Flagged (CRITICAL)
+const fn = new Function('return ' + userInput);
+```
+
+### SKY-D505: String-based Timers
+
+Detects `setTimeout()` and `setInterval()` with string arguments, which are equivalent to `eval()`.
+
+```typescript
+// Flagged (HIGH)
+setTimeout("alert('xss')", 1000);
+setInterval("doStuff()", 500);
+
+// Not flagged - function reference
+setTimeout(() => alert('ok'), 1000);
+```
+
+### SKY-D506: child_process.exec()
+
+Detects `.exec()` calls that may indicate command injection. Safe objects like `regex`, `db`, `stmt`, and `cursor` are automatically excluded.
+
+```typescript
+// Flagged (HIGH)
+child_process.exec(userCommand);
+
+// Not flagged - regex exec is safe
+const match = pattern.exec(input);
+```
+
+### SKY-D507: outerHTML
+
+Detects unsafe `outerHTML` assignments that could enable XSS.
+
+```typescript
+// Flagged (HIGH)
+element.outerHTML = userContent;
 ```
 
 ## Quality Rules
 
-### SKY-Q501: Function Complexity
+### SKY-Q601: Function Complexity
 
 Measures cyclomatic complexity for TypeScript functions.
 
@@ -102,14 +173,60 @@ function process(data: Data) {
 }
 ```
 
+### SKY-Q602: Nesting Depth
+
+Flags functions with deeply nested control flow.
+
+**Nesting nodes:**
+
+- `if_statement`
+- `for_statement`, `for_in_statement`
+- `while_statement`, `do_statement`
+- `switch_statement`
+- `try_statement`
+
+```typescript
+// Nesting depth: 3 (flagged if limit is 4)
+function deep() {
+  if (a) {                    // depth 1
+    for (const x of items) {  // depth 2
+      if (x.ok) {             // depth 3
+        handle(x);
+      }
+    }
+  }
+}
+```
+
+### SKY-Q603: Function Length
+
+Flags functions that exceed the maximum line count.
+
+```typescript
+// Flagged if > 50 lines (default)
+function longFunction() {
+  // ... 60 lines of code
+}
+```
+
+### SKY-Q604: Parameter Count
+
+Flags functions with too many parameters.
+
+```typescript
+// Flagged if > 5 parameters (default)
+function configure(a: string, b: number, c: boolean, d: object, e: string[], f: Map<string, any>) {
+  // ...
+}
+```
+
 ### Configuration
 
 Override TypeScript thresholds separately from Python:
 
 ```toml
-# [tool.skylos.languages.typescript]
+[tool.skylos.languages.typescript]
 complexity = 15  # Higher threshold for TS
-nesting = 4
 ```
 
 ## Running Analysis
@@ -135,15 +252,22 @@ Supported extensions:
  #   Name                 Location
  1   unusedHelper         src/utils.ts:45
  2   deprecatedFunc       src/legacy.ts:12
+ 3   OldInterface         src/types.ts:8
 
 ───────────────────── Security Issues ─────────────────────────
- #   Rule       Severity   Message                    Location
- 1   SKY-D501   Critical   Use of eval() detected     src/dynamic.ts:23
- 2   SKY-D502   High       Unsafe innerHTML           src/render.tsx:67
+ #   Rule       Severity   Message                             Location
+ 1   SKY-D501   Critical   Use of eval() detected              src/dynamic.ts:23
+ 2   SKY-D502   High       Unsafe innerHTML assignment          src/render.tsx:67
+ 3   SKY-D503   High       document.write() can lead to XSS    src/legacy.ts:12
+ 4   SKY-D504   Critical   new Function() is equivalent to eval src/exec.ts:5
+ 5   SKY-D506   High       child_process.exec() command inject  src/run.ts:41
 
 ────────────────────── Quality Issues ─────────────────────────
- #   Type        Function       Detail                    Location
- 1   Complexity  processData    Too complex (18)          src/processor.ts:30
+ #   Rule       Severity   Message                             Location
+ 1   SKY-Q601   Medium     Function 'processData' complexity 18 src/processor.ts:30
+ 2   SKY-Q602   Medium     Function 'handle' nesting depth 6    src/handler.ts:15
+ 3   SKY-Q603   Low        Function 'init' is 85 lines long     src/setup.ts:10
+ 4   SKY-Q604   Low        Function 'configure' has 8 params    src/config.ts:22
 ```
 
 ## Limitations
@@ -152,7 +276,6 @@ Supported extensions:
 
 - **Type checking:** Skylos doesn't validate TypeScript types
 - **Import resolution:** Cross-file imports are not fully resolved
-- **Framework-specific patterns:** React hooks, Angular decorators are not specially handled
 - **JSDoc:** Documentation comments are not analyzed
 
 ### Workarounds
@@ -182,11 +305,8 @@ tree-sitter-typescript>=0.23.2
 
 These are installed automatically with Skylos:
 
-
-**pip:**
-
-
-```bash install skylos
+```bash
+pip install skylos
 ```
 
 ## Integration with Python Projects

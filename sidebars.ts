@@ -86,6 +86,13 @@ const sidebars = {
       className: 'sb-sparkles' 
     },
 
+    { 
+      type: 'doc', 
+      id: 'typescript-support', 
+      label: 'Typescript', 
+      className: 'sb-ts' 
+    },
+
     {
       type: 'category',
       label: 'Reference',
