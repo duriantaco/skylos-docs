@@ -606,6 +606,39 @@ These values were **calibrated empirically** across many real-world codebases.
 
 ---
 
+## Hard Skips (Confidence → 0)
+
+These patterns are suppressed entirely (confidence set to 0) regardless of other penalties:
+
+### Sphinx & Docs
+
+- **`conf.py` in docs/**: Top-level variables in `docs/conf.py` or `doc/conf.py` are consumed by Sphinx's `execfile()` — not dead code.
+- **Theme files in docs/**: Pygments theme files (`_theme`, `theme_support`) in `docs/` directories are loaded dynamically.
+
+### Django (v3.5.1+)
+
+- **`clean_<field>()` methods**: Called by Django form validation on `Form`/`ModelForm` subclasses.
+- **Admin class attributes**: `list_display`, `list_filter`, `search_fields`, `ordering`, `readonly_fields`, `fieldsets`, `fields`, `exclude`, `filter_horizontal`, `filter_vertical`, `raw_id_fields`, `autocomplete_fields`, `actions`, `inlines`, `form`, `model`, `extra`, `max_num`, `min_num`, etc. — read by Django's admin metaclass.
+- **Model Meta attributes**: `ordering`, `verbose_name`, `db_table`, `abstract`, `unique_together`, `indexes`, `constraints`, `permissions`, etc. — read by Django's model metaclass.
+- **Django TestCase variants**: `TestCase`, `SimpleTestCase`, `TransactionTestCase`, `LiveServerTestCase`, `StaticLiveServerTestCase`.
+
+### Django REST Framework (v3.5.1+)
+
+- **`validate_<field>()` methods**: Called by DRF serializer field-level validation.
+- **`get_<field>()` methods**: Called by `SerializerMethodField`.
+- **Filter/throttle backend methods**: `filter_queryset`, `get_schema_fields`, `get_schema_operation_parameters` on `BaseFilterBackend`, `FilterSet`, `BaseThrottle`, `BasePermission` subclasses.
+
+### Threading
+
+- **`threading.Thread.run()` overrides**: Called by `Thread.start()`, not by direct invocation.
+
+### Test Patterns (v3.5.1+)
+
+- **`Test*` classes in test files**: Classes with `Test` prefix in test paths are collected by pytest.
+- **Mock objects inside test functions**: Functions/methods nested inside `test_*` functions are duck-typed mocks, not dead code.
+
+---
+
 ## Debugging Penalties
 
 If something is incorrectly flagged:

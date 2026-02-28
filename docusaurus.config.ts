@@ -3,9 +3,9 @@ import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
-  title: 'Skylos',
-  tagline: 'Static analysis for Python',
-  favicon: 'img/favicon.svg',
+  title: 'Skylos — Dead Code Detection & SAST for Python, TypeScript, Go',
+  tagline: 'Find dead code, security vulnerabilities, and quality issues. Framework-aware static analysis with 98% recall and 3x fewer false positives than Vulture.',
+  favicon: 'img/favicon-96x96.png',
 
   url: 'https://docs.skylos.dev',
   baseUrl: '/',
@@ -15,6 +15,33 @@ const config: Config = {
 
   onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
+
+  headTags: [
+    {
+      tagName: 'meta',
+      attributes: {
+        name: 'keywords',
+        content: 'dead code detection, python static analysis, SAST, unused code finder, security scanner, code quality, vulture alternative, django dead code, fastapi dead code, typescript dead code, MCP server',
+      },
+    },
+    {
+      tagName: 'script',
+      attributes: {
+        type: 'application/ld+json',
+      },
+      innerHTML: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'SoftwareApplication',
+        name: 'Skylos',
+        applicationCategory: 'DeveloperApplication',
+        operatingSystem: 'Windows, macOS, Linux',
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+        description: 'Dead code detection and SAST tool for Python, TypeScript, and Go. Framework-aware analysis with AI-powered fixes.',
+        url: 'https://github.com/duriantaco/skylos',
+        downloadUrl: 'https://pypi.org/project/skylos/',
+      }),
+    },
+  ],
 
   markdown: {
     mermaid: true,
@@ -52,7 +79,12 @@ const config: Config = {
           routeBasePath: '/',
           editUrl: 'https://github.com/duriantaco/skylos/tree/main/docs/',
         },
-        blog: false,
+        blog: {
+          showReadingTime: true,
+          blogTitle: 'Skylos Blog',
+          blogDescription: 'Dead code detection, Python security, and developer tools insights.',
+          blogSidebarCount: 5,
+        },
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -99,19 +131,28 @@ const config: Config = {
           label: 'Docs',
         },
         {
+          to: '/case-studies',
+          label: 'Benchmarks',
+          position: 'right',
+        },
+        {
           to: '/cli-reference',
           label: 'CLI',
           position: 'right',
         },
         {
-          to: '/faq',
-          label: 'FAQ',
+          href: 'https://discord.gg/Ftn9t9tErf',
+          label: 'Discord',
           position: 'right',
         },
-        
-     
         {
-          href: '#',
+          href: 'https://github.com/duriantaco/skylos',
+          position: 'right',
+          className: 'header-github-link',
+          'aria-label': 'GitHub repository',
+        },
+        {
+          to: '/installation',
           label: 'Get Started Free',
           position: 'right',
           className: 'navbar-cta-button',
@@ -138,12 +179,14 @@ const config: Config = {
             { label: 'Security Analysis', to: '/security-analysis' },
             { label: 'Code Quality', to: '/code-quality' },
             { label: 'AI Features', to: '/ai-features' },
+            { label: 'Case Studies', to: '/case-studies' },
           ],
         },
         {
           title: 'Community',
           items: [
             { label: 'GitHub', href: 'https://github.com/duriantaco/skylos' },
+            { label: 'Discord', href: 'https://discord.gg/Ftn9t9tErf' },
             { label: 'Issues', href: 'https://github.com/duriantaco/skylos/issues' },
             { label: 'Discussions', href: 'https://github.com/duriantaco/skylos/discussions' },
             { label: 'PyPI', href: 'https://pypi.org/project/skylos/' },
@@ -152,6 +195,7 @@ const config: Config = {
         {
           title: 'More',
           items: [
+            { label: 'VS Code Extension', href: 'https://marketplace.visualstudio.com/items?itemName=oha.skylos-vscode-extension' },
             { label: 'Changelog', href: 'https://github.com/duriantaco/skylos/releases' },
             { label: 'Contributing', href: 'https://github.com/duriantaco/skylos/blob/main/CONTRIBUTING.md' },
             { label: 'License', href: 'https://github.com/duriantaco/skylos/blob/main/LICENSE' },

@@ -235,6 +235,20 @@ flowchart LR
 
 This is why Skylos has far fewer false positives than tools that do simple "is it referenced?" checks.
 
+### Reference Resolution (v3.5.1+)
+
+Beyond simple name matching, Skylos uses several strategies to reduce false positives:
+
+| Strategy | What It Does |
+|----------|-------------|
+| **`__init__.py` re-export tracking** | `from .module import name` marks the original definition as referenced and exported |
+| **Import chain resolution** | Re-export chains (e.g., `compat.py` → `collections.abc`) are followed end-to-end |
+| **Exported class propagation** | Public methods of exported classes are automatically marked as public API |
+| **Attribute fallback** | When `obj.method()` can't be qualified, all definitions named `method` are considered potentially used |
+| **`nonlocal` resolution** | `nonlocal x` references the outer scope variable instead of creating a spurious inner definition |
+
+The attribute fallback is key to handling instance methods, protocol methods, and polymorphic dispatch across files — patterns that trip up simpler tools.
+
 ---
 
 ## Phase 5: Output & Gating

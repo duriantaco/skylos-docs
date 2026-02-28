@@ -1,0 +1,138 @@
+---
+sidebar_position: 18
+---
+
+# Case Studies
+
+Skylos was benchmarked against **Vulture** on 9 of the most popular Python repositories on GitHub — 350k+ combined stars. Every finding was **manually verified** against the source code.
+
+## Results Summary
+
+| Repository | Stars | Dead Items | Skylos TP | Skylos FP | Vulture TP | Vulture FP |
+|:---|---:|---:|---:|---:|---:|---:|
+| [requests](https://github.com/psf/requests) | 53k | 6 | 6 | 35 | 6 | 58 |
+| [click](https://github.com/pallets/click) | 17k | 7 | 7 | 8 | 6 | 6 |
+| [starlette](https://github.com/encode/starlette) | 10k | 1 | 1 | 4 | 1 | 2 |
+| [rich](https://github.com/Textualize/rich) | 51k | 13 | 13 | 14 | 10 | 8 |
+| [httpx](https://github.com/encode/httpx) | 14k | 0 | 0 | 6 | 0 | 59 |
+| [flask](https://github.com/pallets/flask) | 69k | 7 | 7 | 12 | 6 | 260 |
+| [pydantic](https://github.com/pydantic/pydantic) | 23k | 11 | 11 | 93 | 10 | 112 |
+| [fastapi](https://github.com/fastapi/fastapi) | 82k | 6 | 6 | 30 | 4 | 102 |
+| [tqdm](https://github.com/tqdm/tqdm) | 30k | 1 | 0 | 18 | 1 | 37 |
+| **Total** | | **52** | **51** | **220** | **44** | **644** |
+
+| Metric | Skylos | Vulture |
+|:---|:---|:---|
+| **Recall** | **98.1%** (51/52) | 84.6% (44/52) |
+| **False Positives** | **220** | 644 |
+
+Skylos finds **7 more dead items** with **3x fewer false positives**.
+
+## Why These Repos?
+
+Each repository stress-tests dead code detection differently:
+
+| Repository | What It Tests |
+|:---|:---|
+| **requests** | `__init__.py` re-exports, Sphinx conf, pytest classes |
+| **click** | IO protocol methods (`io.RawIOBase` subclasses), nonlocal closures |
+| **starlette** | ASGI interface params, polymorphic dispatch, public API methods |
+| **rich** | `__rich_console__` protocol, sentinel vars via `f_locals`, metaclasses |
+| **httpx** | Transport/auth protocol methods, zero dead code (pure FP test) |
+| **flask** | Jinja2 template globals, Werkzeug protocol methods, extension hooks |
+| **pydantic** | Mypy plugin hooks, hypothesis `@resolves`, `__getattr__` config |
+| **fastapi** | 100+ OpenAPI spec model fields, Starlette base class overrides |
+| **tqdm** | Keras/Dask callbacks, Rich column rendering, pandas monkey-patching |
+
+No repo was excluded for having unfavorable results.
+
+## Deep Dives
+
+### Flask (69k stars)
+
+**Ground truth**: 1 unused function, 2 unused variables, 4 unused classes
+
+Vulture produces **260 false positives** on Flask because it flags every Jinja2 template global, Werkzeug protocol method, and Flask extension hook. Skylos recognizes Flask/Werkzeug patterns and reduces this to 12 FP.
+
+Key challenges:
+- Decorator-based route registration (`@app.route`)
+- Public API extensions via `__init__.py`
+- Pytest fixture injection
+- Test config variables loaded via `app.config.from_object`
+
+### FastAPI (82k stars)
+
+**Ground truth**: 4 unused variables, 2 unused imports
+
+Vulture flags **102 false positives** — mainly OpenAPI spec model fields (Pydantic `BaseModel` attributes like `maxLength`, `exclusiveMinimum`). Skylos understands these as schema definitions.
+
+Key challenges:
+- Starlette interface requirements (`req`, `receive`, `send` parameters)
+- Pydantic model fields used by OpenAPI spec generation
+- Re-exports and compatibility layers
+
+### Pydantic (23k stars)
+
+**Ground truth**: 2 unused functions, 7 unused variables, 2 unused classes
+
+Key challenges:
+- mypy plugin hooks
+- `__getattr__` dynamic dispatch for config access
+- `TYPE_CHECKING` imports
+- Deprecated exports and version-specific code
+- Hypothesis plugin registration
+
+### httpx (14k stars)
+
+**Ground truth**: 0 dead items — a clean codebase with zero dead code.
+
+This is a pure false positive test. Vulture reports **59 FP**, Skylos reports **6 FP**. Every flagged item is actually used through transport/auth protocol methods, IntEnum members, or conditional imports.
+
+### Rich (51k stars)
+
+**Ground truth**: 1 unused function, 9 unused variables, 2 unused classes
+
+Key challenges:
+- `__rich_console__` protocol methods
+- Sentinel variables accessed via `locals()` introspection
+- Jupyter protocol methods (`_repr_html_`, `_repr_mimebundle_`)
+- Logging handler protocol (`emit`)
+
+### Requests (53k stars)
+
+**Ground truth**: 5 unused functions, 1 unused variable
+
+Key challenges:
+- Public API re-exports through `__init__.py`
+- Sphinx `conf.py` variables (consumed by execfile)
+- Test fixtures and pytest classes
+- `__init__.py` re-export chains
+
+### tqdm (30k stars)
+
+**Ground truth**: 1 unused function (deprecated, scheduled for removal in v5.0)
+
+Key challenges:
+- Framework callbacks (logging.Handler.emit, Dask/Keras/Rich)
+- IPython/Jupyter protocol methods
+- Thread protocol methods (daemon, run)
+- Backward-compatibility re-exports
+
+Skylos misses the 1 dead function because it suppresses `__init__.py` definitions as potential re-exports — a deliberate conservative tradeoff.
+
+## Where Skylos Loses (Honestly)
+
+- **click** (8 vs 6 FP): IO protocol methods on `io.RawIOBase` subclasses
+- **starlette** (4 vs 2 FP): Instance method calls across files not fully resolved
+- **tqdm** (0 vs 1 TP): Skylos misses 1 dead function in `__init__.py`
+
+We include repos where Vulture beats Skylos.
+
+## Reproduce
+
+```bash
+cd real_life_examples/{repo}
+python3 ../benchmark_{repo}.py
+```
+
+Full methodology and per-repo breakdowns in the [skylos-demo](https://github.com/duriantaco/skylos-demo) repository.

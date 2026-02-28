@@ -9,6 +9,7 @@ description: "Complete reference for all Skylos static analysis rules"
 |--------|----------|-------------|
 | `SKY-D` | Security | Vulnerabilities that could be exploited |
 | `SKY-S` | Secrets | Hardcoded credentials and sensitive data |
+| `SKY-G` | Go-Specific Security | Go-only vulnerabilities with no cross-language equivalent |
 | `SKY-Q` | Quality & Architecture | Complexity, nesting, coupling, cohesion, and architecture metrics |
 | `SKY-C` | Structure | Function size and parameter count |
 | `SKY-L` | Logic | Common bug patterns |
@@ -16,6 +17,8 @@ description: "Complete reference for all Skylos static analysis rules"
 | `SKY-U` | Dead Code | Unused code that should be removed |
 | `SKY-UC` | Unreachable Code | Code that can never execute |
 | `SKY-E` | Empty File | Files with no meaningful code |
+
+Rule IDs are **unified across languages** — the same vulnerability uses the same ID regardless of whether it's found in Python, TypeScript, or Go.
 
 ---
 
@@ -25,49 +28,53 @@ description: "Complete reference for all Skylos static analysis rules"
 
 #### Dangerous Function Calls
 
-| Rule ID | Name | Severity | Description |
-|---------|------|----------|-------------|
-| `SKY-D200` | Dangerous Call (base) | varies | Generic dangerous function call |
-| `SKY-D201` | `eval()` | HIGH | Dynamic code execution via `eval()` |
-| `SKY-D202` | `exec()` | HIGH | Dynamic code execution via `exec()` |
-| `SKY-D203` | `os.system()` | CRITICAL | OS command execution |
-| `SKY-D204` | `pickle.load` | CRITICAL | Untrusted deserialization via `pickle.load` |
-| `SKY-D205` | `pickle.loads` | CRITICAL | Untrusted deserialization via `pickle.loads` |
-| `SKY-D206` | `yaml.load` | HIGH | `yaml.load()` without SafeLoader |
-| `SKY-D207` | Weak Hash: MD5 | MEDIUM | `hashlib.md5()` — cryptographically broken |
-| `SKY-D208` | Weak Hash: SHA1 | MEDIUM | `hashlib.sha1()` — cryptographically weak |
-| `SKY-D209` | `subprocess` shell=True | HIGH | `subprocess.*(..., shell=True)` |
-| `SKY-D210` | TLS Verify Disabled | HIGH | `requests.*(verify=False)` |
-| `SKY-D233` | Unsafe Deserialization | CRITICAL | `marshal.loads`, `shelve.open`, `jsonpickle.decode`, `dill.load/loads` |
+#### Dangerous Function Calls
+
+| Rule ID | Name | Severity | Languages | Description |
+|---------|------|----------|-----------|-------------|
+| `SKY-D200` | Dangerous Call (base) | varies | Python | Generic dangerous function call |
+| `SKY-D201` | `eval()` | HIGH | Python, TS | Dynamic code execution via `eval()` |
+| `SKY-D202` | Dynamic Exec | HIGH | Python, TS | `exec()`, `new Function()`, `setTimeout`/`setInterval` with string |
+| `SKY-D203` | `os.system()` | CRITICAL | Python | OS command execution |
+| `SKY-D204` | `pickle.load` | CRITICAL | Python | Untrusted deserialization via `pickle.load` |
+| `SKY-D205` | `pickle.loads` | CRITICAL | Python | Untrusted deserialization via `pickle.loads` |
+| `SKY-D206` | `yaml.load` | HIGH | Python | `yaml.load()` without SafeLoader |
+| `SKY-D207` | Weak Hash: MD5 | MEDIUM | Python, TS, Go | `hashlib.md5()` / `crypto.createHash('md5')` / `crypto/md5` |
+| `SKY-D208` | Weak Hash: SHA1 | MEDIUM | Python, TS, Go | `hashlib.sha1()` / `crypto.createHash('sha1')` / `crypto/sha1` |
+| `SKY-D209` | `subprocess` shell=True | HIGH | Python | `subprocess.*(..., shell=True)` |
+| `SKY-D210` | TLS Verify Disabled | HIGH | Python, Go | `requests.*(verify=False)` / `InsecureSkipVerify: true` |
+| `SKY-D233` | Unsafe Deserialization | CRITICAL | Python | `marshal.loads`, `shelve.open`, `jsonpickle.decode`, `dill.load/loads` |
 
 #### Taint / Data Flow
 
-| Rule ID | Name | Severity | Description |
-|---------|------|----------|-------------|
-| `SKY-D211` | SQL Injection (cursor) | CRITICAL | Tainted/interpolated SQL in `execute` / `executescript` / `executemany` |
-| `SKY-D212` | Command Injection | CRITICAL | Tainted input flows to `os.system()` or `subprocess(shell=True)` |
-| `SKY-D215` | Path Traversal | HIGH | Tainted input used in filesystem path (`open()`, `Path()`) |
-| `SKY-D216` | SSRF | CRITICAL | Tainted URL passed to HTTP client (`requests`, `urllib`, `httpx`) |
-| `SKY-D217` | SQL Injection (raw) | CRITICAL | Tainted input in `sqlalchemy.text()`, `pandas.read_sql()`, Django `.raw()` |
+| Rule ID | Name | Severity | Languages | Description |
+|---------|------|----------|-----------|-------------|
+| `SKY-D211` | SQL Injection | CRITICAL | Python, TS, Go | Tainted/interpolated SQL in `execute` / template literals / `fmt.Sprintf` |
+| `SKY-D212` | Command Injection | CRITICAL | Python, TS, Go | Tainted input to `os.system()`, `child_process.exec()`, `exec.Command` |
+| `SKY-D215` | Path Traversal | HIGH | Python, Go | Tainted input used in filesystem path |
+| `SKY-D216` | SSRF | CRITICAL | Python, TS, Go | Tainted URL passed to HTTP client |
+| `SKY-D217` | SQL Injection (raw) | CRITICAL | Python | Tainted input in `sqlalchemy.text()`, `pandas.read_sql()`, Django `.raw()` |
 
 #### Web Security
 
-| Rule ID | Name | Severity | Description |
-|---------|------|----------|-------------|
-| `SKY-D226` | XSS (Markup) | CRITICAL | Untrusted content passed to `Markup()` or `mark_safe()` |
-| `SKY-D227` | XSS (Template) | HIGH | Template uses `\|safe` filter or disables autoescape |
-| `SKY-D228` | XSS (HTML Build) | HIGH | HTML string built with unescaped user input |
-| `SKY-D230` | Open Redirect | HIGH | User-controlled URL passed to `redirect()` |
-| `SKY-D231` | CORS Misconfiguration | HIGH | Wildcard origins, credential leaks, overly permissive headers |
-| `SKY-D232` | JWT Vulnerabilities | HIGH/CRITICAL | `algorithms=['none']`, `verify=False`, weak secrets |
-| `SKY-D234` | Mass Assignment | HIGH | Django `Meta.fields = '__all__'` exposes all model fields |
+| Rule ID | Name | Severity | Languages | Description |
+|---------|------|----------|-----------|-------------|
+| `SKY-D214` | Broken Access Control | HIGH | Python | Missing or insufficient authorization check |
+| `SKY-D226` | XSS | CRITICAL | Python, TS | `mark_safe()`, `innerHTML`, `outerHTML`, `document.write()`, `dangerouslySetInnerHTML` |
+| `SKY-D227` | XSS (Template) | HIGH | Python | Template uses `\|safe` filter or disables autoescape |
+| `SKY-D228` | XSS (HTML Build) | HIGH | Python | HTML string built with unescaped user input |
+| `SKY-D230` | Open Redirect | HIGH | Python, TS, Go | User-controlled URL in `redirect()` / `res.redirect()` / `http.Redirect` |
+| `SKY-D231` | CORS Misconfiguration | HIGH | Python | Wildcard origins, credential leaks, overly permissive headers |
+| `SKY-D232` | JWT Vulnerabilities | CRITICAL | Python | `algorithms=['none']`, `verify=False`, weak secrets |
+| `SKY-D234` | Mass Assignment | HIGH | Python | Django `Meta.fields = '__all__'` exposes all model fields |
+| `SKY-D510` | Prototype Pollution | HIGH | TS | `__proto__` access |
 
 #### Supply Chain
 
-| Rule ID | Name | Severity | Description |
-|---------|------|----------|-------------|
-| `SKY-D222` | Hallucinated Dependency | CRITICAL | Imported package does not exist on PyPI |
-| `SKY-D223` | Undeclared Dependency | MEDIUM | Import not declared in requirements.txt / pyproject.toml / setup.py |
+| Rule ID | Name | Severity | Languages | Description |
+|---------|------|----------|-----------|-------------|
+| `SKY-D222` | Hallucinated Dependency | CRITICAL | Python | Imported package does not exist on PyPI |
+| `SKY-D223` | Undeclared Dependency | MEDIUM | Python | Import not declared in requirements.txt / pyproject.toml / setup.py |
 
 #### MCP Server Security
 
@@ -79,60 +86,68 @@ description: "Complete reference for all Skylos static analysis rules"
 | `SKY-D243` | Network-Exposed MCP | CRITICAL | MCP server bound to `0.0.0.0` without authentication |
 | `SKY-D244` | Hardcoded Secrets in MCP | CRITICAL | Secrets in MCP tool parameter defaults |
 
-### Security Rules — TypeScript (SKY-D5xx)
-
-| Rule ID | Name | Severity | Description |
-|---------|------|----------|-------------|
-| `SKY-D501` | `eval()` | CRITICAL | Use of `eval()` |
-| `SKY-D502` | `innerHTML` | HIGH | Unsafe `innerHTML` assignment |
-| `SKY-D503` | `document.write()` | HIGH | XSS via `document.write()` |
-| `SKY-D504` | `new Function()` | CRITICAL | Equivalent to `eval()` |
-| `SKY-D505` | `setTimeout` string | HIGH | `setTimeout`/`setInterval` with string argument (eval equivalent) |
-| `SKY-D506` | `child_process.exec` | HIGH | Command injection via `child_process.exec()` |
-| `SKY-D507` | `outerHTML` | HIGH | Unsafe `outerHTML` assignment |
-
 ### Secret Rules (SKY-S)
 
+| Rule ID | Name | Severity | Languages | Description |
+|---------|------|----------|-----------|-------------|
+| `SKY-S101` | Hardcoded Secret | CRITICAL | All | API keys, passwords, tokens, private keys in source code |
+
+Scanned file types: `.py`, `.pyi`, `.pyw`, `.env`, `.yaml`, `.yml`, `.json`, `.toml`, `.ini`, `.cfg`, `.conf`, `.ts`, `.tsx`, `.js`, `.jsx`, `.go`
+
+### Go-Specific Rules (SKY-G)
+
+These rules detect Go-only patterns with no cross-language equivalent.
+Go rules that **do** have equivalents (SQL injection, command injection, etc.) are automatically remapped to their unified `SKY-D` IDs.
+
 | Rule ID | Name | Severity | Description |
 |---------|------|----------|-------------|
-| `SKY-S101` | Hardcoded Secret | CRITICAL | API keys, passwords, tokens, private keys in source code |
+| `SKY-G203` | Defer in Loop | HIGH | `defer` inside `for`/`range` loop — resource leak risk |
+| `SKY-G206` | Unsafe Package | HIGH | Import of `unsafe` stdlib package |
+| `SKY-G209` | Weak RNG | MEDIUM | `math/rand` instead of `crypto/rand` |
+| `SKY-G221` | Insecure Cookie | MEDIUM | `http.Cookie` missing `HttpOnly` or `Secure` flags |
+| `SKY-G260` | Unclosed Resource | HIGH | `os.Open`/`sql.Open` without `defer .Close()` |
+| `SKY-G280` | Weak TLS Version | HIGH | TLS 1.0 or 1.1 configured |
+
+**Go remap table** — the Go binary outputs `SKY-G` IDs which are translated before reporting:
+
+| Go Binary Output | Unified ID | Vulnerability |
+|------------------|------------|---------------|
+| SKY-G207 | SKY-D207 | Weak MD5 |
+| SKY-G208 | SKY-D208 | Weak SHA1 |
+| SKY-G210 | SKY-D210 | TLS disabled |
+| SKY-G211 | SKY-D211 | SQL injection |
+| SKY-G212 | SKY-D212 | Command injection |
+| SKY-G215 | SKY-D215 | Path traversal |
+| SKY-G216 | SKY-D216 | SSRF |
+| SKY-G220 | SKY-D230 | Open redirect |
 
 Scanned file types: `.py`, `.pyi`, `.pyw`, `.env`, `.yaml`, `.yml`, `.json`, `.toml`, `.ini`, `.cfg`, `.conf`, `.ts`, `.tsx`, `.js`, `.jsx`, `.go`
 
 ### Quality Rules — Python (SKY-Q)
 
-| Rule ID | Name | Severity | Default Threshold |
-|---------|------|----------|-------------------|
-| `SKY-Q301` | Cyclomatic Complexity | MEDIUM | 10 |
-| `SKY-Q302` | Deep Nesting | MEDIUM | 3 levels |
-| `SKY-Q401` | Async Blocking | MEDIUM | — |
-| `SKY-Q501` | God Class | MEDIUM | 20 methods / 15 attributes |
-| `SKY-Q701` | Coupling Between Objects (CBO) | MEDIUM/HIGH | Ce > 4 |
-| `SKY-Q702` | Lack of Cohesion of Methods (LCOM) | MEDIUM/HIGH | LCOM4 > 2 |
+| Rule ID | Name | Severity | Languages | Default Threshold |
+|---------|------|----------|-----------|-------------------|
+| `SKY-Q301` | Cyclomatic Complexity | MEDIUM | All | 10 |
+| `SKY-Q302` | Deep Nesting | MEDIUM | All | 3 levels (Python), 4 levels (TS) |
+| `SKY-Q401` | Async Blocking | MEDIUM | Python | — |
+| `SKY-Q501` | God Class | MEDIUM | Python | 20 methods / 15 attributes |
+| `SKY-Q701` | Coupling Between Objects (CBO) | MEDIUM/HIGH | Python | Ce > 4 |
+| `SKY-Q702` | Lack of Cohesion of Methods (LCOM) | MEDIUM/HIGH | Python | LCOM4 > 2 |
 
-### Architecture Rules — Python (SKY-Q8xx)
+### Architecture Rules (SKY-Q8xx)
 
-| Rule ID | Name | Severity | Description |
-|---------|------|----------|-------------|
-| `SKY-Q802` | Distance from Main Sequence | MEDIUM/HIGH | Module far from ideal abstractness/instability balance |
-| `SKY-Q803` | Zone Warning | MEDIUM | Module in Zone of Pain or Zone of Uselessness |
-| `SKY-Q804` | DIP Violation | MEDIUM/HIGH | Stable module depends on unstable module |
-
-### Quality Rules — TypeScript (SKY-Q6xx)
-
-| Rule ID | Name | Severity | Default Threshold |
-|---------|------|----------|-------------------|
-| `SKY-Q601` | Cyclomatic Complexity | MEDIUM | 10 |
-| `SKY-Q602` | Deep Nesting | MEDIUM | 4 levels |
-| `SKY-Q603` | Function Too Long | LOW | 50 lines |
-| `SKY-Q604` | Too Many Parameters | LOW | 5 parameters |
+| Rule ID | Name | Severity | Languages | Description |
+|---------|------|----------|-----------|-------------|
+| `SKY-Q802` | Distance from Main Sequence | MEDIUM/HIGH | Python | Module far from ideal abstractness/instability balance |
+| `SKY-Q803` | Zone Warning | MEDIUM | Python | Module in Zone of Pain or Zone of Uselessness |
+| `SKY-Q804` | DIP Violation | MEDIUM/HIGH | Python | Stable module depends on unstable module |
 
 ### Structure Rules (SKY-C)
 
-| Rule ID | Name | Severity | Default Threshold |
-|---------|------|----------|-------------------|
-| `SKY-C303` | Too Many Arguments | MEDIUM | 5 arguments |
-| `SKY-C304` | Function Too Long | MEDIUM | 50 lines |
+| Rule ID | Name | Severity | Languages | Default Threshold |
+|---------|------|----------|-----------|-------------------|
+| `SKY-C303` | Too Many Arguments | MEDIUM | All | 5 arguments |
+| `SKY-C304` | Function Too Long | MEDIUM | All | 50 lines |
 
 ### Logic Rules (SKY-L)
 
@@ -224,6 +239,7 @@ ignore = ["SKY-P403", "SKY-L003"]
 | | |
 |---|---|
 | **Severity** | HIGH |
+| **Languages** | Python, TypeScript |
 | **What** | Use of `eval()` to execute arbitrary expressions |
 | **Risk** | Arbitrary code execution if input is user-controlled |
 
@@ -231,9 +247,42 @@ ignore = ["SKY-P403", "SKY-L003"]
 # Bad
 result = eval(user_expression)
 
-# Good
+# Good (Python)
 import ast
 result = ast.literal_eval(user_expression)
+```
+
+```typescript
+// Bad
+eval(userInput)
+
+// Good (TypeScript)
+JSON.parse(userInput)
+```
+
+---
+
+### SKY-D202 · Dynamic Code Execution
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Python, TypeScript |
+| **What** | `exec()` (Python), `new Function()` (TS), `setTimeout`/`setInterval` with string (TS) |
+| **Risk** | Arbitrary code execution |
+
+```python
+# Bad
+exec(user_code)
+```
+
+```typescript
+// Bad
+const f = new Function("return " + userInput)
+setTimeout("alert(1)", 1000)
+
+// Good
+setTimeout(() => alert(1), 1000)
 ```
 
 ---
@@ -243,6 +292,7 @@ result = ast.literal_eval(user_expression)
 | | |
 |---|---|
 | **Severity** | CRITICAL |
+| **Languages** | Python |
 | **What** | Direct OS command execution via `os.system()` |
 | **Risk** | Command injection, especially with user input |
 
@@ -261,6 +311,7 @@ subprocess.run(["rm", "-rf", path])
 | | |
 |---|---|
 | **Severity** | CRITICAL |
+| **Languages** | Python |
 | **What** | Untrusted deserialization via `pickle` |
 | **Risk** | Arbitrary code execution — pickle can execute any Python code on load |
 
@@ -274,21 +325,73 @@ data = json.loads(untrusted_bytes)
 
 ---
 
-### SKY-D211 · SQL Injection (cursor)
+### SKY-D207 · Weak Hash (MD5) / SKY-D208 · Weak Hash (SHA1)
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | Python, TypeScript, Go |
+| **What** | Use of MD5 or SHA1 for hashing |
+| **Risk** | Cryptographically broken — vulnerable to collision attacks |
+
+```python
+# Bad
+hashlib.md5(data)
+```
+
+```typescript
+// Bad
+crypto.createHash('md5')
+crypto.createHash('sha1')
+```
+
+```go
+// Bad
+h := md5.New()
+h := sha1.New()
+```
+
+```python
+# Good (all languages)
+hashlib.sha256(data)        # Python
+crypto.createHash('sha256') # TypeScript
+sha256.New()                # Go
+```
+
+---
+
+### SKY-D211 · SQL Injection
 
 | | |
 |---|---|
 | **Severity** | CRITICAL |
-| **What** | Tainted or string-built SQL in `execute()`, `executescript()`, `executemany()` |
+| **Languages** | Python, TypeScript, Go |
+| **What** | Tainted or string-built SQL in query execution |
 | **Risk** | Database compromise, data theft, data destruction |
 
 ```python
-# Bad
+# Bad (Python)
 query = f"SELECT * FROM users WHERE id = {user_id}"
 cursor.execute(query)
 
 # Good
 cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+```
+
+```typescript
+// Bad (TypeScript)
+db.query(`SELECT * FROM users WHERE id = ${userId}`)
+
+// Good
+db.query("SELECT * FROM users WHERE id = $1", [userId])
+```
+
+```go
+// Bad (Go)
+db.Query(fmt.Sprintf("SELECT * FROM users WHERE id = %s", userID))
+
+// Good
+db.Query("SELECT * FROM users WHERE id = $1", userID)
 ```
 
 ---
@@ -298,16 +401,32 @@ cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
 | | |
 |---|---|
 | **Severity** | CRITICAL |
-| **What** | Tainted input flows to `os.system()` or `subprocess` with `shell=True` |
+| **Languages** | Python, TypeScript, Go |
+| **What** | Tainted input flows to shell command execution |
 | **Risk** | Attackers can execute arbitrary shell commands |
 
 ```python
-# Bad
-user_input = request.args.get("cmd")
+# Bad (Python)
 os.system(f"echo {user_input}")
 
 # Good
-subprocess.run(["echo", user_input])  # No shell=True
+subprocess.run(["echo", user_input])
+```
+
+```typescript
+// Bad (TypeScript)
+exec(`ls ${userDir}`)
+
+// Good
+execFile("ls", [userDir])
+```
+
+```go
+// Bad (Go)
+exec.Command("sh", "-c", userInput).Run()
+
+// Good
+exec.Command("ls", userDir).Run()
 ```
 
 ---
@@ -317,6 +436,7 @@ subprocess.run(["echo", user_input])  # No shell=True
 | | |
 |---|---|
 | **Severity** | HIGH |
+| **Languages** | Python, Go |
 | **What** | Tainted input used in filesystem path |
 | **Risk** | Attackers can read/write arbitrary files via `../` sequences |
 
@@ -337,7 +457,8 @@ file_path = os.path.join("/uploads", safe_name)
 | | |
 |---|---|
 | **Severity** | CRITICAL |
-| **What** | Tainted URL passed to HTTP client (`requests.get`, `urllib.urlopen`, `httpx`) |
+| **Languages** | Python, TypeScript, Go |
+| **What** | Tainted URL passed to HTTP client |
 | **Risk** | Access internal services, cloud metadata endpoints (169.254.169.254) |
 
 ```python
@@ -352,6 +473,16 @@ if parsed.netloc not in ALLOWED_HOSTS:
 response = requests.get(user_url)
 ```
 
+```typescript
+// Bad
+fetch(userUrl)
+
+// Good
+const url = new URL(userUrl)
+if (!ALLOWED_HOSTS.includes(url.hostname)) throw new Error("Blocked")
+fetch(userUrl)
+```
+
 ---
 
 ### SKY-D217 · SQL Injection (raw)
@@ -359,6 +490,7 @@ response = requests.get(user_url)
 | | |
 |---|---|
 | **Severity** | CRITICAL |
+| **Languages** | Python |
 | **What** | Tainted input in `sqlalchemy.text()`, `pandas.read_sql()`, Django `.raw()` |
 | **Risk** | Database compromise via ORM bypass |
 
@@ -378,15 +510,13 @@ result = conn.execute(stmt, {"name": name})
 | | |
 |---|---|
 | **Severity** | CRITICAL |
+| **Languages** | Python |
 | **What** | Imported package does not exist on PyPI |
 | **Risk** | Supply chain attack — an attacker can register the missing name and inject malicious code |
 
 ```python
 # Bad — "fakelib" doesn't exist on PyPI
 import fakelib  # LLM hallucinated this package
-
-# Good — verify packages exist before importing
-pip install fakelib  # Would fail — catch this before deploy
 ```
 
 Skylos checks every third-party import against PyPI and flags packages that return 404.
@@ -398,36 +528,42 @@ Skylos checks every third-party import against PyPI and flags packages that retu
 | | |
 |---|---|
 | **Severity** | MEDIUM |
+| **Languages** | Python |
 | **What** | Import exists on PyPI but is not listed in `requirements.txt`, `pyproject.toml`, or `setup.py` |
 | **Risk** | Deployment failure — works locally but breaks in production/CI |
 
-```python
-# Bad — requests is installed but not in requirements.txt
-import requests
-
-# Good — add to requirements.txt or pyproject.toml
-# requirements.txt:
-# requests>=2.28
-```
-
 ---
 
-### SKY-D226 · XSS via Markup
+### SKY-D226 · XSS
 
 | | |
 |---|---|
 | **Severity** | CRITICAL |
-| **What** | Untrusted content passed to `Markup()` or `mark_safe()` |
+| **Languages** | Python, TypeScript |
+| **What** | Untrusted content rendered without escaping |
 | **Risk** | Script injection, session hijacking |
 
 ```python
-# Bad
+# Bad (Python)
 from markupsafe import Markup
 return Markup(user_input)
 
 # Good
 from markupsafe import Markup, escape
 return Markup(f"<b>{escape(user_input)}</b>")
+```
+
+```typescript
+// Bad (TypeScript)
+el.innerHTML = userInput
+el.outerHTML = userInput
+document.write(userInput)
+
+// Bad (React)
+<div dangerouslySetInnerHTML={{__html: userInput}} />
+
+// Good
+el.textContent = userInput
 ```
 
 ---
@@ -437,6 +573,7 @@ return Markup(f"<b>{escape(user_input)}</b>")
 | | |
 |---|---|
 | **Severity** | HIGH |
+| **Languages** | Python |
 | **What** | Template uses `\|safe` filter or disables autoescape |
 | **Risk** | Script injection in rendered HTML |
 
@@ -455,8 +592,8 @@ return Markup(f"<b>{escape(user_input)}</b>")
 | | |
 |---|---|
 | **Severity** | HIGH |
+| **Languages** | Python |
 | **What** | HTML string built with unescaped user input |
-| **Risk** | Script injection |
 
 ```python
 # Bad
@@ -474,19 +611,30 @@ html = f"<div>{escape(user_input)}</div>"
 | | |
 |---|---|
 | **Severity** | HIGH |
-| **What** | User-controlled URL passed to `redirect()` |
+| **Languages** | Python, TypeScript, Go |
+| **What** | User-controlled URL passed to redirect |
 | **Risk** | Phishing — attacker redirects users to malicious sites via your domain |
 
 ```python
-# Bad
+# Bad (Python)
 return redirect(request.args.get("next"))
 
 # Good
 from urllib.parse import urlparse
 next_url = request.args.get("next", "/")
-if urlparse(next_url).netloc:  # External URL
+if urlparse(next_url).netloc:
     next_url = "/"
 return redirect(next_url)
+```
+
+```typescript
+// Bad (TypeScript / Express)
+res.redirect(req.query.next)
+
+// Good
+const url = new URL(req.query.next, req.protocol + '://' + req.hostname)
+if (url.hostname !== req.hostname) res.redirect('/')
+else res.redirect(req.query.next)
 ```
 
 ---
@@ -496,6 +644,7 @@ return redirect(next_url)
 | | |
 |---|---|
 | **Severity** | HIGH |
+| **Languages** | Python |
 | **What** | Overly permissive Cross-Origin Resource Sharing configuration |
 | **Risk** | Cross-site data theft, credential leaks |
 
@@ -514,7 +663,8 @@ CORS(app, origins=["https://myapp.com"])
 
 | | |
 |---|---|
-| **Severity** | HIGH / CRITICAL |
+| **Severity** | CRITICAL |
+| **Languages** | Python |
 | **What** | Insecure JWT configuration |
 | **Risk** | Token forgery, authentication bypass |
 
@@ -534,13 +684,13 @@ jwt.decode(token, key=SECRET, algorithms=["HS256"])
 | | |
 |---|---|
 | **Severity** | CRITICAL |
+| **Languages** | Python |
 | **What** | Deserialization via `marshal`, `shelve`, `jsonpickle`, or `dill` |
 | **Risk** | Arbitrary code execution — same as pickle but less commonly audited |
 
 ```python
 # Bad
 data = jsonpickle.decode(untrusted_input)
-obj = dill.loads(untrusted_bytes)
 
 # Good
 data = json.loads(untrusted_input)
@@ -553,6 +703,7 @@ data = json.loads(untrusted_input)
 | | |
 |---|---|
 | **Severity** | HIGH |
+| **Languages** | Python |
 | **What** | Django serializer or form uses `fields = '__all__'` |
 | **Risk** | Exposes internal fields (is_admin, is_staff) to API consumers |
 
@@ -577,6 +728,7 @@ class UserSerializer(serializers.ModelSerializer):
 | | |
 |---|---|
 | **Severity** | CRITICAL |
+| **Languages** | Python |
 | **What** | Prompt injection patterns in MCP tool metadata or docstrings |
 | **Risk** | An LLM consuming tool descriptions may follow injected instructions |
 
@@ -603,8 +755,8 @@ Detects: XML injection tags (`<system>`, `<instruction>`), prompt override phras
 | | |
 |---|---|
 | **Severity** | HIGH |
+| **Languages** | Python |
 | **What** | MCP server uses SSE or HTTP transport without authentication middleware |
-| **Risk** | Any network client can invoke MCP tools |
 
 ```python
 # Bad
@@ -621,8 +773,8 @@ server.run(transport="sse", auth=my_auth_provider)
 | | |
 |---|---|
 | **Severity** | HIGH |
+| **Languages** | Python |
 | **What** | MCP resource URI template allows unconstrained path access |
-| **Risk** | Path traversal — LLM agents could access arbitrary files |
 
 ```python
 # Bad
@@ -643,8 +795,8 @@ def read_file(filename: str):
 | | |
 |---|---|
 | **Severity** | CRITICAL |
+| **Languages** | Python |
 | **What** | MCP server bound to `0.0.0.0` without authentication |
-| **Risk** | Accessible from any network interface — remote exploitation |
 
 ```python
 # Bad
@@ -652,8 +804,6 @@ server.run(host="0.0.0.0")
 
 # Good
 server.run(host="127.0.0.1")
-# or
-server.run(host="0.0.0.0", auth=my_auth_provider)
 ```
 
 ---
@@ -663,8 +813,8 @@ server.run(host="0.0.0.0", auth=my_auth_provider)
 | | |
 |---|---|
 | **Severity** | CRITICAL |
+| **Languages** | Python |
 | **What** | API keys or tokens as default parameter values in MCP tool functions |
-| **Risk** | Credentials exposed in tool metadata sent to LLM clients |
 
 ```python
 # Bad
@@ -681,100 +831,22 @@ def call_api(key: str = ""):
 
 ---
 
-### SKY-D501 · eval() (TypeScript)
+### SKY-D510 · Prototype Pollution
 
 | | |
 |---|---|
-| **Severity** | CRITICAL |
-| **What** | Use of `eval()` in TypeScript/JavaScript |
+| **Severity** | HIGH |
+| **Languages** | TypeScript |
+| **What** | Direct `__proto__` property access |
+| **Risk** | Polluting Object prototype affects all objects in the runtime |
 
 ```typescript
 // Bad
-eval(userInput)
+obj.__proto__.isAdmin = true
 
 // Good
-JSON.parse(userInput)
+Object.create(null)
 ```
-
----
-
-### SKY-D502 · innerHTML
-
-| | |
-|---|---|
-| **Severity** | HIGH |
-| **What** | Unsafe `innerHTML` assignment |
-| **Risk** | XSS — injected scripts execute in the user's browser |
-
-```typescript
-// Bad
-el.innerHTML = userInput
-
-// Good
-el.textContent = userInput
-```
-
----
-
-### SKY-D503 · document.write()
-
-| | |
-|---|---|
-| **Severity** | HIGH |
-| **What** | `document.write()` can inject arbitrary HTML |
-
----
-
-### SKY-D504 · new Function()
-
-| | |
-|---|---|
-| **Severity** | CRITICAL |
-| **What** | `new Function(...)` is equivalent to `eval()` |
-
----
-
-### SKY-D505 · setTimeout/setInterval with string
-
-| | |
-|---|---|
-| **Severity** | HIGH |
-| **What** | Passing a string to `setTimeout`/`setInterval` is equivalent to `eval()` |
-
-```typescript
-// Bad
-setTimeout("alert('xss')", 1000)
-
-// Good
-setTimeout(() => alert('xss'), 1000)
-```
-
----
-
-### SKY-D506 · child_process.exec
-
-| | |
-|---|---|
-| **Severity** | HIGH |
-| **What** | `child_process.exec()` runs commands through a shell |
-| **Risk** | Command injection |
-
-```typescript
-// Bad
-exec(`ls ${userDir}`)
-
-// Good
-execFile("ls", [userDir])
-```
-
----
-
-### SKY-D507 · outerHTML
-
-| | |
-|---|---|
-| **Severity** | HIGH |
-| **What** | Unsafe `outerHTML` assignment — same risk as `innerHTML` |
 
 ---
 
@@ -783,21 +855,152 @@ execFile("ls", [userDir])
 | | |
 |---|---|
 | **Severity** | CRITICAL |
+| **Languages** | All |
 | **What** | API keys, passwords, tokens, or private keys in source code |
 | **Risk** | Credentials exposed in git history, logs, client bundles |
 
 ```python
 # Bad
 API_KEY = "sk_live_1234567890abcdef"
-DB_PASSWORD = "supersecret123"
 
 # Good
 import os
 API_KEY = os.environ["API_KEY"]
-DB_PASSWORD = os.environ["DB_PASSWORD"]
 ```
 
 **Detected providers:** AWS (`AKIA...`), Stripe (`sk_live_...`), GitHub (`ghp_...`, `gho_...`), GitLab (`glpat-...`), Slack (`xoxb-...`), Google, SendGrid, Twilio, OpenAI, Anthropic, and generic high-entropy strings near keywords like `password`, `secret`, `token`, `api_key`.
+
+---
+
+### SKY-G203 · Defer in Loop
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Go |
+| **What** | `defer` statement inside a `for` or `range` loop |
+| **Risk** | Deferred calls accumulate until the function returns — resource leak and memory growth |
+
+```go
+// Bad
+for _, f := range files {
+    fd, _ := os.Open(f)
+    defer fd.Close() // defers pile up
+}
+
+// Good
+for _, f := range files {
+    func() {
+        fd, _ := os.Open(f)
+        defer fd.Close()
+        // process fd
+    }()
+}
+```
+
+---
+
+### SKY-G206 · Unsafe Package
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Go |
+| **What** | Import of the `unsafe` stdlib package |
+| **Risk** | Bypasses Go's type safety and memory safety guarantees |
+
+```go
+// Bad
+import "unsafe"
+ptr := unsafe.Pointer(&x)
+```
+
+---
+
+### SKY-G209 · Weak RNG
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | Go |
+| **What** | `math/rand` used instead of `crypto/rand` |
+| **Risk** | Predictable random values — exploitable in security contexts |
+
+```go
+// Bad
+token := rand.Int63()
+
+// Good
+import "crypto/rand"
+b := make([]byte, 32)
+rand.Read(b)
+```
+
+---
+
+### SKY-G221 · Insecure Cookie
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | Go |
+| **What** | `http.Cookie` missing `HttpOnly` or `Secure` flags |
+| **Risk** | Cookie accessible to JavaScript (XSS theft) or sent over HTTP (sniffing) |
+
+```go
+// Bad
+http.SetCookie(w, &http.Cookie{Name: "session", Value: token})
+
+// Good
+http.SetCookie(w, &http.Cookie{
+    Name:     "session",
+    Value:    token,
+    HttpOnly: true,
+    Secure:   true,
+    SameSite: http.SameSiteStrictMode,
+})
+```
+
+---
+
+### SKY-G260 · Unclosed Resource
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Go |
+| **What** | `os.Open` / `sql.Open` without a matching `defer .Close()` |
+| **Risk** | File descriptor or connection leak |
+
+```go
+// Bad
+f, _ := os.Open("data.txt")
+// no defer f.Close()
+
+// Good
+f, err := os.Open("data.txt")
+if err != nil { return err }
+defer f.Close()
+```
+
+---
+
+### SKY-G280 · Weak TLS Version
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Go |
+| **What** | TLS 1.0 or 1.1 configured in `tls.Config` |
+| **Risk** | Known cryptographic weaknesses — downgrade attacks |
+
+```go
+// Bad
+cfg := &tls.Config{MinVersion: tls.VersionTLS10}
+
+// Good
+cfg := &tls.Config{MinVersion: tls.VersionTLS12}
+```
 
 ---
 
@@ -806,6 +1009,7 @@ DB_PASSWORD = os.environ["DB_PASSWORD"]
 | | |
 |---|---|
 | **Severity** | MEDIUM |
+| **Languages** | All |
 | **Threshold** | 10 (configurable) |
 | **What** | Function has too many branches (if/else/for/while/try/except) |
 
@@ -832,11 +1036,12 @@ def process(data):
 | | |
 |---|---|
 | **Severity** | MEDIUM |
+| **Languages** | All |
 | **Threshold** | 3 levels (configurable) |
 | **What** | Code nested too deeply |
 
 ```python
-# Bad — nesting depth 4
+# Bad
 for item in items:
     if item.valid:
         if item.ready:
@@ -861,16 +1066,17 @@ for item in items:
 | | |
 |---|---|
 | **Severity** | MEDIUM |
+| **Languages** | Python |
 | **What** | Blocking I/O calls inside `async` functions |
 | **Risk** | Blocks the entire event loop, killing server throughput |
 
 ```python
-# Bad — blocks the event loop
+# Bad
 async def fetch_data():
     time.sleep(1)
     response = requests.get("http://example.com")
 
-# Good — use async alternatives
+# Good
 async def fetch_data():
     await asyncio.sleep(1)
     async with httpx.AsyncClient() as client:
@@ -884,20 +1090,9 @@ async def fetch_data():
 | | |
 |---|---|
 | **Severity** | MEDIUM |
+| **Languages** | Python |
 | **Threshold** | 20 methods / 15 attributes |
 | **What** | Class has too many methods or attributes |
-
-```python
-# Bad — class does everything
-class UserManager:
-    # 25 methods, 18 attributes
-    ...
-
-# Good — split responsibilities
-class UserRepository: ...
-class UserValidator: ...
-class UserNotifier: ...
-```
 
 ---
 
@@ -906,42 +1101,16 @@ class UserNotifier: ...
 | | |
 |---|---|
 | **Severity** | MEDIUM / HIGH |
+| **Languages** | Python |
 | **Threshold** | Ce > 4 (configurable) |
 | **What** | Class has too many dependencies on other classes |
 | **Risk** | High coupling makes classes hard to change, test, and reuse |
 
-Measures inter-class coupling across 7 dependency types:
-1. **Inheritance** — base class references
-2. **Type hints** — annotations, return types, parameter types (`Union`, `Optional`, `A | B`)
-3. **Instantiation** — creating instances of other classes
-4. **Attribute access** — using class-level attributes of other classes
-5. **Import** — importing from other modules
-6. **Decorator** — shared or cross-class decorators
-7. **Protocol/ABC** — implementing the same protocol or ABC
+Measures inter-class coupling across 7 dependency types: inheritance, type hints, instantiation, attribute access, import, decorator, and protocol/ABC.
 
-Reports both **afferent coupling (Ca)** — who depends on me — and **efferent coupling (Ce)** — who I depend on, enabling per-class instability calculation.
+Reports both **afferent coupling (Ca)** — who depends on me — and **efferent coupling (Ce)** — who I depend on.
 
-```python
-# Bad — HighCoupling depends on 6 other classes
-class HighCoupling(BaseModel):
-    def process(self, config: Config) -> Result:
-        logger = Logger()
-        db = Database()
-        cache = Cache()
-        Validator.check(config)
-        return Result(data=db.query())
-
-# Good — reduce dependencies via dependency injection
-class LowCoupling:
-    def __init__(self, db: DatabaseProtocol, cache: CacheProtocol):
-        self.db = db
-        self.cache = cache
-
-    def process(self, config: Config) -> Result:
-        return Result(data=self.db.query())
-```
-
-**Framework-aware:** Excludes expected coupling from Django models, DRF serializers, and other framework patterns. Handles `TYPE_CHECKING`-guarded imports as design coupling (not runtime coupling).
+**Framework-aware:** Excludes expected coupling from Django models, DRF serializers, and other framework patterns.
 
 ---
 
@@ -950,59 +1119,17 @@ class LowCoupling:
 | | |
 |---|---|
 | **Severity** | MEDIUM / HIGH |
+| **Languages** | Python |
 | **Threshold** | LCOM4 > 2 (configurable) |
 | **What** | Class has disconnected method groups that don't share instance state |
 | **Risk** | Low cohesion indicates a class is doing too many unrelated things |
 
 Computes three LCOM variants:
 - **LCOM1** — count of method pairs that do NOT share instance attributes
-- **LCOM4** (primary) — number of connected components via Union-Find, where methods sharing `self.xxx` attributes or calling `self.method()` are connected
-- **LCOM5** (supplementary) — Henderson-Sellers normalized score (0.0 = perfectly cohesive, 1.0 = completely uncohesive)
+- **LCOM4** (primary) — number of connected components via Union-Find
+- **LCOM5** (supplementary) — Henderson-Sellers normalized score (0.0–1.0)
 
-Python-specific enhancements:
-- `@property` getters/setters linked to their backing `_attribute`
-- `@classmethod` connected via `cls.xxx` references
-- `@staticmethod` excluded from cohesion (no instance state)
-- `__init__` / `__post_init__` treated as initialization group
-- Dunder methods (`__str__`, `__repr__`, `__eq__`) grouped as "interface" methods
-- **Dataclass/attrs/Pydantic exemption** — data containers have high LCOM by design
-
-Reports actionable **cohesion groups** showing exactly which methods form each disconnected group, so you know how to split the class.
-
-```python
-# Bad — LCOM4 = 3 (three disconnected groups)
-class DoEverything:
-    def fetch_user(self):
-        self.user = db.get_user()     # Group 1: user methods
-
-    def format_user(self):
-        return str(self.user)         # Group 1
-
-    def send_email(self):
-        self.mailer.send()            # Group 2: email methods
-
-    def log_email(self):
-        self.mailer.log()             # Group 2
-
-    def calculate_tax(self):
-        self.tax = self.rate * 100    # Group 3: tax methods
-
-    def get_tax(self):
-        return self.tax               # Group 3
-
-# Good — split into 3 cohesive classes
-class UserService:
-    def fetch(self): ...
-    def format(self): ...
-
-class EmailService:
-    def send(self): ...
-    def log(self): ...
-
-class TaxCalculator:
-    def calculate(self): ...
-    def get(self): ...
-```
+Python-specific: `@property` linked to backing `_attribute`, `@classmethod` via `cls.xxx`, `@staticmethod` excluded, dataclass/attrs/Pydantic exemption.
 
 ---
 
@@ -1011,20 +1138,14 @@ class TaxCalculator:
 | | |
 |---|---|
 | **Severity** | MEDIUM / HIGH |
+| **Languages** | Python |
 | **Threshold** | D > 0.5 |
-| **What** | Module is far from the ideal balance of abstractness and instability |
-| **Risk** | Modules far from the Main Sequence are either too rigid or too throwaway |
+| **What** | Module far from the ideal balance of abstractness and instability |
 
 Based on Robert C. Martin's architectural metrics:
-- **Instability (I)** = Ce / (Ca + Ce) — 0.0 = maximally stable, 1.0 = maximally unstable
-- **Abstractness (A)** = ratio of abstract elements (ABC, Protocol, @abstractmethod, TypeVar) to total elements
-- **Distance (D)** = |A + I - 1| — 0.0 = on the Main Sequence (ideal), 1.0 = maximally far
-
-Python-specific abstractness detection:
-- ABC/Protocol class ratio
-- `@abstractmethod` function ratio
-- TypeVar definitions (small bonus)
-- `TYPE_CHECKING` blocks (design-time abstractions)
+- **Instability (I)** = Ce / (Ca + Ce)
+- **Abstractness (A)** = ratio of abstract elements to total elements
+- **Distance (D)** = |A + I - 1|
 
 ```
         1.0 ┌─────────────────────┐
@@ -1045,18 +1166,11 @@ Python-specific abstractness detection:
 | | |
 |---|---|
 | **Severity** | MEDIUM |
+| **Languages** | Python |
 | **What** | Module classified in an architectural danger zone |
 
-Two zones are flagged:
-
-**Zone of Pain** (high abstractness, low instability):
-- Many modules depend on it AND it's highly abstract
-- Changes here ripple widely through the codebase
-- Fix: reduce abstractness or allow more instability
-
-**Zone of Uselessness** (low abstractness, high instability):
-- Concrete code that nobody depends on
-- Fix: abstract its interface for reuse, or remove if truly unused
+**Zone of Pain:** High abstractness, low instability — changes ripple widely.
+**Zone of Uselessness:** Low abstractness, high instability — concrete code nobody depends on.
 
 ---
 
@@ -1065,20 +1179,16 @@ Two zones are flagged:
 | | |
 |---|---|
 | **Severity** | MEDIUM / HIGH |
+| **Languages** | Python |
 | **What** | A stable module depends on an unstable module |
-| **Risk** | Violates the Dependency Inversion Principle — stable foundations should not depend on volatile code |
 
 ```python
 # Bad — stable core depends on volatile utils
-# core.py (I=0.1, many dependents)
-from utils import helper  # utils.py (I=0.9, few dependents)
+# core.py (I=0.1)
+from utils import helper  # utils.py (I=0.9)
 
 # Good — depend on abstractions
-# core.py
-from protocols import HelperProtocol  # stable abstract interface
-
-# utils.py
-class ConcreteHelper(HelperProtocol): ...
+from protocols import HelperProtocol
 ```
 
 ---
@@ -1088,27 +1198,21 @@ class ConcreteHelper(HelperProtocol): ...
 | | |
 |---|---|
 | **Severity** | MEDIUM |
+| **Languages** | All |
 | **Threshold** | 5 arguments (configurable) |
-| **What** | Function has too many parameters |
 
 ```python
-# Bad — 7 arguments
-def create_user(name, email, age, city, country, phone, role):
-    ...
+# Bad
+def create_user(name, email, age, city, country, phone, role): ...
 
-# Good — use a dataclass
+# Good
 @dataclass
 class UserData:
     name: str
     email: str
-    age: int
-    city: str
-    country: str
-    phone: str
-    role: str
-
-def create_user(data: UserData):
     ...
+
+def create_user(data: UserData): ...
 ```
 
 ---
@@ -1118,21 +1222,8 @@ def create_user(data: UserData):
 | | |
 |---|---|
 | **Severity** | MEDIUM |
+| **Languages** | All |
 | **Threshold** | 50 lines (configurable) |
-| **What** | Function exceeds line limit |
-
-```python
-# Bad — 150 lines
-def do_everything():
-    # ... 150 lines of code ...
-
-# Good — extract logical sections
-def do_everything():
-    data = fetch_data()
-    validated = validate(data)
-    processed = process(validated)
-    return format_output(processed)
-```
 
 ---
 
@@ -1141,11 +1232,12 @@ def do_everything():
 | | |
 |---|---|
 | **Severity** | HIGH |
+| **Languages** | Python |
 | **What** | Mutable object (list, dict, set) as default argument |
 | **Risk** | Default is created once and shared across all calls |
 
 ```python
-# Bad — list is shared across calls!
+# Bad
 def add_item(item, items=[]):
     items.append(item)
     return items
@@ -1168,24 +1260,21 @@ def add_item(item, items=None):
 | | |
 |---|---|
 | **Severity** | MEDIUM |
+| **Languages** | Python |
 | **What** | `except:` without exception type |
-| **Risk** | Catches `KeyboardInterrupt`, `SystemExit`, hides real errors |
 
 ```python
 # Bad
 try:
     do_thing()
 except:
-    pass  # Swallows ALL exceptions
+    pass
 
 # Good
 try:
     do_thing()
 except ValueError as e:
     logger.error(f"Validation failed: {e}")
-except Exception as e:
-    logger.error(f"Unexpected error: {e}")
-    raise
 ```
 
 ---
@@ -1195,17 +1284,15 @@ except Exception as e:
 | | |
 |---|---|
 | **Severity** | MEDIUM |
-| **What** | Using `==` / `!=` with `None`, `True`, or `False` |
-| **Risk** | Can be fooled by objects with custom `__eq__` |
+| **Languages** | Python |
+| **What** | `== None` instead of `is None` |
 
 ```python
 # Bad
-if value == None:
-    ...
+if value == None: ...
 
 # Good
-if value is None:
-    ...
+if value is None: ...
 ```
 
 ---
@@ -1215,6 +1302,7 @@ if value is None:
 | | |
 |---|---|
 | **Severity** | LOW |
+| **Languages** | Python |
 | **What** | Overly broad try/except — too many statements, nested tries, or complex control flow inside try block |
 
 ---
@@ -1224,27 +1312,16 @@ if value is None:
 | | |
 |---|---|
 | **Severity** | LOW |
-| **What** | Exception captured with `as e` but `e` is never referenced |
-| **Risk** | Indicates the error is silently swallowed — likely a bug |
+| **Languages** | Python |
 
 ```python
 # Bad
-try:
-    do_thing()
 except ValueError as e:  # 'e' never used
     pass
 
-# Good — either use it or don't capture it
-try:
-    do_thing()
+# Good
 except ValueError as e:
     logger.warning(f"Failed: {e}")
-
-# Also good
-try:
-    do_thing()
-except ValueError:
-    pass  # Intentionally ignoring
 ```
 
 ---
@@ -1254,8 +1331,8 @@ except ValueError:
 | | |
 |---|---|
 | **Severity** | MEDIUM |
+| **Languages** | Python |
 | **What** | Function returns a value on some paths but implicitly returns `None` on others |
-| **Risk** | Callers may get unexpected `None`, leading to `AttributeError` |
 
 ```python
 # Bad
@@ -1268,7 +1345,7 @@ def find_user(user_id):
 def find_user(user_id):
     if user_id in db:
         return db[user_id]
-    return None  # Explicit
+    return None
 ```
 
 ---
@@ -1278,14 +1355,13 @@ def find_user(user_id):
 | | |
 |---|---|
 | **Severity** | MEDIUM |
-| **What** | `file.read()` or `file.readlines()` loads entire file into RAM |
-| **Risk** | Memory exhaustion on large files |
+| **Languages** | Python |
 
 ```python
-# Bad — loads entire file
+# Bad
 content = open("huge.log").read()
 
-# Good — iterate line by line
+# Good
 with open("huge.log") as f:
     for line in f:
         process(line)
@@ -1298,8 +1374,7 @@ with open("huge.log") as f:
 | | |
 |---|---|
 | **Severity** | LOW |
-| **What** | `pd.read_csv()` without `chunksize` |
-| **Risk** | Memory exhaustion on large CSV files |
+| **Languages** | Python |
 
 ```python
 # Bad
@@ -1317,72 +1392,8 @@ for chunk in pd.read_csv("huge.csv", chunksize=10000):
 | | |
 |---|---|
 | **Severity** | LOW |
-| **What** | Nested for loop detected |
-| **Risk** | O(N^2) complexity can cause performance issues at scale |
-
----
-
-### SKY-U001 · Unused Function
-
-| | |
-|---|---|
-| **Severity** | LOW |
-| **What** | Function defined but never called |
-
-```python
-# Flagged as unused
-def old_helper():
-    return "legacy"
-```
-
-:::note
-Use `--trace` to detect functions called dynamically (visitor patterns, plugins, `getattr()`).
-:::
-
----
-
-### SKY-U002 · Unused Import
-
-| | |
-|---|---|
-| **Severity** | LOW |
-| **What** | Module imported but never referenced |
-
-```python
-# Bad
-import os  # Never used
-import json
-
-data = json.loads(text)
-```
-
----
-
-### SKY-U003 · Unused Variable
-
-| | |
-|---|---|
-| **Severity** | LOW |
-| **What** | Variable assigned but never read |
-
-```python
-# Bad
-result = calculate()  # Never used
-return other_value
-
-# Good — prefix with _ if intentional
-_result = calculate()  # Intentionally unused
-return other_value
-```
-
----
-
-### SKY-U004 · Unused Class
-
-| | |
-|---|---|
-| **Severity** | LOW |
-| **What** | Class defined but never instantiated or subclassed |
+| **Languages** | All |
+| **What** | Nested for loop detected — O(N^2) complexity |
 
 ---
 
@@ -1391,17 +1402,13 @@ return other_value
 | | |
 |---|---|
 | **Severity** | MEDIUM |
-| **What** | Code that can never execute — after `return`, `raise`, `break`, `continue`, or inside always-false conditions |
+| **Languages** | Python |
 
 ```python
 # Bad
 def example():
     return 42
     print("never runs")  # SKY-UC001
-
-# Bad
-if False:
-    do_thing()  # SKY-UC001
 ```
 
 ---
@@ -1411,6 +1418,7 @@ if False:
 | | |
 |---|---|
 | **Severity** | LOW |
+| **Languages** | Python |
 | **What** | Empty Python file (no code, or docstring-only). `__init__.py`, `__main__.py`, and `main.py` are excluded. |
 
 ---

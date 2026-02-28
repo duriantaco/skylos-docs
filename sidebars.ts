@@ -105,6 +105,13 @@ const sidebars = {
         { type: 'doc', id: 'faq', label: 'FAQ' },
       ],
     },
+
+    {
+      type: 'doc',
+      id: 'case-studies',
+      label: 'Case Studies',
+      className: 'sb-chart',
+    },
   ],
 };
 

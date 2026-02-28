@@ -408,6 +408,15 @@ class DataMixin:
 | Pydantic/attrs/ORM fields | Framework machinery |
 | Type aliases | Type system |
 | Settings/Config attributes | External configuration |
+| Sphinx `conf.py` variables | Consumed by `execfile()` |
+| Docs theme files | Loaded dynamically |
+| Django admin class attrs (`list_display`, `fieldsets`, etc.) | Read by admin metaclass |
+| Django Model `Meta` attrs (`ordering`, `db_table`, etc.) | Read by model metaclass |
+| Django `clean_<field>()` methods | Called by form validation |
+| DRF `validate_<field>()` / `get_<field>()` methods | Called by serializer |
+| `threading.Thread.run()` overrides | Called by `start()` |
+| `Test*` classes in test files | Collected by pytest |
+| Mock objects in `test_*` functions | Duck-typed test doubles |
 
 ### Penalties (Reduced Confidence)
 
