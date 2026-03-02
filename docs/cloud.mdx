@@ -208,56 +208,45 @@ Rotating your key requires updating all CI/CD secrets that use it.
 
 ## Pricing
 
+Skylos uses **credit packs** — one-time purchases, no subscriptions. Credits never expire.
 
-  ### Community
-    **Free forever**
-    
-    - CLI with all analysis features
-    - Unlimited local scans
-    - CI/CD quality gate
-    - AI-powered fixes (bring your own key)
-    
-    [Install CLI →](/getting-started)
-  
-  ### Team
-    **$29/month**
-    
-    - Everything in Community
-    - Cloud dashboard
-    - Trend tracking
-    - File hotspots
-    - Custom policies
-    - Priority support
-    
-    [Start Free Trial →](https://app.skylos.io)
-  
+| Pack | Credits | Price | Per-Credit |
+|------|---------|-------|------------|
+| **Starter** | 500 | $9 | $0.018 |
+| **Builder** | 2,500 | $39 | $0.016 |
+| **Team** | 10,000 | $129 | $0.013 |
+| **Scale** | 50,000 | $499 | $0.010 |
 
+Each cloud upload costs 1 credit. For a team doing 20 PRs/day, that's about 60 credits/day — the Team pack lasts over 5 months.
+
+**Enterprise plans** with unlimited credits, SSO, and compliance reports are available. Contact `founder@skylos.dev`.
+
+See [Billing & Credits](/billing) for full details on what costs credits and what's free.
 
 ---
 
 ## FAQ
 
-
-  <details>
-<summary>Can I try the cloud platform before paying?</summary>
-
-    Yes. New accounts get a 14-day free trial with full access.
-  </details>
-  
-  <details>
-<summary>What happens if I cancel?</summary>
-
-    Your scan history is retained for 30 days. You can export data as JSON at any time.
-  </details>
-  
-  <details>
-<summary>Can multiple team members access the dashboard?</summary>
-
-    Yes. All members of your organization can view projects and scan history.
-  </details>
-  
-  <details>
+<details>
 <summary>Do I need the cloud to use the CLI?</summary>
 
-    No. The CLI works completely independently. The cloud is optional—for teams that want tracking and visibility.
-  </details>
+No. The CLI works completely independently. Local scanning is free forever with no limits. The cloud is optional — for teams that want history, trends, and team visibility.
+</details>
+
+<details>
+<summary>Can multiple team members access the dashboard?</summary>
+
+Yes. All members of your organization can view projects and scan history.
+</details>
+
+<details>
+<summary>Do credits expire?</summary>
+
+No. Credits never expire. Buy them once, use them whenever you need.
+</details>
+
+<details>
+<summary>What happens at zero credits?</summary>
+
+Local scanning still works. Cloud uploads return a 402 error with a link to buy more credits. Your CI pipeline won't crash — the scan results are still available in the build output.
+</details>

@@ -94,6 +94,13 @@ const sidebars = {
     },
 
     {
+      type: 'doc',
+      id: 'billing',
+      label: 'Billing & Credits',
+      className: 'sb-shield'
+    },
+
+    {
       type: 'category',
       label: 'Reference',
       className: 'sb-shield',

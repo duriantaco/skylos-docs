@@ -35,7 +35,7 @@ const config: Config = {
         name: 'Skylos',
         applicationCategory: 'DeveloperApplication',
         operatingSystem: 'Windows, macOS, Linux',
-        offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+        offers: { '@type': 'Offer', price: '9', priceCurrency: 'USD' },
         description: 'Dead code detection and SAST tool for Python, TypeScript, and Go. Framework-aware analysis with AI-powered fixes.',
         url: 'https://github.com/duriantaco/skylos',
         downloadUrl: 'https://pypi.org/project/skylos/',
@@ -121,7 +121,7 @@ const config: Config = {
       title: 'Skylos User Docs',
       logo: {
         alt: 'Skylos Logo',
-        src: 'img/favicon.svg',
+        src: 'img/favicon-96x96.png',
       },
       items: [
         {
@@ -153,7 +153,7 @@ const config: Config = {
         },
         {
           to: '/installation',
-          label: 'Get Started Free',
+          label: 'Get Started',
           position: 'right',
           className: 'navbar-cta-button',
         },

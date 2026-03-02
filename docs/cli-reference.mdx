@@ -114,11 +114,101 @@ Interactive mode requires the `inquirer` package.
 
 You can use the `--model` flag to specify the model that you want. We support Gemini, Groq, Anthropic, ChatGPT and Mistral.
 
+## Credits
+
+### `skylos credits`
+
+Check your credit balance, plan, and recent transactions.
+
+```bash
+skylos credits
+```
+
+Output:
+```
+[My Org] (pro plan)
+Balance: 1,500 credits
+
+Recent activity:
+  +10000  Purchased 10000 credits (team pack)
+  -1      Scan upload
+  -10     AI code remediation
+
+Buy credits: https://skylos.dev/dashboard/billing
+```
+
+Requires `skylos login` first. See [Billing & Credits](/billing) for pricing.
+
+## CI/CD Commands
+
+### `skylos cicd init`
+
+Generate a GitHub Actions workflow file for automated scanning.
+
+```bash
+skylos cicd init
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--python-version` | 3.12 | Python version for the workflow |
+| `--triggers` | `pull_request push` | GitHub event triggers |
+| `--analysis` | `dead-code security quality secrets` | Analysis types to enable |
+| `--no-baseline` | false | Skip baseline comparison |
+| `--llm` | false | Include LLM-enhanced analysis |
+| `--model` | — | LLM model to use with `--llm` |
+| `--output`, `-o` | `.github/workflows/skylos.yml` | Output file path |
+
+### `skylos cicd gate`
+
+Run the quality gate (exit code 0 = pass, 1 = fail). Use in CI to block merges.
+
+```bash
+skylos cicd gate --input skylos-report.json
+```
+
+| Flag | Description |
+|------|-------------|
+| `--input`, `-i` | Read results from a JSON report file |
+| `--strict` | Fail on any issues found |
+| `--summary` | Write markdown summary to `$GITHUB_STEP_SUMMARY` |
+
+### `skylos cicd annotate`
+
+Emit GitHub Actions annotations (inline warnings/errors on PR diffs).
+
+```bash
+skylos cicd annotate --input skylos-report.json
+```
+
+| Flag | Description |
+|------|-------------|
+| `--input`, `-i` | JSON report file |
+| `--max` | Maximum annotations (default: 50) |
+| `--severity` | Filter by severity: `critical`, `high`, `medium`, `low` |
+
+### `skylos cicd review`
+
+Post inline review comments on a pull request via the `gh` CLI.
+
+```bash
+skylos cicd review --input skylos-report.json --pr 42
+```
+
+| Flag | Description |
+|------|-------------|
+| `--input`, `-i` | JSON report file |
+| `--pr` | PR number (auto-detected in CI) |
+| `--repo` | `owner/repo` (auto-detected in CI) |
+| `--summary-only` | Post only a summary comment, no inline comments |
+| `--max-comments` | Maximum inline comments (default: 25) |
+| `--diff-base` | Base branch for diff (default: `origin/main`) |
+
 ## Cloud & CI Flags
 
 | Flag | Description |
 |------|-------------|
-| `--upload` | Upload scan results to Skylos Cloud (requires `skylos sync connect` first) |
+| `--upload` | Upload scan results to Skylos Cloud (requires `skylos login` first). Costs 1 credit. |
 | `--strict` | Exit with code 1 if quality gate fails (use in CI to block merges) |
 | `--force`, `-f` | Bypass quality gate locally (still uploads if `--upload` is set) |
 
