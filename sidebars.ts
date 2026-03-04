@@ -24,11 +24,17 @@ const sidebars = {
       label: 'VSC Extension', 
       className: 'sb-box' 
     },
-    { 
-      type: 'doc', 
-      id: 'mcp-server', 
-      label: 'MCP Server', 
-      className: 'sb-activity' 
+    {
+      type: 'doc',
+      id: 'mcp-server',
+      label: 'MCP Server',
+      className: 'sb-activity'
+    },
+    {
+      type: 'doc',
+      id: 'authentication',
+      label: 'Authentication',
+      className: 'sb-shield'
     },
     {
       type: 'category',

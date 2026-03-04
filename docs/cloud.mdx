@@ -5,6 +5,10 @@ description: "Track, analyze, and improve code health across your entire organiz
 
 The Skylos CLI runs locally and outputs results to your terminal. The **cloud platform** stores those results, tracks them over time, and gives your team the visibility to actually improve.
 
+:::tip New Users
+Every new account gets **50 starter credits** and a **7-day Pro trial** — no credit card required. Just run `skylos . --upload` to get started.
+:::
+
 ## CLI vs Cloud
 
 | What You Get | CLI (Free) | Cloud |
@@ -15,12 +19,15 @@ The Skylos CLI runs locally and outputs results to your terminal. The **cloud pl
 | CI/CD quality gate | ✅ | ✅ |
 | AI-powered fixes | ✅ | ✅ |
 | **Scan history** | ❌ | ✅ |
-| **Trend visualization** | ❌ | ✅ |
+| **Trend visualization** | ❌ | ✅ (Pro) |
 | **File hotspot analysis** | ❌ | ✅ |
 | **Violation pattern tracking** | ❌ | ✅ |
 | **Multi-project management** | ❌ | ✅ |
-| **Team access** | ❌ | ✅ |
-| **Custom governance policies** | ❌ | ✅ |
+| **Team collaboration** | ❌ | ✅ (Pro) |
+| **Slack & Discord notifications** | ❌ | ✅ (Pro) |
+| **Inline PR comments** | ❌ | ✅ (Pro) |
+| **Compliance reports** | ❌ | ✅ (Pro) |
+| **Custom governance policies** | ❌ | ✅ (Pro) |
 
 ---
 
@@ -51,6 +58,8 @@ Every scan is stored. The platform plots your security and quality issues over t
 
 Filter by branch to compare `main` vs feature branches, or track how a specific PR affected your metrics.
 
+{/* ![Trends page](/img/trends-page.png) */}
+
 ### File Hotspots
 
 The **Toxic Files** chart shows which files have the highest issue density.
@@ -74,12 +83,16 @@ Click any scan to see:
 - Deep links to the exact line in GitHub
 - Severity and category for each issue
 
+{/* ![Scan results](/img/scan-results.png) */}
+
 ### Multi-Project Dashboard
 
 Manage multiple repositories from one place. Each project gets:
 - Isolated scan history
 - Separate trend tracking
-- Its own API key for CI/CD
+- Its own authentication context
+
+{/* ![Dashboard overview](/img/dashboard-overview.png) */}
 
 ---
 
@@ -88,23 +101,20 @@ Manage multiple repositories from one place. Each project gets:
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#4C1D95', 'primaryTextColor': '#fff', 'primaryBorderColor': '#2E1065', 'lineColor': '#8B5CF6'}}}%%
 flowchart LR
-    A[CI runs skylos] --> B[Results sent via API] --> C[Stored in cloud] --> D[Dashboard updated]
+    A[CI runs skylos] --> B[Results sent via --upload] --> C[Stored in cloud] --> D[Dashboard updated]
 ```
 
-### 1. Get Your API Key
+### 1. Authenticate
 
-After signing in, go to **Settings** to get your project's API key.
+Run `skylos . --upload` — the browser opens automatically for first-time setup. See [Authentication](/authentication) for details.
 
-### 2. Add to CI
+### 2. Upload Results
 
-Pass the `--api-key` flag when running Skylos:
-
-
-**skylos:**
-
-
-```bash . --danger --quality --api-key $SKYLOS_API_KEY
+```bash
+skylos . --danger --upload
 ```
+
+The CLI scans locally, then uploads findings to the cloud. **Your source code never leaves your machine.**
 
 ### 3. View Results
 
@@ -114,56 +124,111 @@ After each scan, results appear in your dashboard within seconds.
 
 ## Setup
 
-### GitHub Actions
+### Local Development
 
+Just run:
 
-**name:**
+```bash
+skylos . --upload
+```
 
+On first run, the browser opens automatically. You log in with GitHub, pick (or create) a project, and you're done. Future uploads work without any prompts.
 
-```yaml: Skylos
+See [Authentication](/authentication) for the full details.
 
-on: [push, pull_request]
+### GitHub Actions (Recommended: Tokenless OIDC)
+
+**No secrets required!** GitHub Actions can authenticate using OpenID Connect:
+
+```yaml
+name: Skylos Quality Gate
+
+on:
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+  id-token: write  # Enables tokenless auth
 
 jobs:
-  scan:
+  skylos:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
       - run: pip install skylos
-      
-      - run: |
-          skylos . \
-            --danger \
-            --quality \
-            --api-key ${{ secrets.SKYLOS_API_KEY }}
+      - name: Run Skylos Scan
+        run: skylos . --danger --upload
 ```
 
-Add `SKYLOS_API_KEY` to your repository secrets (Settings → Secrets → Actions).
+No `SKYLOS_TOKEN` secret needed. The CLI detects the GitHub Actions environment and authenticates via OIDC automatically.
 
-### GitLab CI
+### GitHub Actions (Manual Token)
 
+If you prefer explicit tokens:
 
-**skylos:**
+```yaml
+name: Skylos Quality Gate
 
+on:
+  pull_request:
+    branches: [main, master]
 
-```yaml:
+jobs:
+  skylos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install skylos
+      - name: Run Skylos Scan
+        env:
+          SKYLOS_TOKEN: ${{ secrets.SKYLOS_TOKEN }}
+        run: skylos . --danger --upload
+```
+
+Add `SKYLOS_TOKEN` to your repository secrets (Settings → Secrets → Actions).
+
+### Other CI Systems (GitLab, CircleCI, Jenkins)
+
+Use the `SKYLOS_TOKEN` environment variable:
+
+**GitLab CI:**
+```yaml
+skylos:
   image: python:3.11
   script:
     - pip install skylos
-    - skylos . --danger --quality --api-key $SKYLOS_API_KEY
+    - skylos . --danger --upload
+  variables:
+    SKYLOS_TOKEN: $SKYLOS_TOKEN
 ```
 
-Add `SKYLOS_API_KEY` as a CI/CD variable (Settings → CI/CD → Variables).
+**CircleCI:**
+```yaml
+- run:
+    name: Skylos Scan
+    command: skylos . --danger --upload
+    environment:
+      SKYLOS_TOKEN: $SKYLOS_TOKEN
+```
+
+Add `SKYLOS_TOKEN` as a CI/CD variable in your CI provider's settings.
 
 ---
 
 ## What Data Is Sent
 
-When you use `--api-key`, Skylos sends:
+When you use `--upload`, Skylos sends:
 
 | Sent | Not Sent |
 |------|----------|
@@ -190,6 +255,8 @@ Logging must not include PII fields
 
 These rules are injected into the AI Auditor's context when you run `--audit`, giving you organization-aware code reviews.
 
+Pro plans support up to **50 custom rules**.
+
 ---
 
 ## API Key Management
@@ -200,28 +267,56 @@ From the Settings page, you can:
 - **Copy** to clipboard
 - **Rotate** the key (immediately invalidates the old one)
 
+For local development, browser-based authentication is now recommended over manual API keys. See [Authentication](/authentication) for details.
+
 :::warning
-Rotating your key requires updating all CI/CD secrets that use it.
+Rotating your key requires updating all CI/CD secrets that use it. GitHub Actions with OIDC are not affected by key rotation.
 :::
 
 ---
 
 ## Pricing
 
-Skylos uses **credit packs** — one-time purchases, no subscriptions. Credits never expire.
+Skylos uses **credit packs** — one-time purchases, no subscriptions. Credits never expire. Each purchase extends your **Pro access**.
 
-| Pack | Credits | Price | Per-Credit |
-|------|---------|-------|------------|
-| **Starter** | 500 | $9 | $0.018 |
-| **Builder** | 2,500 | $39 | $0.016 |
-| **Team** | 10,000 | $129 | $0.013 |
-| **Scale** | 50,000 | $499 | $0.010 |
+| Pack | Credits | Price | Per-Credit | Pro Access |
+|------|---------|-------|------------|------------|
+| **Starter** | 500 | $9 | $0.018 | 30 days |
+| **Builder** | 2,500 | $39 | $0.016 | 90 days |
+| **Team** | 10,000 | $129 | $0.013 | 180 days |
+| **Scale** | 50,000 | $499 | $0.010 | 365 days |
 
 Each cloud upload costs 1 credit. For a team doing 20 PRs/day, that's about 60 credits/day — the Team pack lasts over 5 months.
 
 **Enterprise plans** with unlimited credits, SSO, and compliance reports are available. Contact `founder@skylos.dev`.
 
 See [Billing & Credits](/billing) for full details on what costs credits and what's free.
+
+---
+
+## Free vs Pro vs Enterprise
+
+| Feature | Free | Pro | Enterprise |
+|---------|------|-----|------------|
+| Local scans | ✅ | ✅ | ✅ |
+| Upload to dashboard | ✅ (1 credit) | ✅ (1 credit) | ✅ (unlimited) |
+| Projects | 1 | 10 | Unlimited |
+| Scan history | 10 scans | 500 scans | 10,000 scans |
+| History retention | 7 days | 90 days | 365 days |
+| API rate limit | 20/hour | 500/hour | 5,000/hour |
+| GitHub Actions | ✅ | ✅ | ✅ |
+| Server-controlled checks | ❌ | ✅ | ✅ |
+| Full trend charts | ❌ | ✅ | ✅ |
+| Team collaboration | ❌ | ✅ | ✅ |
+| Slack & Discord | ❌ | ✅ | ✅ |
+| Suppression governance | ❌ | ✅ | ✅ |
+| SARIF export | ❌ | ✅ | ✅ |
+| Inline PR comments | ❌ | ✅ | ✅ |
+| Findings export | ❌ | ✅ | ✅ |
+| Custom rules | ❌ | Up to 50 | Unlimited |
+| Compliance reports | ❌ | ✅ (500 credits) | ✅ (unlimited) |
+| SSO/SAML | ❌ | ❌ | ✅ |
+| Priority support | ❌ | ❌ | ✅ |
 
 ---
 
@@ -236,7 +331,7 @@ No. The CLI works completely independently. Local scanning is free forever with 
 <details>
 <summary>Can multiple team members access the dashboard?</summary>
 
-Yes. All members of your organization can view projects and scan history.
+Yes. All members of your organization can view projects and scan history. Team collaboration features (shared suppressions, governance) require Pro.
 </details>
 
 <details>
@@ -246,7 +341,19 @@ No. Credits never expire. Buy them once, use them whenever you need.
 </details>
 
 <details>
+<summary>Does Pro access expire?</summary>
+
+Yes. Pro is time-bound — each credit pack purchase extends your Pro duration. If it expires, you drop to Free but keep your credits. Buy any pack to reactivate.
+</details>
+
+<details>
 <summary>What happens at zero credits?</summary>
 
 Local scanning still works. Cloud uploads return a 402 error with a link to buy more credits. Your CI pipeline won't crash — the scan results are still available in the build output.
+</details>
+
+<details>
+<summary>Is there a free trial?</summary>
+
+Yes! Every new account gets **50 starter credits** and a **7-day Pro trial** — no credit card required.
 </details>

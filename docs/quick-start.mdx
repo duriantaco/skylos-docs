@@ -91,35 +91,61 @@ skylos . --danger --secrets --quality
 
 Cloud gives you:
 - Dashboard to view all scans
-- Scan history
-- Team-wide suppressions (Pro)
+- Scan history and trend charts
+- Team collaboration and suppressions (Pro)
 - PR blocking that developers can't bypass (Pro)
+- Slack & Discord notifications (Pro)
 
-### Step 1: Create a Project
+:::tip New Users
+Every new account gets **50 starter credits** and a **7-day Pro trial** — no credit card required.
+:::
 
-1. Go to [skylos.dev](https://skylos.dev)
+### Step 1: Upload Your First Scan
+
+Just run:
+
+```bash
+skylos . --upload
+```
+
+**That's it.** On first run:
+1. Your browser opens automatically
 2. Sign in with GitHub
-3. Create a project
-4. Go to **Dashboard → Settings**
-5. Copy your API token
+3. Pick (or create) a project — one click
+4. Results upload to the dashboard
 
+```
+$ skylos . --upload
 
-### Step 2: Connect Your Machine
+Scanning Python files...
+✓ Found 15 issues
 
-```bash
-skylos sync connect
+No Skylos token found. Let's connect to Skylos Cloud.
+
+Opening browser to connect to Skylos Cloud...
+Waiting for authentication...
+
+✓ Connected to Skylos Cloud!
+  Project:      my-project
+  Organization: My Team
+
+Uploading scan results...
+✓ Upload complete! View at https://skylos.dev/dashboard
 ```
 
-Paste your token when prompted. This saves it to `~/.skylos/credentials.json`.
+Future uploads work automatically — no prompts, no tokens to copy.
 
-Now you can upload scans:
+### Step 2: Add More Scan Types
 
 ```bash
-skylos . --upload                # Scan + upload results
 skylos . --danger --upload       # Security scan + upload
+skylos . --quality --upload      # Quality scan + upload
+skylos . --danger --quality --upload  # Everything
 ```
 
-View results at: `https://skylos.dev/dashboard`
+View results at: [skylos.dev/dashboard](https://skylos.dev/dashboard)
+
+See [Authentication](/authentication) for CI/CD setup and advanced options.
 
 ---
 
@@ -139,14 +165,48 @@ View results at: `https://skylos.dev/dashboard`
 
 ## Part 4: CI/CD Setup
 
-### Option A: One-Command Setup (Recommended)
+### Option A: GitHub Actions with OIDC (Recommended)
+
+**No secrets required!** Create `.github/workflows/skylos.yml`:
+
+```yaml
+name: Skylos Quality Gate
+
+on:
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+  id-token: write  # Enables tokenless auth
+
+jobs:
+  skylos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install skylos
+      - name: Run Skylos
+        run: skylos . --danger --upload
+```
+
+That's it — no tokens, no secrets to configure.
+
+---
+
+### Option B: One-Command Setup
 
 ```bash
 skylos sync setup
 ```
 
 This wizard will:
-1. Connect to Skylos Cloud (if not already)
+1. Authenticate with Skylos Cloud (browser opens automatically)
 2. Ask what you want to install:
    - **Git hooks** — blocks `git push` if scan fails
    - **Pre-commit config** — blocks `git commit` if scan fails
@@ -156,9 +216,9 @@ Just answer the prompts.
 
 ---
 
-### Option B: Manual GitHub Actions
+### Option C: Manual GitHub Actions (with token)
 
-Create `.github/workflows/skylos.yml`:
+For explicit token management, create `.github/workflows/skylos.yml`:
 
 ```yaml
 name: Skylos Quality Gate
@@ -172,6 +232,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -244,18 +306,26 @@ Creates:
 
 ## Free vs Pro
 
+:::tip
+Every new account gets **50 starter credits** and a **7-day Pro trial**.
+:::
+
 | Feature | Free | Pro | Enterprise |
 |---------|------|-----|------------|
 | Local scans | ✅ | ✅ | ✅ |
-| Upload to dashboard | ✅ | ✅ | ✅ |
-| Scan history | 10 | 500 | 10,000 |
-| GitHub Actions (`--strict`) | ✅ | ✅ | ✅ |
-| GitHub App (enforced checks) | ❌ | ✅ | ✅ |
-| PR diff checks | ❌ | ✅ | ✅ |
-| Team suppressions | ❌ | ✅ | ✅ |
-| Override failed gates | ❌ | ✅ | ✅ |
-| Slack/Discord alerts | ❌ | ✅ | ✅ |
-| SARIF import | ❌ | ✅ | ✅ |
+| Upload to dashboard | ✅ (1 credit) | ✅ (1 credit) | ✅ (unlimited) |
+| Projects | 1 | 10 | Unlimited |
+| Scan history | 10 scans | 500 scans | 10,000 scans |
+| History retention | 7 days | 90 days | 365 days |
+| GitHub Actions | ✅ | ✅ | ✅ |
+| Server-controlled checks | ❌ | ✅ | ✅ |
+| Full trend charts | ❌ | ✅ | ✅ |
+| Team collaboration | ❌ | ✅ | ✅ |
+| Slack & Discord | ❌ | ✅ | ✅ |
+| Inline PR comments | ❌ | ✅ | ✅ |
+| SARIF export | ❌ | ✅ | ✅ |
+| Custom rules | ❌ | Up to 50 | Unlimited |
+| SSO/SAML | ❌ | ❌ | ✅ |
 
 **GitHub Actions vs GitHub App:**
 - **Actions** — Uses `--strict` to exit with code 1. Developers can delete the workflow file to bypass.

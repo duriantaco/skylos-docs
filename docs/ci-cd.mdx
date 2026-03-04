@@ -18,6 +18,71 @@ There are two ways to use Skylos in CI/CD:
 
 ---
 
+## GitHub Actions (Tokenless OIDC) — Recommended
+
+:::tip Recommended for GitHub Actions
+OIDC authentication requires **zero secrets** — no tokens to manage, rotate, or leak.
+:::
+
+GitHub Actions can authenticate with Skylos Cloud using OpenID Connect (OIDC). This is the most secure and convenient approach.
+
+### Setup
+
+Create `.github/workflows/skylos.yml`:
+
+```yaml
+name: Skylos Quality Gate
+
+on:
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+  id-token: write  # Required for tokenless auth
+
+jobs:
+  skylos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Skylos
+        run: pip install skylos
+
+      - name: Run Skylos Scan
+        run: skylos . --danger --upload
+```
+
+That's it. No secrets to configure.
+
+### How OIDC Works
+
+1. GitHub Actions generates a short-lived OIDC token for the workflow run
+2. The token contains claims: `repository`, `actor`, `ref`, `sha`
+3. Skylos verifies the token against GitHub's public JWKS endpoint
+4. Skylos matches the repository to your project in the database
+5. Upload proceeds — no secrets involved
+
+### OIDC vs Manual Token
+
+| Aspect | OIDC (Recommended) | Manual Token |
+|--------|:-------------------:|:------------:|
+| Secrets to manage | 0 | 1 |
+| Token lifetime | Minutes | Until revoked |
+| Setup steps | Add permission line | Create secret + add to workflow |
+| Key rotation | Automatic | Manual |
+| Can be stolen/reused | ❌ | ⚠️ If secret leaks |
+| Bound to repository | ✅ | ❌ |
+
+---
+
 ## Free Tier: GitHub Actions
 
 ### Basic Setup
@@ -38,14 +103,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install Skylos
         run: pip install skylos
-      
+
       - name: Run Skylos Scan
         run: skylos . --danger --gate
 ```
@@ -80,7 +145,7 @@ sequenceDiagram
     participant GH as GitHub
     participant App as Skylos App
     participant Server as Skylos Server
-    
+
     Dev->>GH: Opens PR
     GH->>App: Webhook: PR opened
     App->>GH: Create check (status: "Queued")
@@ -109,7 +174,7 @@ skylos sync setup
 ```
 
 Follow the prompts to:
-1. Enter your API token (from Dashboard → Settings)
+1. Authenticate (browser opens automatically)
 2. Install git hooks (optional)
 3. Create GitHub Actions workflow
 
@@ -132,13 +197,18 @@ Follow the prompts to:
    - Select **"Skylos Quality Gate"** from the list
    - ✅ **Do not allow bypassing the above settings** (for strict enforcement)
 
-#### Step 4: Add Token to GitHub Secrets
+#### Step 4: Add Workflow
 
-1. Go to repository **Settings → Secrets and variables → Actions**
-2. Click **New repository secret**
-3. Add:
-   - **Name:** `SKYLOS_TOKEN`
-   - **Value:** Your API key from Dashboard → Settings
+For OIDC (recommended):
+```yaml
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+  checks: write
+```
+
+For manual tokens, add `SKYLOS_TOKEN` to repository secrets (Settings → Secrets → Actions).
 
 ### Generated Workflow
 
@@ -153,6 +223,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
   pull-requests: write
   checks: write
 
@@ -163,19 +234,91 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install Skylos
         run: pip install skylos
-      
+
       - name: Run Skylos Scan
-        env:
-          SKYLOS_TOKEN: ${{ secrets.SKYLOS_TOKEN }}
-        run: skylos . --danger --gate
+        run: skylos . --danger --upload
 ```
+
+---
+
+## Other CI Systems
+
+### GitLab CI
+
+```yaml
+skylos:
+  image: python:3.11
+  script:
+    - pip install skylos
+    - skylos . --danger --upload
+  variables:
+    SKYLOS_TOKEN: $SKYLOS_TOKEN
+```
+
+Add `SKYLOS_TOKEN` as a CI/CD variable (Settings → CI/CD → Variables).
+
+### CircleCI
+
+```yaml
+- run:
+    name: Skylos Scan
+    command: skylos . --danger --upload
+    environment:
+      SKYLOS_TOKEN: $SKYLOS_TOKEN
+```
+
+### Jenkins
+
+```groovy
+stage('Skylos Scan') {
+    environment {
+        SKYLOS_TOKEN = credentials('skylos-token')
+    }
+    steps {
+        sh 'pip install skylos'
+        sh 'skylos . --danger --upload'
+    }
+}
+```
+
+---
+
+## Migrating from Manual Tokens to OIDC
+
+If you're already using `SKYLOS_TOKEN` in GitHub Actions, here's how to switch to tokenless OIDC:
+
+**Before:**
+```yaml
+- name: Run Skylos Scan
+  env:
+    SKYLOS_TOKEN: ${{ secrets.SKYLOS_TOKEN }}
+  run: skylos . --danger --upload
+```
+
+**After:**
+```yaml
+# Add at the top level of your workflow
+permissions:
+  contents: read
+  id-token: write
+
+# Update the step (remove SKYLOS_TOKEN)
+- name: Run Skylos Scan
+  run: skylos . --danger --upload
+```
+
+**Steps:**
+1. Add `id-token: write` permission to your workflow
+2. Remove the `SKYLOS_TOKEN` env from the step
+3. Push the change — uploads now use OIDC
+4. (Optional) Keep the `SKYLOS_TOKEN` secret around for rollback
 
 ---
 
@@ -186,10 +329,12 @@ jobs:
 | Local scans (`skylos .`) | ✅ | ✅ |
 | Exit codes (`--gate`) | ✅ | ✅ |
 | GitHub Actions workflow | ✅ | ✅ |
+| Tokenless OIDC | ✅ | ✅ |
 | One-click setup (`sync setup`) | ❌ | ✅ |
 | Server-controlled check | ❌ | ✅ |
 | Cannot be bypassed | ❌ | ✅ |
 | PR diff analysis | ❌ | ✅ |
+| Inline PR comments | ❌ | ✅ |
 | Suppressions | ❌ | ✅ |
 | Slack notifications | ❌ | ✅ |
 | Discord notifications | ❌ | ✅ |
@@ -219,6 +364,12 @@ skylos . --danger --gate
 
 Returns exit code `1` if issues are found.
 
+### Upload to Cloud
+
+```bash
+skylos . --danger --upload
+```
+
 ### Force Bypass (Local Only)
 
 ```bash
@@ -238,10 +389,10 @@ The `--force` flag only bypasses the local exit code. It does **not** affect the
 The GitHub App check was created but never updated. This usually means:
 
 1. The scan didn't run or didn't upload results
-2. The `SKYLOS_TOKEN` is missing or invalid
+2. Authentication failed (check OIDC permissions or `SKYLOS_TOKEN`)
 3. The commit SHA doesn't match
 
-**Fix:** Ensure `SKYLOS_TOKEN` is set in GitHub Secrets and the workflow runs successfully.
+**Fix:** Ensure the workflow has correct permissions (`id-token: write` for OIDC) or `SKYLOS_TOKEN` is set, and the workflow runs successfully.
 
 ### Check shows "Expected"
 
@@ -255,10 +406,27 @@ The scan ran before the commit was pushed to GitHub.
 
 **Fix:** Always push your commits before running `skylos . --gate` locally, or let GitHub Actions handle it.
 
+### OIDC auth fails
+
+Make sure your workflow has the correct permissions:
+
+```yaml
+permissions:
+  contents: read
+  id-token: write
+```
+
+Also verify:
+- You're using Skylos CLI v3.3.0 or later
+- The repository URL in your Skylos project matches the GitHub repo
+- The workflow is running on GitHub Actions (not a self-hosted runner with OIDC disabled)
+
 ### Token not working
 
 Make sure you're using the correct token for your environment:
 - **Production:** Get token from https://skylos.dev/dashboard/settings
-- **Local dev:** Check your `SKYLOS_API_URL` environment variable
+- **Local dev:** Consider using browser auth instead (`skylos . --upload`)
+
+See [Authentication](/authentication) for the full token priority and troubleshooting guide.
 
 ---

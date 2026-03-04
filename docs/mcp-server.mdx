@@ -110,15 +110,17 @@ Get your API key from [skylos.dev/dashboard/settings](https://skylos.dev/dashboa
 - Limited to 5 calls per day
 - `security_scan`, `quality_check`, `secrets_scan`, and `remediate` require authentication
 
-**With an API key**, all tools are available and each call deducts credits from your account:
+**With an API key**, all tools are available:
 
-| Tool | Credits Per Call |
-|------|-----------------|
-| `analyze` | 1 |
-| `security_scan` | 2 |
-| `quality_check` | 1 |
-| `secrets_scan` | 1 |
-| `remediate` | 10 |
+| Tool | Credits | Notes |
+|------|---------|-------|
+| `analyze` | **Free** | Runs locally |
+| `security_scan` | **Free** | Runs locally |
+| `quality_check` | **Free** | Runs locally |
+| `secrets_scan` | **Free** | Runs locally |
+| `remediate` | **10** | AI-powered fix generation |
+
+Analysis tools (`analyze`, `security_scan`, `quality_check`, `secrets_scan`) run entirely on your machine — they don't cost credits. Only the `remediate` tool, which uses LLM-powered fix generation, costs 10 credits per call.
 
 **Enterprise plans** have unlimited credits — no per-call charges.
 

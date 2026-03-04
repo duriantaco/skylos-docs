@@ -1,0 +1,127 @@
+---
+title: Claude Code Security Integration
+description: Run Skylos + Claude Code Security together for comprehensive Python security analysis
+sidebar_position: 1
+---
+
+# Claude Code Security Integration
+
+Skylos integrates with [Claude Code Security](https://www.anthropic.com/research/claude-code-security) to give you the best of both worlds:
+
+| Capability | Skylos | Claude Code Security |
+|:---|:---:|:---:|
+| Dead code detection | Yes | No |
+| Code quality analysis | Yes | No |
+| Secrets scanning | Yes | No |
+| Deep vulnerability patterns | Basic | Yes |
+| Exploit scenario generation | No | Yes |
+| Confidence scoring | No | Yes |
+| CI/CD quality gates | Yes | No |
+| Unified dashboard | Yes | No |
+
+**Dead code is attack surface. Clean before you scan.**
+
+## Prerequisites
+
+- A Skylos account with credits ([skylos.dev/dashboard/billing](https://skylos.dev/dashboard/billing))
+- An Anthropic API key ([console.anthropic.com](https://console.anthropic.com))
+- A GitHub repository
+
+## Setup
+
+### 1. Add secrets to your GitHub repo
+
+Go to **Settings > Secrets and variables > Actions** and add:
+
+| Secret | Value |
+|:---|:---|
+| `SKYLOS_TOKEN` | From your Skylos project settings |
+| `ANTHROPIC_API_KEY` | From console.anthropic.com |
+
+### 2. Generate the combined workflow
+
+```bash
+skylos cicd init --claude-security
+```
+
+This generates a workflow with three parallel/sequential jobs:
+
+1. **skylos** — Runs Skylos dead code + security + quality analysis (parallel)
+2. **claude-security** — Runs Claude Code Security review (parallel)
+3. **upload-claude-findings** — Ingests Claude findings into Skylos dashboard (sequential, after job 2)
+
+### 3. Commit and push
+
+```bash
+git add .github/workflows/skylos.yml && git push
+```
+
+## Manual ingestion
+
+If you already have Claude Code Security JSON output, you can ingest it directly:
+
+```bash
+# Ingest and upload to dashboard
+skylos ingest claude-security --input claude-security-results.json
+
+# Normalize only (no upload)
+skylos ingest claude-security --input results.json --no-upload --json
+
+# Use a specific token
+skylos ingest claude-security --input results.json --token sk-xxx
+```
+
+## Dashboard
+
+Claude Security findings appear in your Skylos dashboard with:
+
+- A **blue "Claude Security" badge** on scans and issues
+- **Confidence scores** shown as percentages
+- **Exploit scenarios** explaining how the vulnerability could be exploited
+- **Suggested fixes** from Claude's analysis
+- **CWE references** for compliance tracking
+
+All Claude Security findings are categorized as `SECURITY` with `CCS:` rule ID prefixes (e.g., `CCS:sql-injection`).
+
+## Credits
+
+Claude Security ingestion costs **2 credits per upload** (vs 1 credit for native Skylos scans). This reflects the multi-tool value of combining both analyses.
+
+Check your balance:
+
+```bash
+skylos credits
+```
+
+## Example workflow
+
+See the full example workflow at [`.github/workflows/examples/skylos-plus-claude-security.yml`](https://github.com/duriantaco/skylos/blob/main/.github/workflows/examples/skylos-plus-claude-security.yml).
+
+## How it works
+
+```
+┌────────────┐     ┌──────────────────────┐
+│   Skylos   │     │  Claude Code Security │
+│  (Job 1)   │     │       (Job 2)         │
+│            │     │                       │
+│ Dead code  │     │ Deep vulnerability    │
+│ Quality    │     │ Exploit scenarios     │
+│ Secrets    │     │ Confidence scores     │
+│ Security   │     │                       │
+└─────┬──────┘     └──────────┬────────────┘
+      │                       │
+      │                       ▼
+      │            ┌──────────────────────┐
+      │            │  skylos ingest       │
+      │            │  claude-security     │
+      │            │       (Job 3)        │
+      │            └──────────┬───────────┘
+      │                       │
+      ▼                       ▼
+┌─────────────────────────────────────────┐
+│          Skylos Dashboard               │
+│                                         │
+│  Unified findings, quality gates,       │
+│  issue tracking, notifications          │
+└─────────────────────────────────────────┘
+```

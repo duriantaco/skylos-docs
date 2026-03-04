@@ -3,7 +3,18 @@ title: "Billing & Credits"
 description: "How credits work, pricing, and what costs credits in Skylos"
 ---
 
-Skylos uses **credit packs** — one-time purchases, no subscriptions, no recurring charges. Credits never expire. Buy what you need, use it whenever.
+Skylos uses **credit packs** — one-time purchases, no subscriptions, no recurring charges. Each purchase also extends your **Pro access** (see [How Pro Works](#how-pro-works) below).
+
+## New User Onboarding
+
+Every new Skylos account gets:
+
+- **50 starter credits** — enough for 50 scan uploads
+- **7-day Pro trial** — full access to all Pro features
+
+No credit card required. Start scanning and explore the cloud dashboard immediately.
+
+---
 
 ## What's Free
 
@@ -11,39 +22,80 @@ Skylos uses **credit packs** — one-time purchases, no subscriptions, no recurr
 |--------|----------|
 | `skylos .` (local CLI scan) | Adoption funnel — local scanning is always free |
 | `skylos . --json` / `--table` / `--tree` | Same — all local output formats are free |
-| MCP `analyze` without API key (5 calls/day) | Let agents try before paying |
+| MCP `analyze` / `security_scan` / `quality_check` / `secrets_scan` | Local analysis tools — run on your machine |
 | Dashboard viewing (read-only) | No friction to see results |
 | All languages (Python, TypeScript, Go) | Languages are adoption multipliers, not paywalls |
 
 ## What Costs Credits
 
-| Action | Credits | Where Enforced |
-|--------|---------|----------------|
-| Scan upload to cloud (`--upload`) | 1 | Server-side (`/api/report`) |
-| MCP: `analyze` | 1 | MCP server (`skylos_mcp/auth.py`) |
-| MCP: `security_scan` | 2 | MCP server |
-| MCP: `quality_check` | 1 | MCP server |
-| MCP: `secrets_scan` | 1 | MCP server |
-| MCP: `remediate` (AI auto-fix) | 10 | MCP server |
-| PR inline review | 3 | Cloud (coming soon) |
+Only **compute-heavy cloud actions** cost credits:
+
+| Action | Credits |
+|--------|---------|
+| Scan upload (`--upload`) | 1 |
+| Scan comparison (diff between two scans) | 2 |
+| PR auto-fix (LLM-generated fix) | 3 |
+| AI issue triage (LLM analysis) | 5 |
+| MCP AI remediation (`remediate` tool) | 10 |
+| Compliance report (PCI DSS, SOC2, HIPAA) | 500 |
 
 ## Credit Packs
 
-| Pack | Credits | Price | Per-Credit |
-|------|---------|-------|------------|
-| **Starter** | 500 | $9 | $0.018 |
-| **Builder** | 2,500 | $39 | $0.016 |
-| **Team** | 10,000 | $129 | $0.013 |
-| **Scale** | 50,000 | $499 | $0.010 |
+| Pack | Credits | Price | Per-Credit | Pro Access |
+|------|---------|-------|------------|------------|
+| **Starter** | 500 | $9 | $0.018 | 30 days |
+| **Builder** | 2,500 | $39 | $0.016 | 90 days |
+| **Team** | 10,000 | $129 | $0.013 | 180 days |
+| **Scale** | 50,000 | $499 | $0.010 | 365 days |
 
 Volume discount up to 45%. Credits never expire.
 
 **30-day money-back guarantee** on all packs.
 
+---
+
+## How Pro Works
+
+Pro is **time-bound** — each credit pack purchase includes a Pro access duration.
+
+**How it works:**
+- Buy any credit pack → you get Pro access for the pack's duration
+- Pro duration **stacks** — buying another pack extends your expiry date
+- If Pro expires, you drop back to the Free plan (your credits are still there)
+- Buy any pack to **reactivate** Pro immediately
+
+**Example:**
+1. Buy Starter pack → Pro for 30 days (expires April 3)
+2. On March 20, buy Builder pack → Pro extended by 90 days (now expires July 2)
+3. Credits from both packs are combined in your balance
+
+:::tip
+Your credits never expire — only Pro access is time-bound. If Pro lapses, buy any pack to reactivate and your existing credits are still available.
+:::
+
+---
+
+## Pro Features
+
+These features are **plan-gated** (require an active Pro subscription), not credit-gated:
+
+- **Advanced gate modes** — server-controlled GitHub checks that can't be bypassed
+- **Full trend charts** — track security and quality metrics over time
+- **Team collaboration** — shared dashboard, team-wide suppressions
+- **Slack & Discord notifications** — get alerts on new findings
+- **Suppression governance** — manage false positives across the team
+- **SARIF export** — import results into GitHub Security tab
+- **Inline PR comments** — findings posted directly on PR diffs
+- **Findings export** — download results as CSV/JSON
+- **Custom rules** — up to 50 organization-specific rules
+- **90-day scan history** — full history retention (Free: 7 days)
+
+---
+
 ## Enterprise
 
 Custom pricing for teams that need:
-- Unlimited repos and history
+- Unlimited repos and history (365-day retention)
 - SSO/SAML
 - Compliance reports
 - Audit logs
@@ -64,12 +116,13 @@ skylos credits
 
 Output:
 ```
-[My Org] (pro plan)
+[My Org] (pro plan — expires 2026-06-15)
 Balance: 1,500 credits
 
 Recent activity:
-  +10000  Purchased 10000 credits (team pack)
+  +2500   Purchased 2500 credits (builder pack)
   -1      Scan upload
+  -5      AI issue triage
   -10     AI code remediation
 
 Buy credits: https://skylos.dev/dashboard/billing
@@ -77,7 +130,7 @@ Buy credits: https://skylos.dev/dashboard/billing
 
 ### Dashboard
 
-Go to [skylos.dev/dashboard/billing](https://skylos.dev/dashboard/billing) to see your balance, recent transactions, and buy more credits.
+Go to [skylos.dev/dashboard/billing](https://skylos.dev/dashboard/billing) to see your balance, Pro expiry date, recent transactions, and buy more credits.
 
 ---
 
@@ -87,7 +140,7 @@ Go to [skylos.dev/dashboard/billing](https://skylos.dev/dashboard/billing) to se
 2. Pick a credit pack
 3. You're redirected to a secure checkout page (powered by Lemon Squeezy)
 4. After payment, credits are added to your account instantly
-5. Your plan upgrades from "free" to "pro" on first purchase
+5. Your Pro access is extended by the pack's duration
 
 ---
 
@@ -105,12 +158,14 @@ skylos . --upload
 
 ### MCP Server
 
-All authenticated tools return an error:
+The `remediate` tool returns an error:
 
 ```
-Insufficient credits. Required: 2, available: 0.
+Insufficient credits. Required: 10, available: 0.
 Buy credits at https://skylos.dev/dashboard/billing
 ```
+
+Other MCP tools (`analyze`, `security_scan`, `quality_check`, `secrets_scan`) run locally and don't require credits.
 
 ### CI/CD
 
@@ -133,6 +188,9 @@ Credits remaining: 12. Top up at skylos.dev/dashboard/billing
 **Do credits expire?**
 No. Credits never expire. Buy them once, use them whenever.
 
+**Does Pro access expire?**
+Yes. Pro is time-bound — each credit pack extends your Pro duration. When it expires, you drop to Free but keep your credits. Buy any pack to reactivate.
+
 **Can I get a refund?**
 Yes. 30-day money-back guarantee on all packs. Contact `founder@skylos.dev` or request through the payment provider.
 
@@ -140,4 +198,7 @@ Yes. 30-day money-back guarantee on all packs. Contact `founder@skylos.dev` or r
 The scan still runs locally. The upload to the cloud dashboard will fail with a 402 error. Your CI pipeline won't break — the scan results are still available in the build output.
 
 **Is there a free trial?**
-Local scanning is free forever with no limits. For cloud features, buy the Starter pack ($9 / 500 credits) to try it out.
+Yes! Every new account gets **50 starter credits** and a **7-day Pro trial** — no credit card required. Local scanning is also free forever with no limits.
+
+**What's the difference between plan-gated and credit-gated?**
+Pro features (trends, team collaboration, integrations) require an active Pro subscription but don't cost credits. Compute actions (scan upload, AI triage, etc.) cost credits regardless of plan.
