@@ -1,0 +1,47 @@
+# Skylos Documentation
+
+> Documentation for Skylos, an open-source static analysis tool for Python, TypeScript, and Go. Detects dead code, security vulnerabilities (SQL injection, SSRF, XSS, command injection, secrets), and code quality issues with framework-aware analysis.
+
+Skylos is a Vulture alternative with 95% recall and 3x fewer false positives. Built-in awareness for Django, Flask, FastAPI, Pydantic, and pytest. Available as CLI, MCP server, VS Code extension, and GitHub Action.
+
+## Getting Started
+
+- [Installation](https://docs.skylos.dev/installation): Install via pip, system requirements, Python 3.10+
+- [Quick Start](https://docs.skylos.dev/quick-start): Step-by-step workflow guide
+- [Configuration](https://docs.skylos.dev/configuration): Configure via pyproject.toml — exclusions, thresholds, quality gates
+- [CLI Reference](https://docs.skylos.dev/cli-reference): All command-line flags and options
+
+## Core Features
+
+- [Dead Code Detection](https://docs.skylos.dev/dead-code-detection): Find unused functions, imports, classes, and variables
+- [Security Analysis](https://docs.skylos.dev/security-analysis): SAST with taint analysis for SQL injection, SSRF, XSS, command injection, path traversal
+- [Code Quality](https://docs.skylos.dev/code-quality): Complexity, nesting depth, mutable defaults, and other quality checks
+- [Framework Awareness](https://docs.skylos.dev/framework-awareness): Django, Flask, FastAPI, Pydantic, and pytest recognition to reduce false positives
+- [Smart Tracing](https://docs.skylos.dev/smart-tracing): Runtime call tracing for dynamic code
+
+## Integrations
+
+- [CI/CD Integration](https://docs.skylos.dev/ci-cd): GitHub Actions, GitLab CI, Jenkins setup with quality gates
+- [VS Code Extension](https://docs.skylos.dev/vscode): Real-time analysis in the editor
+- [MCP Server](https://docs.skylos.dev/mcp-server): Connect to Claude Desktop, Cursor, and AI assistants via Model Context Protocol
+- [Claude Code Security](https://docs.skylos.dev/integrations/claude-code-security): Security ingestion for Claude Code
+
+## Concepts
+
+- [Taint Analysis](https://docs.skylos.dev/concepts/taint-analysis): How Skylos traces untrusted data through code
+- [Pattern Detection](https://docs.skylos.dev/concepts/pattern-detection): Rule-based detection patterns
+- [Vibe Coding Detection](https://docs.skylos.dev/concepts/vibe-coding): Detecting AI-generated code risks
+
+## Reference
+
+- [Rules Reference](https://docs.skylos.dev/rules-reference): All detection rules with IDs and severity
+- [Benchmarks](https://docs.skylos.dev/case-studies): Skylos vs Vulture on 9 top Python repos (350k+ stars)
+- [FAQ](https://docs.skylos.dev/faq): Common questions and troubleshooting
+
+## Optional
+
+- [AI Features](https://docs.skylos.dev/ai-features): LLM-powered auto-fix and audit
+- [Quality Gate](https://docs.skylos.dev/quality-gate): Threshold-based merge blocking
+- [TypeScript Support](https://docs.skylos.dev/typescript-support): TypeScript and Go analysis
+- [Cloud Dashboard](https://docs.skylos.dev/cloud): Skylos Cloud features
+- [Billing](https://docs.skylos.dev/billing): Credit packs and pricing
