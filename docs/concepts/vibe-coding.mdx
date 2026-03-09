@@ -327,6 +327,33 @@ skylos . --danger --quality --gate
 
 ---
 
+## AI-Specific Detection Rules
+
+Skylos includes rules specifically designed to catch patterns common in AI-generated code:
+
+| Rule | What It Catches | Why AI Does This | Vibe Category |
+|------|----------------|-------------------|---------------|
+| `SKY-L012` | **Phantom function calls** — `sanitize_input()` that doesn't exist | LLMs hallucinate security functions that were never defined or imported | `hallucinated_reference` |
+| `SKY-L023` | **Phantom decorators** — `@require_auth` that doesn't exist | LLMs hallucinate security decorators, leaving functions unprotected | `hallucinated_reference` |
+| `SKY-L026` | **Unfinished generation** — function body is only `pass` or `...` | LLMs generate stubs and move on, leaving empty functions in production | `incomplete_generation` |
+| `SKY-L016` | **Undefined config** — `os.getenv("ENABLE_CACHING")` never set | LLMs invent feature flags that reference config that doesn't exist | `ghost_config` |
+| `SKY-L024` | **Stale mocks** — `mock.patch("mod.old_func")` targets deleted function | After refactoring, AI-generated tests still patch old function names | `stale_reference` |
+| `SKY-L013` | **Insecure randomness** — `random.randint()` for tokens | LLMs reach for `random` instead of `secrets` for security values | — |
+| `SKY-L014` | **Hardcoded credentials** — `password="admin123"` | LLMs generate working examples with real-looking credentials | — |
+| `SKY-L010` | **Security TODO markers** — `# TODO: add auth check` | LLMs leave placeholder comments as "future work" that never happens | — |
+| `SKY-L011` | **Disabled security controls** — `verify=False` | LLMs disable TLS/CSRF to make examples "just work" | — |
+| `SKY-L017` | **Error info disclosure** — `return str(e)` | LLMs return raw exceptions for "debugging" instead of safe error messages | — |
+| `SKY-L020` | **Broad file permissions** — `os.chmod(f, 0o777)` | LLMs use maximally permissive modes to avoid permission errors | — |
+| `SKY-D222` | **Hallucinated dependencies** — importing packages that don't exist on PyPI | LLMs invent package names that sound right but aren't real | — |
+| `SKY-D260` | **Prompt injection** — hidden instructions in comments, YAML, Markdown | Hostile content targeting AI agents processing your codebase | — |
+
+```bash
+# Scan for AI-generated code issues
+skylos . --danger --quality --table
+```
+
+---
+
 ## The Numbers
 
 | Metric | Without Skylos | With Skylos |

@@ -248,6 +248,22 @@ jobs:
 
 ---
 
+## Generating Workflows with Upload
+
+Use `skylos cicd init --upload` to generate a workflow that automatically uploads scan results to the Skylos cloud dashboard:
+
+```bash
+# Basic workflow with upload
+skylos cicd init --upload
+
+# Upload + LLM review
+skylos cicd init --upload --llm --model claude-sonnet-4-20250514
+```
+
+This adds `--upload` to the analysis step and sets `SKYLOS_TOKEN: ${{ secrets.SKYLOS_TOKEN }}` as an environment variable. Add `SKYLOS_TOKEN` to your repo secrets (Settings → Secrets → Actions).
+
+---
+
 ## Other CI Systems
 
 ### GitLab CI

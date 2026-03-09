@@ -17,6 +17,14 @@ const config: Config = {
   onBrokenMarkdownLinks: 'warn',
 
   headTags: [
+    // TODO: Add your Google Search Console verification code here
+    // {
+    //   tagName: 'meta',
+    //   attributes: {
+    //     name: 'google-site-verification',
+    //     content: 'YOUR_GSC_VERIFICATION_CODE',
+    //   },
+    // },
     {
       tagName: 'meta',
       attributes: {
@@ -93,7 +101,7 @@ const config: Config = {
   ],
 
   themeConfig: {
-    image: 'img/skylos-social-card.jpg',
+    image: 'img/skylos-social-card.png',
     colorMode: {
       respectPrefersColorScheme: true,
     },

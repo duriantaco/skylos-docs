@@ -77,6 +77,22 @@ skylos . --danger --quality
 | `--trace` | Run tests with call tracing to capture dynamic dispatch (visitor patterns, getattr, plugins) |
 | `--confidence`| Confidence threshold (0-100). Lower values include more uncertain findings. Default: `60` |
 
+## Diff Filtering
+
+| Flag | Description |
+|------|-------------|
+| `--diff [BASE_REF]` | Only report findings in lines changed since BASE_REF (e.g. `--diff origin/main`). Use `--diff` without a value to auto-detect (`GITHUB_BASE_REF` or `origin/main`). Unlike `--diff-base` which filters at the file level, `--diff` uses unified diff hunk headers for exact line-range matching. |
+| `--diff-base <ref>` | *(File-level)* Only report findings in files changed since the given ref. |
+
+**Example:**
+```bash
+# Only show findings in lines your PR touched
+skylos . --diff origin/main --danger --quality
+
+# Auto-detect base ref (uses GITHUB_BASE_REF or defaults to origin/main)
+skylos . --diff --danger --secrets --quality
+```
+
 ## Folder Exclusion
 
 | Flag | Description |
@@ -157,6 +173,7 @@ skylos cicd init
 | `--no-baseline` | false | Skip baseline comparison |
 | `--llm` | false | Include LLM-enhanced analysis |
 | `--model` | — | LLM model to use with `--llm` |
+| `--upload` | false | Include `--upload` step to send scan results to the Skylos cloud dashboard. Requires `SKYLOS_TOKEN` in repo secrets. |
 | `--output`, `-o` | `.github/workflows/skylos.yml` | Output file path |
 
 ### `skylos cicd gate`
