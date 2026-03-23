@@ -197,6 +197,9 @@ Scanned file types: `.py`, `.pyi`, `.pyw`, `.env`, `.yaml`, `.yml`, `.json`, `.t
 | `SKY-L023` | Phantom Decorator | CRITICAL | `@require_auth`, `@rate_limit` never defined or imported (CWE-476) |
 | `SKY-L024` | Stale Mock | HIGH | `mock.patch("mod.func")` targets function that no longer exists |
 | `SKY-L026` | Unfinished Generation | MEDIUM | Function body is only `pass`, `...`, or `raise NotImplementedError` |
+| `SKY-L027` | Duplicate String Literal | LOW/MEDIUM | Same string repeated 3+ times — extract to a constant. Configurable via `duplicate_strings` in `[tool.skylos]` |
+| `SKY-L028` | Too Many Returns | LOW | Function has 5+ return statements |
+| `SKY-L029` | Boolean Trap | LOW | Boolean positional parameter harms call-site readability |
 
 ### Performance Rules (SKY-P)
 
@@ -1817,6 +1820,70 @@ class Base(ABC):
 ```
 
 Skips abstract methods (`@abstractmethod`), test files, `__init__.py`, and dunder methods (`__repr__`, `__eq__`, etc.).
+
+---
+
+### SKY-L027 · Duplicate String Literal
+
+| | |
+|---|---|
+| **Severity** | LOW (3–5 repeats), MEDIUM (6+) |
+| **Languages** | Python |
+
+```python
+# Bad — same string repeated 5 times
+if mode == "production":  # SKY-L027
+    ...
+elif env == "production":
+    ...
+```
+
+```python
+# Good — extract to a constant
+MODE_PRODUCTION = "production"
+if mode == MODE_PRODUCTION:
+    ...
+```
+
+Configurable via `duplicate_strings` in `pyproject.toml`:
+
+```toml
+[tool.skylos]
+duplicate_strings = 5   # default: 3
+
+# Or disable entirely:
+ignore = ["SKY-L027"]
+```
+
+---
+
+### SKY-L028 · Too Many Returns
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | Python |
+
+Flags functions with 5 or more `return` statements. Many returns make control flow harder to follow.
+
+---
+
+### SKY-L029 · Boolean Trap
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | Python |
+
+Flags boolean positional parameters that make call sites unreadable:
+
+```python
+# Bad — what does True mean?
+process_order(order, True, False)  # SKY-L029
+
+# Good — use keyword arguments
+process_order(order, validate=True, notify=False)
+```
 
 ---
 
