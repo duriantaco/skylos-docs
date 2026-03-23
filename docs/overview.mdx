@@ -174,14 +174,18 @@ Analyzed 47 file(s)
 Unreachable: 3  Unused imports: 12  Quality: 2
 
 ───────────────────── Security Issues ─────────────────────
- #  Rule       Severity   Message                         Location
- 1  SKY-D210   Critical   SQL injection: tainted input    api/db.py:45
- 2  SKY-D212   Critical   Command injection (shell=True)  utils/run.py:23
+ #  Issue                    Severity   Message                         Location          Symbol
+ 1  SQL injection            Critical   SQL injection: tainted input    api/db.py:45      handle_query
+    SKY-D211
+ 2  Command injection        Critical   Command injection (shell=True)  utils/run.py:23   execute_cmd
+    SKY-D212
 
 ────────────────────── Quality Issues ─────────────────────
- #  Type        Function        Detail                    Location
- 1  Complexity  process_order   Cyclomatic: 18 (max 10)   orders.py:89
+ #  Type        Name            Detail                    Location
+ 1  Complexity  process_order   Complexity: 18 (max 10)   orders.py:89
 ```
+
+Each table prints a legend underneath explaining what the columns mean. See [Understanding the Output](/guides/understanding-output) for a full guide.
 
 ---
 

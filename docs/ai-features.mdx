@@ -97,7 +97,7 @@ export SKYLOS_LLM_BASE_URL="http://localhost:8000/v1"
 Or pass it directly via CLI:
 
 ```bash
-skylos agent analyze . --base-url http://localhost:11434/v1 --model qwen2.5-coder:7b
+skylos agent scan . --base-url http://localhost:11434/v1 --model qwen2.5-coder:7b
 ```
 
 ### Provider Selection
@@ -106,12 +106,12 @@ Skylos automatically detects the provider from the model name, or you can force 
 
 ```bash
 # Auto-detect (default)
-skylos agent analyze . --model gpt-4.1
-skylos agent analyze . --model claude-sonnet-4-20250514
+skylos agent scan . --model gpt-4.1
+skylos agent scan . --model claude-sonnet-4-20250514
 
 # Force provider explicitly
-skylos agent analyze . --provider openai --model my-custom-model
-skylos agent analyze . --provider anthropic --model my-custom-model
+skylos agent scan . --provider openai --model my-custom-model
+skylos agent scan . --provider anthropic --model my-custom-model
 ```
 
 :::note
@@ -127,12 +127,12 @@ export SKYLOS_LLM_BASE_URL=http://localhost:11434/v1
 
 ## Commands
 
-### `skylos agent analyze`
+### `skylos agent scan`
 
 Run hybrid AI-powered analysis with full project context:
 
 ```bash
-skylos agent analyze ./src
+skylos agent scan ./src
 ```
 
 **How it works:**
@@ -160,27 +160,27 @@ skylos agent analyze ./src
 
 ```bash
 # Basic analysis
-skylos agent analyze ./src
+skylos agent scan ./src
 
 # With local Ollama
-skylos agent analyze ./src \
+skylos agent scan ./src \
   --provider openai \
   --base-url http://localhost:11434/v1 \
   --model codellama:13b
 
 # Generate and apply fixes
-skylos agent analyze ./src --fix --apply
+skylos agent scan ./src --fix --apply
 
 # Output as SARIF for CI integration
-skylos agent analyze ./src --format sarif --output results.sarif
+skylos agent scan ./src --format sarif --output results.sarif
 ```
 
-### `skylos agent security-audit`
+### `skylos agent scan --security`
 
-Security audit to catch security vulnerabilities:
+Security-focused scan to catch security vulnerabilities:
 
 ```bash
-skylos agent security-audit ./src
+skylos agent scan --security ./src
 ```
 
 **How it works:**
@@ -219,12 +219,12 @@ Audit: 3 files, ~12,500 tokens, ~$0.0234
 ? Proceed? (Y/n)
 ```
 
-### `skylos agent fix`
+### `skylos agent remediate`
 
 Generate a fix for a specific issue:
 
 ```bash
-skylos agent fix ./src/api.py --line 45 --message "SQL injection vulnerability"
+skylos agent remediate ./src/api.py --line 45 --message "SQL injection vulnerability"
 ```
 
 **Options:**
@@ -237,15 +237,15 @@ skylos agent fix ./src/api.py --line 45 --message "SQL injection vulnerability"
 | `--provider` | Force provider |
 | `--base-url` | Custom endpoint |
 
-### `skylos agent review`
+### `skylos agent scan --changed`
 
-Review only git-changed files:
+Scan only git-changed files:
 
 ```bash
-skylos agent review
+skylos agent scan --changed
 ```
 
-This is a convenience command that:
+This is a convenience flag that:
 1. Finds files changed in git (`git diff --name-only HEAD`)
 2. Runs analysis only on those files
 3. Perfect for pre-commit or PR review workflows
@@ -261,7 +261,7 @@ skylos . --danger --quality --fix
 ```
 
 :::note
-For best results, use `skylos agent analyze` and `skylos agent security-audit` instead. They provide full project context to the LLM, enabling detection of cross-file issues and hallucinated function calls.
+For best results, use `skylos agent scan` and `skylos agent scan --security` instead. They provide full project context to the LLM, enabling detection of cross-file issues and hallucinated function calls.
 :::
 
 ## What Gets Detected
@@ -303,7 +303,7 @@ curl -fsSL https://ollama.com/install.sh | sh
 ollama pull qwen2.5-coder:7b
 
 # Use with Skylos
-skylos agent analyze ./src \
+skylos agent scan ./src \
   --provider openai \
   --base-url http://localhost:11434/v1 \
   --model qwen2.5-coder:7b
@@ -317,7 +317,7 @@ skylos agent analyze ./src \
 4. Use with Skylos:
 
 ```bash
-skylos agent analyze ./src \
+skylos agent scan ./src \
   --provider openai \
   --base-url http://localhost:1234/v1 \
   --model codellama-13b-instruct
@@ -359,7 +359,7 @@ provider = "openai"
 
 ### For Analysis
 
-1. **Use `skylos agent analyze`** for full project context
+1. **Use `skylos agent scan`** for full project context
 2. **Start with static analysis** (`skylos .`) to see baseline findings for free
 3. **Review LLM-only findings carefully** — they may need validation
 4. **Trust HIGH confidence findings** — both engines agree
@@ -376,7 +376,7 @@ provider = "openai"
 # GitHub Actions example
 - name: Skylos Security Scan
   run: |
-    skylos agent analyze ./src \
+    skylos agent scan ./src \
       --format sarif \
       --output skylos-results.sarif \
       --min-confidence high
@@ -400,7 +400,7 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 
 For local LLMs, ensure `--base-url` points to your server (and provide a key only if your server requires one):
 ```bash
-skylos agent analyze . --base-url http://localhost:11434/v1 --model qwen2.5-coder:7b
+skylos agent scan . --base-url http://localhost:11434/v1 --model qwen2.5-coder:7b
 ```
 
 ### "Connection refused" (local LLM)
@@ -421,7 +421,7 @@ skylos agent analyze . --base-url http://localhost:11434/v1 --model qwen2.5-code
 ### High costs
 
 - Use `--min-confidence high` to reduce output noise
-- Use `skylos agent review` to analyze only changed files
+- Use `skylos agent scan --changed` to analyze only changed files
 - Switch to local LLMs for development iteration
 - Use smaller models (e.g., `gpt-4o-mini`, `claude-haiku`)
 

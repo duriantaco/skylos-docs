@@ -109,15 +109,17 @@ skylos .
 
 ### Reviewing Results
 
-The CLI will output a summary of findings grouped by category:
+The CLI outputs findings as tables, grouped by category. Each table includes a legend explaining what the columns mean.
 
-- **Dead Code**: Unreachable functions, classes, and variables.
-- **Security**: Vulnerabilities detected by the Taint Engine.
-- **Quality**: Complexity and structural violations.
+- **Dead Code** (default): Unused functions, imports, classes, and variables. Each finding has a **Conf** (confidence) score — higher means safer to remove.
+- **Security** (`--danger`): Vulnerabilities like SQL injection and command injection. Shows **Issue**, **Severity**, and the **Symbol** (function) where it occurs.
+- **Secrets** (`--secrets`): Hardcoded credentials. Shows the **Provider** (e.g. AWS, Stripe) and a masked **Preview**.
+- **Quality** (`--quality`): Complexity, nesting, duplicate literals, and structural issues. Shows the measured value vs. the configured threshold (e.g. `Complexity: 18 (max 10)`).
+- **SCA** (`--sca`): Known vulnerabilities in your dependencies. Shows the **Package**, **Reachability**, and the **Fix** version.
 
-To see a detailed breakdown of security issues, use the danger flag:
+To enable all scans at once:
 ```bash
-skylos . --danger
+skylos . -a
 ```
 
 ### Reducing False Positives

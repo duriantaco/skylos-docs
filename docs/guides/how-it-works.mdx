@@ -210,18 +210,18 @@ Not every "unused" definition is actually dead. Skylos scores confidence based o
 
 ```mermaid
 flowchart LR
-    A["Initial confidence: 100%"] --> B{"Private name? <br> _helper"}
-    B -->|Yes| C["-80%"]
-    B -->|No| D["Keep 100%"]
-    
+    A["Initial confidence: 100"] --> B{"Private name? <br> _helper"}
+    B -->|Yes| C["-10"]
+    B -->|No| D["Keep 100"]
+
     C --> E{"Framework decorator? <br> @app.route"}
     D --> E
-    
-    E -->|Yes| F["-40%"]
+
+    E -->|Yes| F["-40"]
     E -->|No| G{"In __init__.py?"}
-    
+
     F --> G
-    G -->|Yes| H["-15%"]
+    G -->|Yes| H["-15"]
     G -->|No| I["Final score"]
     H --> I
     

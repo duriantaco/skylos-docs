@@ -3,8 +3,8 @@ import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
-  title: 'Skylos — Dead Code Detection & SAST for Python, TypeScript, Go',
-  tagline: 'Find dead code, security vulnerabilities, and quality issues. Framework-aware static analysis with 98% recall and 3x fewer false positives than Vulture.',
+  title: 'Skylos — Dead Code Detection, Vibe Coding Guardrails & SAST for Python, TypeScript, Go',
+  tagline: 'Find dead code, vibe coding defects, prompt injection, and security vulnerabilities. Framework-aware static analysis with 98% recall and 3x fewer false positives than Vulture.',
   favicon: 'img/favicon-96x96.png',
 
   url: 'https://docs.skylos.dev',
@@ -29,7 +29,7 @@ const config: Config = {
       tagName: 'meta',
       attributes: {
         name: 'keywords',
-        content: 'dead code detection, python static analysis, SAST, unused code finder, security scanner, code quality, vulture alternative, django dead code, fastapi dead code, typescript dead code, MCP server',
+        content: 'dead code detection, python static analysis, SAST, unused code finder, security scanner, code quality, vulture alternative, django dead code, fastapi dead code, typescript dead code, MCP server, vibe coding, AI generated code, prompt injection detection, AI supply chain security, phantom function, hallucinated dependency, copilot code review',
       },
     },
     {
@@ -44,7 +44,7 @@ const config: Config = {
         applicationCategory: 'DeveloperApplication',
         operatingSystem: 'Windows, macOS, Linux',
         offers: { '@type': 'Offer', price: '9', priceCurrency: 'USD' },
-        description: 'Dead code detection and SAST tool for Python, TypeScript, and Go. Framework-aware analysis with AI-powered fixes.',
+        description: 'Dead code detection, vibe coding guardrails, prompt injection scanning, and SAST for Python, TypeScript, and Go. Framework-aware analysis with AI-powered fixes.',
         url: 'https://github.com/duriantaco/skylos',
         downloadUrl: 'https://pypi.org/project/skylos/',
       }),
@@ -90,7 +90,7 @@ const config: Config = {
         blog: {
           showReadingTime: true,
           blogTitle: 'Skylos Blog',
-          blogDescription: 'Dead code detection, Python security, and developer tools insights.',
+          blogDescription: 'Dead code detection, vibe coding, AI supply chain security, and developer tools insights.',
           blogSidebarCount: 5,
         },
         theme: {
@@ -185,6 +185,7 @@ const config: Config = {
           items: [
             { label: 'Dead Code Detection', to: '/dead-code-detection' },
             { label: 'Security Analysis', to: '/security-analysis' },
+            { label: 'Vibe Coding Guardrails', to: '/concepts/vibe-coding' },
             { label: 'Code Quality', to: '/code-quality' },
             { label: 'AI Features', to: '/ai-features' },
             { label: 'Case Studies', to: '/case-studies' },

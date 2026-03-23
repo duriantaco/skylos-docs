@@ -1,6 +1,6 @@
 ---
 title: "Rules Reference"
-description: "Complete reference for all Skylos static analysis rules"
+description: "Complete reference for all Skylos static analysis rules — security vulnerabilities, vibe coding guardrails, prompt injection detection, code quality, and dead code."
 ---
 
 ## Rule Categories
@@ -194,8 +194,8 @@ Scanned file types: `.py`, `.pyi`, `.pyw`, `.env`, `.yaml`, `.yml`, `.json`, `.t
 | `SKY-L017` | Error Information Disclosure | MEDIUM | `str(e)` / `traceback.format_exc()` leaked in HTTP response (CWE-209) |
 | `SKY-L016` | Undefined Config | MEDIUM | `os.getenv("ENABLE_X")` feature flag never defined in project |
 | `SKY-L020` | Overly Broad File Permissions | HIGH | `os.chmod(path, 0o777)` or sensitive files with lax perms (CWE-732) |
-| `SKY-L023` | Phantom Decorator | HIGH | `@require_auth`, `@rate_limit` never defined or imported (CWE-476) |
-| `SKY-L024` | Stale Mock | MEDIUM | `mock.patch("mod.func")` targets function that no longer exists |
+| `SKY-L023` | Phantom Decorator | CRITICAL | `@require_auth`, `@rate_limit` never defined or imported (CWE-476) |
+| `SKY-L024` | Stale Mock | HIGH | `mock.patch("mod.func")` targets function that no longer exists |
 | `SKY-L026` | Unfinished Generation | MEDIUM | Function body is only `pass`, `...`, or `raise NotImplementedError` |
 
 ### Performance Rules (SKY-P)

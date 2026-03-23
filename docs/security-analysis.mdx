@@ -1,11 +1,30 @@
 ---
 title: "Security Analysis"
-description: "Python SAST with taint analysis. Detect SQL injection, command injection, SSRF, XSS, path traversal, and hardcoded secrets across data flows."
+description: "Python SAST with taint analysis. Detect SQL injection, command injection, SSRF, XSS, path traversal, hardcoded secrets, and prompt injection payloads across data flows. AI supply chain security for codebases using LLM agents."
 ---
 
 :::info
   **Enable security scanning:** `skylos . --danger`
 :::
+
+### Reading the Output
+
+```
+───────────────────── Security Issues ─────────────────────
+ #  Issue                    Severity   Message                              Location          Symbol
+ 1  SQL injection            Critical   SQL injection: tainted input         api/db.py:45      handle_query
+    SKY-D211
+ 2  Command injection        High       Command injection (shell=True)       utils/run.py:23   execute_cmd
+    SKY-D212
+```
+
+| Column | Meaning |
+|--------|---------|
+| **Issue** | The vulnerability type with its rule ID (e.g. SKY-D211) |
+| **Severity** | Risk level: Critical > High > Medium > Low |
+| **Message** | What was found and why it's dangerous |
+| **Location** | `file:line` where the issue occurs |
+| **Symbol** | The function or scope containing the vulnerable code |
 
 ## Why Pattern Matching Fails
 
@@ -245,6 +264,13 @@ Skylos detects hardcoded credentials that should never be in source code:
  1  aws       AWS Access Key detected    AKIA****EXAMPLE   config.py:12
  2  stripe    Stripe Live Key detected   sk_live_****xyz   payments.py:8
 ```
+
+| Column | Meaning |
+|--------|---------|
+| **Provider** | The service the secret belongs to (e.g. AWS, Stripe, GitHub) or "generic" for high-entropy strings |
+| **Message** | Description of the detected credential |
+| **Preview** | A masked snippet of the secret |
+| **Location** | `file:line` where the secret was found |
 
 ---
 

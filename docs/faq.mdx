@@ -110,6 +110,29 @@ skylos . --json -o report.json
 
 Filters findings by certainty. Default is 60. Use `--confidence 80` for fewer, safer results or `--confidence 40` to include more uncertain findings.
 
+### What do the numbers in the quality table mean?
+
+Each quality finding has a **measured value** and a **threshold** (the configured maximum). For example:
+- `Complexity: 14 (max 10)` — the function has 14 branches but the limit is 10
+- `Deep nesting: depth 6` — the code is 6 levels deep
+- `repeated 5× (max 3)` — a string literal appears 5 times; extract it to a named constant
+
+You can tune thresholds in `pyproject.toml` under `[tool.skylos]`.
+
+### What does the Conf column mean in dead code results?
+
+**Conf** is the confidence score (0–100%). It tells you how certain Skylos is that the code is truly unused:
+- **90–100%:** Safe to delete
+- **60–89%:** Review first — might be called dynamically
+- **Below 60%:** Likely a false positive
+
+### What do the columns in the security table mean?
+
+- **Issue** — the vulnerability type (e.g. SQL injection) with its rule ID
+- **Severity** — risk level: Critical > High > Medium > Low
+- **Symbol** — the function containing the vulnerable code
+- **Message** — what was found and why it's dangerous
+
 ---
 
 ## False Positives

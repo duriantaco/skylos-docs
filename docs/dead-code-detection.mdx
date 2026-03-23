@@ -323,15 +323,21 @@ Search for `SKYLOS DEADCODE` later to permanently remove or restore.
   <TabItem value="table" label="Table (Default)" default>
 ```
 ─────────────────── Unreachable Functions ───────────────────
- #   Name                    Location
- 1   unused_helper           utils.py:42
- 2   legacy_processor        core/processing.py:128
+ #   Name                    Location                 Conf
+ 1   unused_helper           utils.py:42               90%
+ 2   legacy_processor        core/processing.py:128    75%
 
 ────────────────────── Unused Imports ───────────────────────
  #   Name                    Location
  1   json                    api/views.py:3
  2   Optional                models.py:1
 ```
+
+| Column | Meaning |
+|--------|---------|
+| **Name** | The unused function, import, class, or variable |
+| **Location** | `file:line` where it's defined |
+| **Conf** | Confidence score (0–100%) — how certain Skylos is that this is truly unused. Higher = safer to remove |
 
   </TabItem>
   <TabItem value="tree" label="Tree">

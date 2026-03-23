@@ -63,6 +63,7 @@ skylos . --danger --quality
 | Flag | Description |
 |------|-------------|
 | `--json` | Output raw JSON to stdout |
+| `--llm` | Output LLM-optimized report with code context for AI agents (Claude Code, Codex, etc.) |
 | `--output`, `-o <file>` | Write results to a file |
 | `--tree` | Display findings in a hierarchical tree format |
 | `--table` | *(Deprecated)* Display findings in table format |
@@ -122,11 +123,11 @@ Interactive mode requires the `inquirer` package.
 
 | Feature | Command | Description |
 |---------|---------|-------------|
-| **AI-Powered Analysis** | `skylos agent analyze . --model gpt-4.1` | Hybrid static + LLM analysis with project context |
-| **AI Audit** | `skylos agent security-audit .` | Deep LLM review with interactive file selection |
-| **Automated Repair** | `skylos agent analyze . --fix` | Let the LLM fix what it found |
-| **PR Review** | `skylos agent review` | Analyze only git-changed files |
-| **Local LLM** | `skylos agent analyze . --base-url http://localhost:11434/v1 --model codellama` | Use Ollama/LM Studio (no API key needed) |
+| **AI-Powered Analysis** | `skylos agent scan . --model gpt-4.1` | Hybrid static + LLM analysis with project context |
+| **AI Security Scan** | `skylos agent scan --security .` | Deep LLM review with interactive file selection |
+| **Automated Repair** | `skylos agent scan . --fix` | Let the LLM fix what it found |
+| **PR Review** | `skylos agent scan --changed` | Analyze only git-changed files |
+| **Local LLM** | `skylos agent scan . --base-url http://localhost:11434/v1 --model codellama` | Use Ollama/LM Studio (no API key needed) |
 
 You can use the `--model` flag to specify the model that you want. We support Gemini, Groq, Anthropic, ChatGPT and Mistral.
 

@@ -314,29 +314,42 @@ if value is None:
 
 ---
 
-## Visual Dashboard
+## Reading the Output
 
-When you run Skylos with `--quality`, you get a clear breakdown:
+When you run Skylos with `--quality`, you get a table like this:
 ```
 ────────────────────────── Quality Issues ──────────────────────────
- #   Type        Function              Detail                      Location
- 1   Complexity  process_order         McCabe=18 (target ≤10)      orders.py:45
- 2   Nesting     validate_input        Depth 6 (target ≤3)         validators.py:23
- 3   Structure   generate_report       142 lines (target ≤50)      reports.py:10
- 4   Logic       create_cache          Mutable default argument    cache.py:5
-
-Tip: split helpers, add early returns, flatten branches.
+ #   Type        Name                  Detail                           Location
+ 1   Complexity  process_order         Complexity: 18 (max 10)          orders.py:45
+ 2   Nesting     validate_input        Deep nesting: depth 6            validators.py:23
+ 3   Structure   generate_report       Line count: 142, 142 lines       reports.py:10
+ 4   Quality     "lokal"               repeated 12× (max 3)             PDF_in_Akte.py:588
+ 5   Logic       create_cache          Mutable default argument         cache.py:5
 ```
+
+**What each column means:**
+
+| Column | Meaning |
+|--------|---------|
+| **Type** | The category: Complexity, Nesting, Structure, Quality (duplicate literals, coupling, cohesion), Logic |
+| **Name** | The function, class, or string literal that triggered the finding |
+| **Detail** | The measured value and the threshold. For example: `Complexity: 18 (max 10)` means 18 branches were found but the limit is 10. `repeated 12× (max 3)` means a string literal appears 12 times — extract it to a named constant |
+| **Location** | `file:line` where the finding starts |
+
+:::tip
+Below the table, Skylos prints a legend explaining each metric type. You can tune all thresholds in `pyproject.toml` under `[tool.skylos]`.
+:::
 
 ---
 
 ## Configuration
 ```toml
 [tool.skylos]
-complexity = 10    # McCabe complexity threshold
-nesting = 3        # Max nesting depth
-max_args = 5       # Max function arguments
-max_lines = 50     # Max function length
+complexity = 10       # McCabe complexity threshold
+nesting = 3           # Max nesting depth
+max_args = 5          # Max function arguments
+max_lines = 50        # Max function length
+duplicate_strings = 3 # Max times a string can repeat before flagging
 
 # Ignore specific rules
 ignore = ["SKY-L003"]  # Allow == None comparisons

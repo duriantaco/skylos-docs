@@ -1,0 +1,148 @@
+---
+title: "Understanding the Output"
+description: "What every column, number, and score means in Skylos scan results"
+---
+
+When you run Skylos, results are printed as tables grouped by category. This guide explains what every column means across all scan types.
+
+## Dead Code (default)
+
+```
+─────────────────── Unused Functions ───────────────────
+ #   Name                    Location                 Conf
+ 1   old_handler             app.py:16                 90%
+ 2   maybe_used              utils.py:42               60%
+```
+
+| Column | Meaning |
+|--------|---------|
+| **Name** | The unused function, import, class, or variable |
+| **Location** | `file:line` where it's defined |
+| **Conf** | Confidence score (0–100%) — how certain Skylos is that this code is truly unused |
+
+**Confidence thresholds:**
+- **90–100%:** Safe to delete
+- **60–89%:** Review first — might be called dynamically (e.g. via `getattr`, decorators)
+- **Below 60%:** Likely a false positive
+
+---
+
+## Security (`--danger`)
+
+```
+───────────────────── Security Issues ─────────────────────
+ #  Issue                    Severity   Message                              Location          Symbol
+ 1  SQL injection            Critical   SQL injection: tainted input         api/db.py:45      handle_query
+    SKY-D211
+ 2  Command injection        High       Command injection (shell=True)       utils/run.py:23   execute_cmd
+    SKY-D212
+```
+
+| Column | Meaning |
+|--------|---------|
+| **Issue** | The vulnerability type with its rule ID (e.g. SKY-D211). The rule ID links to a specific check |
+| **Severity** | Risk level: **Critical** > **High** > **Medium** > **Low** |
+| **Message** | What was found and why it's dangerous |
+| **Location** | `file:line` where the issue occurs |
+| **Symbol** | The function or scope containing the vulnerable code |
+
+---
+
+## Secrets (`--secrets`)
+
+```
+──────────────────────── Secrets ────────────────────────
+ #  Provider  Message                    Preview           Location
+ 1  aws       AWS Access Key detected    AKIA****EXAMPLE   config.py:12
+ 2  stripe    Stripe Live Key detected   sk_live_****xyz   payments.py:8
+```
+
+| Column | Meaning |
+|--------|---------|
+| **Provider** | The service the secret belongs to (e.g. AWS, Stripe, GitHub) or "generic" for high-entropy strings |
+| **Message** | Description of the detected credential |
+| **Preview** | A masked snippet of the secret |
+| **Location** | `file:line` where the secret was found |
+
+---
+
+## Quality (`--quality`)
+
+```
+────────────────────────── Quality Issues ──────────────────────────
+ #   Type        Name                  Detail                           Location
+ 1   Complexity  process_order         Complexity: 18 (max 10)          orders.py:45
+ 2   Nesting     validate_input        Deep nesting: depth 6            validators.py:23
+ 3   Structure   generate_report       Line count: 142, 142 lines       reports.py:10
+ 4   Quality     "lokal"               repeated 12× (max 3)             PDF_in_Akte.py:588
+```
+
+| Column | Meaning |
+|--------|---------|
+| **Type** | The category: Complexity, Nesting, Structure, Quality (duplicate literals, coupling, cohesion), Logic |
+| **Name** | The function, class, or string literal that triggered the finding. String literals are shown in quotes |
+| **Detail** | The measured value and the threshold |
+| **Location** | `file:line` where the finding starts |
+
+**Understanding the Detail column:**
+
+| Example | What it means |
+|---------|--------------|
+| `Complexity: 18 (max 10)` | 18 branches/loops in the function, but the limit is 10. Simplify by extracting helpers |
+| `Deep nesting: depth 6` | Code is 6 levels deep. Flatten with early returns or guard clauses |
+| `Line count: 142, 142 lines` | Function is 142 lines long. Break into smaller functions |
+| `repeated 12× (max 3)` | A string literal appears 12 times. Extract to a named constant |
+| `Mutable default argument` | A logic issue like `def foo(x=[])` — no threshold, just a pattern violation |
+
+---
+
+## Dependency Vulnerabilities (`--sca`)
+
+```
+────────── Dependency Vulnerabilities (SCA) ──────────
+ #  Package             Vuln ID          Severity  Reachability    Message                Fix
+ 1  requests@2.28.0     CVE-2023-32681   High      Reachable       CRLF injection in...   2.31.0
+ 2  jinja2@3.1.2        CVE-2024-22195   Medium    Unreachable     XSS in templates...    3.1.3
+```
+
+| Column | Meaning |
+|--------|---------|
+| **Package** | The dependency and its installed version |
+| **Vuln ID** | The CVE or advisory identifier |
+| **Severity** | Risk level: Critical > High > Medium > Low |
+| **Reachability** | Whether your code actually calls the vulnerable code path: **Reachable** (confirmed risk), **Unreachable** (safe to deprioritize), or **Inconclusive** |
+| **Fix** | The patched version to upgrade to |
+
+---
+
+## Circular Dependencies
+
+```
+──────────────── Circular Dependencies ────────────────
+ #  Cycle                          Length  Severity  Suggested Break
+ 1  auth → models → auth           2       MEDIUM    models
+```
+
+| Column | Meaning |
+|--------|---------|
+| **Cycle** | The chain of modules that import each other in a loop |
+| **Length** | How many modules are in the cycle |
+| **Severity** | Based on cycle length — longer cycles are harder to break |
+| **Suggested Break** | The module to refactor to break the dependency loop |
+
+---
+
+## Tuning Thresholds
+
+All quality thresholds are configurable in `pyproject.toml`:
+
+```toml
+[tool.skylos]
+complexity = 10       # Max cyclomatic complexity
+nesting = 3           # Max nesting depth
+max_args = 5          # Max function arguments
+max_lines = 50        # Max function length
+duplicate_strings = 3 # Max times a string literal can repeat
+```
+
+See [Configuration](/cli-reference) for the full list of options.

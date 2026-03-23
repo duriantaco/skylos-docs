@@ -45,6 +45,7 @@ const sidebars = {
         { type: 'doc', id: 'dead-code-detection', label: 'Dead Code' },
         { type: 'doc', id: 'smart-tracing', label: 'Smart Tracing' },
         { type: 'doc', id: 'security-analysis', label: 'Security' },
+        { type: 'doc', id: 'ai-defense', label: 'AI Defense' },
         { type: 'doc', id: 'code-quality', label: 'Code Quality' },
       ],
     },
@@ -68,6 +69,7 @@ const sidebars = {
       className: 'sb-book-open',
       collapsible: false,
       items: [
+        'guides/understanding-output',
         'guides/how-it-works',
         'guides/penalty-system',
         'guides/legacy-codebase',

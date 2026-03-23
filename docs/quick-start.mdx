@@ -1,6 +1,6 @@
 ---
 title: "Quick Start"
-description: "Get started with Skylos in under 2 minutes. Install, scan for dead code and security vulnerabilities in Python, TypeScript, and Go."
+description: "Get started with Skylos in under 2 minutes. Install, scan for dead code, vibe coding defects, prompt injection, and security vulnerabilities in Python, TypeScript, and Go."
 ---
 
 # Skylos Workflow Guide
@@ -38,7 +38,7 @@ You'll see a list of unused functions and imports.
 
 ### Step 3: Understand the Output
 
-Each finding has a confidence score (0-100). Higher = more certain it's dead.
+Each finding has a confidence score (0–100%). Higher = more certain it's dead.
 
 ```
 ────────────────── Unused Functions ──────────────────
@@ -47,10 +47,16 @@ Each finding has a confidence score (0-100). Higher = more certain it's dead.
 2   maybe_used        utils.py:42     60%    ← Review first
 ```
 
+| Column | Meaning |
+|--------|---------|
+| **Name** | The unused function, import, class, or variable |
+| **Location** | `file:line` where it's defined |
+| **Conf** | Confidence score (0–100%) — how certain Skylos is that this code is truly unused. Higher = safer to remove |
+
 **Rule of thumb:**
-- 90-100%: Delete it
-- 60-89%: Look at it first
-- Below 60%: Probably a false positive
+- **90–100%:** Safe to delete
+- **60–89%:** Look at it first
+- **Below 60%:** Probably a false positive
 
 
 ### Step 4: Remove Dead Code
@@ -383,9 +389,9 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 ### Run AI Analysis
 
 ```bash
-skylos agent analyze .          # Hybrid static + AI
-skylos agent analyze . --fix    # AI auto-fix
-skylos agent review             # Only changed files (for PRs)
+skylos agent scan .             # Hybrid static + AI
+skylos agent scan . --fix       # AI auto-fix
+skylos agent scan --changed     # Only changed files (for PRs)
 ```
 
 ### Use Local LLMs (No API Key)
@@ -396,7 +402,7 @@ curl -fsSL https://ollama.com/install.sh | sh
 ollama pull qwen2.5-coder:7b
 
 # Run with local model
-skylos agent analyze . \
+skylos agent scan . \
   --provider openai \
   --base-url http://localhost:11434/v1 \
   --model qwen2.5-coder:7b
@@ -423,8 +429,8 @@ skylos agent analyze . \
 | Check connection | `skylos sync status` |
 | Pull team config | `skylos sync pull` |
 | Disconnect | `skylos sync disconnect` |
-| AI analysis | `skylos agent analyze .` |
-| AI auto-fix | `skylos agent analyze . --fix` |
+| AI analysis | `skylos agent scan .` |
+| AI auto-fix | `skylos agent scan . --fix` |
 | Launch web UI | `skylos run` |
 | Add to whitelist | `skylos whitelist 'pattern'` |
 | View whitelist | `skylos whitelist --show` |
