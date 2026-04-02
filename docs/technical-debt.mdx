@@ -1,0 +1,168 @@
+---
+title: "Technical Debt"
+description: "Use skylos debt to rank structural debt hotspots, compare against a baseline, and review changed-code hotspots without distorting the repo score."
+---
+
+## Overview
+
+`skylos debt <path>` ranks structural technical debt hotspots using Skylos's static findings.
+
+It deliberately separates two ideas:
+
+- **Structural debt score**: how much debt exists in the codebase or file hotspot
+- **Priority score**: what should be fixed first right now
+
+Changed files and baseline drift raise **priority**, but they do **not** inflate the underlying structural debt score.
+
+## Basic Usage
+
+```bash
+# Full project debt scan
+skylos debt .
+
+# Machine-readable output
+skylos debt . --json
+
+# Show only the top 10 hotspots in table output
+skylos debt . --top 10
+```
+
+## How Scoring Works
+
+### Structural Score
+
+The structural score answers:
+
+> How much technical debt exists here?
+
+This is what powers the repo-level debt percentage and each hotspot's `score` field.
+
+### Priority Score
+
+The priority score answers:
+
+> Which hotspot should I look at first?
+
+Priority is higher when a hotspot is:
+
+- in a changed file
+- new versus the saved debt baseline
+- worsened versus the saved debt baseline
+- backed by stronger underlying severity signals
+
+This is exposed as `priority_score` in JSON output and used to order hotspots in reports and agent workflows.
+
+## Changed-Only Reviews
+
+```bash
+skylos debt . --changed
+skylos debt . --changed --json
+```
+
+`--changed` is a **view/filter mode**, not a different scoring model.
+
+When you use it:
+
+- the visible hotspot list is limited to git-changed files
+- the repo debt score stays **project-scoped**
+- changed files in `.js` and `.jsx` are included in changed-file discovery
+
+This lets you review active work without pretending the whole repo suddenly has less debt.
+
+## Baselines
+
+```bash
+# Save the current project debt baseline
+skylos debt . --save-baseline
+
+# Compare the current project to the saved baseline
+skylos debt . --baseline
+
+# Append the current project summary to debt history
+skylos debt . --history
+```
+
+Baseline status is reported per hotspot as one of:
+
+- `new`
+- `worsened`
+- `improved`
+- `unchanged`
+
+### Important Scope Rule
+
+Debt baselines and debt history are **project-level artifacts**.
+
+Because of that:
+
+- `--save-baseline` only works for project-root scans
+- `--history` only works for project-root scans
+- subdirectory scans can still use `--changed` and `--baseline`, but they cannot persist repo-wide baseline/history files
+
+## Policy Files
+
+Skylos can read a repo-local `skylos-debt.yaml`.
+
+Example:
+
+```yaml
+report:
+  top: 10
+
+gate:
+  min_score: 70
+  fail_on_status: new_or_worsened
+```
+
+Policy discovery starts from the scan target and walks upward toward the project root.
+
+Explicit CLI flags still win. For example:
+
+```bash
+skylos debt . --top 20
+```
+
+will override `report.top` from the policy file.
+
+## JSON Output
+
+Example fields to expect in JSON output:
+
+```json
+{
+  "score": {
+    "score_pct": 68,
+    "scope": "project"
+  },
+  "summary": {
+    "scope": {
+      "score": "project",
+      "hotspots": "changed"
+    }
+  },
+  "hotspots": [
+    {
+      "file": "app/services.py",
+      "score": 27.87,
+      "priority_score": 38.87,
+      "baseline_status": "worsened"
+    }
+  ]
+}
+```
+
+## Recommended Workflow
+
+```bash
+# 1. Get a full project debt picture
+skylos debt .
+
+# 2. Save a baseline once the repo is in an acceptable state
+skylos debt . --save-baseline
+
+# 3. Review active work without distorting repo score
+skylos debt . --changed
+
+# 4. Check whether hotspots are getting worse over time
+skylos debt . --baseline
+```

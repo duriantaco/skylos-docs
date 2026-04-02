@@ -1,0 +1,347 @@
+---
+title: "Project Policy"
+description: "Detailed reference for Skylos Cloud project policy: thresholds, gate modes, excludes, AI assurance, and enforcement order."
+---
+
+Project policy is the dashboard-managed configuration for a single Skylos Cloud project. This page explains exactly what lives there, how it is enforced, what syncs back into the repo, and how it differs from local CLI config.
+
+If you want the end-to-end workflow, read [Cloud Workflow](/cloud-workflow).
+
+## Where Project Policy Lives
+
+In the dashboard, project policy is managed here:
+
+- **Dashboard → Settings → Analysis Configuration**
+
+It is project-scoped, not organization-scoped.
+
+Project policy currently covers:
+
+- quality thresholds
+- gate enable/disable
+- gate mode and thresholds
+- enabled scan categories
+- exclude paths
+- project-scoped governance prompt rules
+- AI assurance
+
+---
+
+## Project Policy vs Local Repo Policy
+
+These are related, but they are not the same thing.
+
+| Source | Scope | Typical Use |
+|--------|-------|-------------|
+| Dashboard project policy | One cloud project | Shared team policy for uploads, suppressions, and dashboard-managed enforcement |
+| `pyproject.toml` / `skylos-debt.yaml` / CLI flags | One repo checkout | Local scanning behavior and local `--gate` workflows |
+
+Use the dashboard policy when you want the cloud project to be the source of truth.
+
+Use local repo config when you want repository-local defaults or local-only gating.
+
+---
+
+## What the Policy Editor Contains
+
+### 1. Quality Thresholds
+
+These control the numeric thresholds for quality findings:
+
+- Cyclomatic complexity
+- Nesting depth
+- Function length
+- Argument count
+
+Each threshold has:
+
+- an enable/disable toggle
+- a numeric limit
+
+These values are included in synced project config and can be pulled into the repo with:
+
+```bash
+skylos sync pull
+```
+
+### 2. Quality Gate
+
+The gate has:
+
+- a master enable/disable switch
+- a gate mode
+- optional per-category thresholds
+- optional per-severity thresholds
+
+Supported gate modes:
+
+- `zero-new`: block any new unsuppressed issue
+- `category`: block when new unsuppressed findings exceed category limits
+- `severity`: block when new unsuppressed findings exceed severity limits
+- `both`: enforce both category and severity limits
+
+Plan behavior:
+
+- Free: `zero-new` only
+- Pro / Enterprise: advanced gate modes available
+
+### 3. Scan Categories
+
+The project policy can enable or disable:
+
+- Security
+- Secrets
+- Quality
+- Dead Code
+
+These determine which analysis categories are active for the project configuration.
+
+### 4. AI Code Assurance
+
+AI assurance is an additional server-side gate rule.
+
+When enabled:
+
+- Skylos detects AI-authored changes using git metadata patterns
+- files touched by AI are tracked
+- any new unsuppressed issue in an AI-touched file fails the gate
+
+This is stricter than normal gate thresholds.
+
+### 5. Exclude Paths
+
+Exclude paths let you skip files or directories using glob-style patterns, for example:
+
+```text
+tests/**
+**/migrations/*
+generated/**
+```
+
+### 6. Custom Governance Rules
+
+These are project-scoped text rules stored with the project policy.
+
+Example:
+
+```text
+Ensure all API routes return JSON
+Require rate limiting on public endpoints
+```
+
+These are not the same thing as the separate **Custom Rules** feature in the dashboard.
+
+---
+
+## Exact Gate Evaluation Order
+
+This is the most important part of the policy model.
+
+When Skylos Cloud evaluates an uploaded scan, the gate is effectively resolved in this order:
+
+1. If an override or whitelist path applies and the account can use overrides, the gate passes.
+2. If the gate is disabled, the gate passes.
+3. If there is any unsuppressed `CRITICAL` `SECURITY` finding, the gate fails.
+4. If the mode is `zero-new`, the gate fails when there is any unsuppressed new finding.
+5. If the mode is `category`, `severity`, or `both`, Skylos counts unsuppressed new findings and compares them to the configured thresholds.
+6. If AI assurance is enabled and AI-touched files contain any new unsuppressed findings, the gate fails even if the normal thresholds passed.
+
+That means:
+
+- suppressed findings do not count
+- legacy findings do not count as new findings
+- critical security findings are a hard fail
+- AI assurance is an extra fail condition layered on top
+
+---
+
+## What Counts Against the Gate
+
+The gate uses **unsuppressed new findings**.
+
+That means a finding does **not** count against the project gate when:
+
+- it is suppressed
+- it is not considered new
+- the gate is disabled
+
+This is why suppressions matter to the workflow. They are part of the cloud-side enforcement model, not just a UI decoration.
+
+---
+
+## Suppressions and Project Policy
+
+Suppressions are synced separately from the main project config.
+
+When you run:
+
+```bash
+skylos sync pull
+```
+
+Skylos writes:
+
+- `.skylos/config.yaml`
+- `.skylos/suppressions.json`
+
+Practical rule:
+
+- change policy in the dashboard → run `skylos sync pull`
+- add or revoke suppressions in the dashboard → run `skylos sync pull`
+
+If your repo snapshot is stale, local behavior and cloud behavior can drift.
+
+---
+
+## What Syncs Back to the Repo
+
+The synced project config includes:
+
+- project id and project name
+- plan
+- exclude paths
+- quality threshold toggles and values
+- enabled scan categories
+- gate enable or disable
+- gate mode
+- category thresholds
+- severity thresholds
+- project-scoped governance rule strings
+
+These are written into:
+
+```text
+.skylos/config.yaml
+```
+
+Suppressions are written into:
+
+```text
+.skylos/suppressions.json
+```
+
+### Important server-side nuance
+
+AI assurance is enforced server-side during upload. It is not just another local CLI threshold.
+
+If you are documenting or debugging policy behavior, do not assume every dashboard setting behaves like a plain local config field.
+
+---
+
+## Project Policy vs Custom Rules
+
+This distinction needs to stay explicit:
+
+### Project Policy: Custom Governance Rules
+
+These are:
+
+- project-scoped
+- simple text entries
+- stored on the project policy
+- intended as additional governance instructions
+
+### Dashboard Custom Rules
+
+These are:
+
+- organization-scoped
+- structured YAML or Python rules
+- stored separately from project policy
+- managed under **Dashboard → Custom Rules**
+- synced through the dedicated custom-rules path, not the project-policy config blob
+
+If you need reusable organization-wide rule logic, use [Custom Rules](/custom-rules).
+
+If you only need a few project-specific governance instructions, use Project Policy.
+
+---
+
+## Project Policy vs Local `--gate`
+
+Project policy is most relevant when you use the cloud upload path.
+
+If you run:
+
+```bash
+skylos . --gate
+```
+
+you are using the local gate flow.
+
+If you run:
+
+```bash
+skylos . --upload
+```
+
+you are sending results to Skylos Cloud, where project policy, suppressions, and AI assurance are applied to the uploaded findings.
+
+For teams that want the dashboard to be the source of truth, the upload path is the important one.
+
+---
+
+## Recommended Defaults
+
+For a new team, start with:
+
+- Gate enabled
+- Gate mode: `zero-new`
+- Security, Secrets, Quality, Dead Code all enabled
+- Exclude only generated or intentionally ignored paths
+- AI assurance off until your upload workflow is stable
+
+Then:
+
+1. clean up obvious noise
+2. add suppressions for real false positives
+3. turn on advanced gate modes if you need category or severity budgets
+4. enable AI assurance only if you want stricter treatment of AI-authored changes
+
+---
+
+## Example Team Rollout
+
+1. Connect repo with `skylos login`
+2. Upload scans with `skylos . --danger --quality --upload`
+3. Open **Dashboard → Settings**
+4. Set gate to `zero-new`
+5. Save changes
+6. Run `skylos sync pull`
+7. Add CI with `skylos cicd init --upload`
+8. Review failed uploads in the dashboard
+9. Add suppressions only when a finding is a genuine false positive
+
+---
+
+## Common Mistakes
+
+### Treating project policy and repo config as the same thing
+
+They overlap, but they are not identical. Be explicit about which system is the source of truth.
+
+### Forgetting to sync after dashboard changes
+
+If the team changes policy or suppressions in the dashboard, run:
+
+```bash
+skylos sync pull
+```
+
+### Confusing Custom Governance Rules with Custom Rules
+
+One is a project policy text list. The other is the separate structured rule engine.
+
+### Turning on AI assurance before the workflow is stable
+
+AI assurance is intentionally strict. Roll it out after you understand the normal gate behavior.
+
+---
+
+## Related Docs
+
+- [Cloud Workflow](/cloud-workflow)
+- [Custom Rules](/custom-rules)
+- [Authentication](/authentication)
+- [Quality Gate](/quality-gate)
+- [Billing & Credits](/billing)

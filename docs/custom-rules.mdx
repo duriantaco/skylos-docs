@@ -1,0 +1,281 @@
+---
+title: "Custom Rules"
+description: "Structured org-wide Skylos rules: YAML patterns, Python rules, limits by plan, sync behavior, and how they differ from project policy."
+---
+
+Custom Rules are the organization-wide rule system in Skylos Cloud. They are separate from project policy and are designed for reusable enforcement across multiple repositories.
+
+If you want the lighter project-scoped rule list inside Settings, read [Project Policy](/project-policy). If you want the end-to-end setup flow, read [Cloud Workflow](/cloud-workflow).
+
+## What Custom Rules Are
+
+Custom Rules live in:
+
+- **Dashboard → Custom Rules**
+
+They are:
+
+- organization-scoped
+- reusable across projects in the same organization
+- stored with severity and category metadata
+- available as YAML-based pattern rules
+- optionally available as Python rules on paid plans
+
+Typical use cases:
+
+- every API endpoint must use your auth decorator
+- service classes must inherit from your base class
+- raw SQL string building should be blocked
+- internal framework conventions should be enforced everywhere
+
+---
+
+## How Custom Rules Differ from Project Policy
+
+This difference is easy to blur, so keep it explicit.
+
+| Feature | Scope | Form | Best For |
+|--------|-------|------|----------|
+| Project Policy → Custom Governance Rules | one project | text list | lightweight project-specific governance instructions |
+| Dashboard → Custom Rules | whole organization | YAML or Python rule definitions | reusable structured checks across repos |
+
+If you need real rule definitions with IDs, severity, categories, and reusable matching logic, use Custom Rules.
+
+---
+
+## Plans and Limits
+
+Current limits:
+
+| Plan | Rule Limit | Python Rules |
+|------|------------|--------------|
+| Free | 3 | No |
+| Pro | 50 | Yes |
+| Enterprise | Unlimited practical limit | Yes |
+
+Two important plan nuances:
+
+- The dashboard can allow Free users to create a small number of rules.
+- The sync endpoint returns custom rules only on paid plans.
+
+If you are documenting rollout internally, say which plan the team is on.
+
+---
+
+## Rule Types
+
+### YAML rules
+
+YAML rules are the default rule type in the dashboard UI. They define structured matching logic and a message.
+
+Good for:
+
+- most policy checks
+- teams that do not want to maintain Python rule code
+- repeatable AST and pattern-style enforcement
+
+### Python rules
+
+Python rules are for advanced logic that is not easy to express in YAML.
+
+Good for:
+
+- custom traversal logic
+- context-aware matching
+- rules that need richer code inspection
+
+Python rules require a paid plan.
+
+---
+
+## What You Define for Each Rule
+
+Every custom rule has:
+
+- `rule_id`
+- `name`
+- `description`
+- `severity`
+- `category`
+- `rule_type`
+- rule body (`yaml_config` or `python_code`)
+- enabled or disabled state
+
+Typical severities:
+
+- `CRITICAL`
+- `HIGH`
+- `MEDIUM`
+- `LOW`
+
+Dashboard categories include examples such as:
+
+- security
+- architecture
+- style
+- performance
+- custom
+
+---
+
+## Quick Start: Create a YAML Rule
+
+The dashboard ships with useful starter templates such as:
+
+- Require Auth Decorator
+- No Raw SQL Strings
+- Service Class Inheritance
+
+Typical workflow:
+
+1. Open **Dashboard → Custom Rules**
+2. Click **Create Rule**
+3. Choose **YAML Config**
+4. Start from a template or paste your own rule JSON
+5. Set severity and category
+6. Save
+7. Enable the rule
+
+Example shape:
+
+```json
+{
+  "pattern": {
+    "type": "function",
+    "decorators": {
+      "has_any": ["app.route", "app.get", "app.post"],
+      "must_also_have_any": ["require_auth", "login_required", "authenticated"]
+    }
+  },
+  "message": "API endpoint missing authentication decorator"
+}
+```
+
+---
+
+## Example Rules
+
+### Require auth on endpoints
+
+```json
+{
+  "pattern": {
+    "type": "function",
+    "decorators": {
+      "has_any": ["app.route", "app.get", "app.post", "router.get", "router.post"],
+      "must_also_have_any": ["require_auth", "login_required", "authenticated"]
+    }
+  },
+  "message": "API endpoint missing authentication decorator"
+}
+```
+
+### Block dynamic SQL construction
+
+```json
+{
+  "pattern": {
+    "type": "call",
+    "function_match": ["execute", "executemany"],
+    "args": { "position": 0, "is_dynamic": true }
+  },
+  "message": "Use parameterized queries instead of string formatting"
+}
+```
+
+### Force service inheritance
+
+```json
+{
+  "pattern": {
+    "type": "class",
+    "name_pattern": "*Service",
+    "must_inherit_any": ["BaseService"]
+  },
+  "message": "Service classes must inherit from BaseService"
+}
+```
+
+---
+
+## When to Use Python Rules
+
+Use Python rules only when the YAML matcher is not enough.
+
+A Python rule is usually the right choice when you need:
+
+- custom traversal logic
+- context-aware matching
+- logic that depends on multiple nodes or relationships
+
+Minimal shape:
+
+```python
+from skylos.rules.base import SkylosRule
+
+class MyRule(SkylosRule):
+    rule_id = "ACME-001"
+    name = "My Custom Rule"
+
+    def visit_node(self, node, context):
+        return None
+```
+
+If a policy can be expressed cleanly in YAML, prefer YAML first. It is easier to review and maintain.
+
+---
+
+## How Custom Rules Sync
+
+Custom Rules are not part of the project policy blob.
+
+They sync through the dedicated custom-rules path and are organization-scoped. That means:
+
+- you manage them once at the org level
+- enabled rules can be reused across projects in the same organization
+- they should be documented as org standards, not as one-off project toggles
+
+If you are on the Free plan, do not assume rule sync will behave the same as a paid plan. The current sync endpoint returns custom rules only for paid plans.
+
+---
+
+## Recommended Rollout
+
+1. Start with built-in Skylos analysis first.
+2. Add project policy and stabilize the main upload workflow.
+3. Create only a few high-signal Custom Rules.
+4. Start with YAML rules before Python rules.
+5. Give every rule a clear `rule_id`, message, and owner.
+6. Use severity consistently so the team trusts the output.
+7. Disable or revise noisy rules quickly.
+
+Bad custom rules are worse than no custom rules. The standard is high signal, low ambiguity.
+
+---
+
+## Common Mistakes
+
+### Using Custom Rules for one-off project notes
+
+That belongs in project policy, not the org-wide rule engine.
+
+### Making every org preference a blocking rule
+
+Not every preference needs hard enforcement. Start with security and architecture rules that matter.
+
+### Jumping to Python too early
+
+If YAML handles it, keep it in YAML.
+
+### Reusing unclear severities
+
+If every rule is `CRITICAL`, the classification stops meaning anything.
+
+---
+
+## Related Docs
+
+- [Project Policy](/project-policy)
+- [Cloud Workflow](/cloud-workflow)
+- [Quality Gate](/quality-gate)
+- [Billing & Credits](/billing)
