@@ -20,6 +20,7 @@ Documentation for Skylos - a static analysis tool for Python that finds dead cod
 | [Smart Tracing](smart-tracing.mdx) | Runtime call tracing with `--trace` to catch dynamic dispatch |
 | [Security Analysis](security-analysis.mdx) | Taint analysis, SQL injection, secrets detection |
 | [Code Quality](code-quality.mdx) | Complexity, nesting, structure checks |
+| [Technical Debt](docs/technical-debt.mdx) | Structural debt hotspots, changed-view reviews, and debt baselines |
 | [Framework Awareness](framework-awareness.mdx) | Django, Flask, FastAPI, Pytest support |
 
 ### Gate

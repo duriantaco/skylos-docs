@@ -58,6 +58,35 @@ Run static analysis on the specified path.
 skylos . --danger --quality
 ```
 
+### `skylos debt <path>`
+
+Analyze technical debt hotspots for the specified path.
+```bash
+skylos debt .
+skylos debt . --changed
+skylos debt . --baseline
+```
+
+Use this command when you want a debt hotspot report instead of the normal dead-code/security/quality output.
+
+| Flag | Description |
+|------|-------------|
+| `--json` | Output machine-readable debt results |
+| `--output`, `-o <file>` | Write the debt report to a file |
+| `--top <n>` | Limit the table output to the top N hotspots |
+| `--changed` | Show only hotspots in git-changed files while keeping the debt score project-scoped |
+| `--baseline` | Compare current hotspots against the saved debt baseline |
+| `--save-baseline` | Save the current project debt snapshot as the debt baseline |
+| `--history` | Append the current project debt summary to the debt history log |
+| `--policy <file>` | Use a specific `skylos-debt.yaml` policy file |
+| `--min-score <n>` | Exit 1 if the repo debt score falls below the threshold |
+| `--fail-on-status <status>` | Exit 1 if hotspots with a given baseline status exist |
+| `--with-agent` | Use an LLM to summarize the top static debt hotspots |
+| `--agent-top <n>` | Limit how many hotspots are summarized by the agent |
+| `--exclude <dir ...>` | Exclude additional folders |
+
+For the full scoring model and baseline semantics, see [Technical Debt](/technical-debt).
+
 ## Output Options
 
 | Flag | Description |

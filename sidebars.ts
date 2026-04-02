@@ -31,10 +31,18 @@ const sidebars = {
       className: 'sb-activity'
     },
     {
-      type: 'doc',
-      id: 'authentication',
-      label: 'Authentication',
-      className: 'sb-shield'
+      type: 'category',
+      label: 'Cloud',
+      className: 'sb-cloud',
+      collapsible: false,
+      items: [
+        { type: 'doc', id: 'cloud', label: 'Cloud Platform' },
+        { type: 'doc', id: 'cloud-workflow', label: 'CLI to Dashboard' },
+        { type: 'doc', id: 'authentication', label: 'Authentication' },
+        { type: 'doc', id: 'project-policy', label: 'Project Policy' },
+        { type: 'doc', id: 'custom-rules', label: 'Custom Rules' },
+        { type: 'doc', id: 'billing', label: 'Billing & Credits' },
+      ],
     },
     {
       type: 'category',
@@ -47,6 +55,7 @@ const sidebars = {
         { type: 'doc', id: 'security-analysis', label: 'Security' },
         { type: 'doc', id: 'ai-defense', label: 'AI Defense' },
         { type: 'doc', id: 'code-quality', label: 'Code Quality' },
+        { type: 'doc', id: 'technical-debt', label: 'Technical Debt' },
       ],
     },
 
@@ -99,13 +108,6 @@ const sidebars = {
       id: 'typescript-support', 
       label: 'Typescript', 
       className: 'sb-ts' 
-    },
-
-    {
-      type: 'doc',
-      id: 'billing',
-      label: 'Billing & Credits',
-      className: 'sb-shield'
     },
 
     {
