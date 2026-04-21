@@ -56,6 +56,34 @@ flowchart TB
     style Phase5 fill:#fef3c7
 ```
 
+## Security Taskflow (`skylos agent scan . --security`)
+
+The static pipeline above powers the baseline scan. The security-agent path adds a repo-aware taskflow on top of it:
+
+```mermaid
+flowchart LR
+    A[Repo activation index] --> B[repo_map]
+    B --> C[Framework-aware file facts]
+    C --> D[Whole-file security audit]
+    D --> E[Verifier re-review]
+    E --> F[Final findings]
+
+    style B fill:#e0f2fe
+    style C fill:#ddd6fe
+    style D fill:#fce7f3
+    style E fill:#d1fae5
+    style F fill:#fef3c7
+```
+
+`repo_map` derives repo context, entrypoint hints, trust boundaries, and per-file facts such as:
+
+- detected framework (`flask`, `fastapi`, `django`)
+- user-controlled sources
+- dangerous sinks
+- guards and sanitizers
+
+The taskflow then runs whole-file security review, re-verifies surviving findings, and keeps a candidate ledger so evidence can be tracked across `audit -> verify -> finalize`.
+
 ---
 
 ## Phase 1: Discovery
