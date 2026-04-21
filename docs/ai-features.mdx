@@ -209,6 +209,33 @@ skylos agent scan . --security
 - verifier-backed evidence instead of a single opaque model verdict
 - a candidate ledger that keeps finding identity and stage transitions stable internally
 
+**Example output:**
+
+```json
+{
+  "findings": [
+    {
+      "rule_id": "SKY-D216",
+      "severity": "critical",
+      "message": "Possible SSRF: tainted URL passed to HTTP client.",
+      "location": {
+        "file": "app.py",
+        "line": 10
+      },
+      "symbol": "proxy",
+      "metadata": {
+        "security_evidence": "review_supported",
+        "review_verdict": "SUPPORTED",
+        "review_reason": "challenge pass resolved the SSRF flow"
+      }
+    }
+  ],
+  "summary": "Found 1 issues: 1 critical"
+}
+```
+
+The same run also writes `.skylos/runs/<run-id>/repo_map.json`, `candidates.json`, `verified.json`, and `summary.json`.
+
 ### `skylos agent remediate`
 
 Generate a fix for a specific issue:
