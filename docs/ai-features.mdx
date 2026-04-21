@@ -177,19 +177,19 @@ skylos agent scan ./src --format sarif --output results.sarif
 
 ### `skylos agent scan --security`
 
-Security-focused scan to catch security vulnerabilities:
+Security-only taskflow audit for repo-aware vulnerability review:
 
 ```bash
-skylos agent scan --security ./src
+skylos agent scan . --security
 ```
 
 **How it works:**
 
-1. Collects Python files under the target path
-2. If `--interactive` is set (and inquirer is installed), shows a file picker
-3. Estimates API cost before proceeding
-4. Runs comprehensive analysis on selected files
-5. Reports findings with explanations and suggestions
+1. Builds a repo map from the activation index and discovered Python files
+2. Derives framework-aware file facts such as user-controlled sources, dangerous sinks, and guards/sanitizers
+3. Runs whole-file security review with those facts in prompt context
+4. Re-verifies surviving findings and records evidence such as `hypothesis`, `review_supported`, and `refuted`
+5. Emits findings in `table`, `tree`, `json`, or `sarif` output formats
 
 **Options:**
 
@@ -200,24 +200,14 @@ skylos agent scan --security ./src
 | `--base-url` | Custom endpoint for local LLMs |
 | `--format` | Output format: `table`, `tree`, `json`, `sarif` |
 | `--output`, `-o` | Write output to file |
-| `--interactive`, `-i` | Force interactive file selection |
+| `--interactive`, `-i` | Optional interactive file selection before the audit |
 
-**Interactive file selection:**
+**Why use it:**
 
-```
-? Select files to audit (Space to select)
-  ❯ ◉ [CHANGED] api/views.py (12.3 KB)
-    ◯ models.py (8.1 KB)
-    ◉ [CHANGED] utils/helpers.py (4.2 KB)
-    ◯ config.py (1.5 KB)
-```
-
-**Cost estimation:**
-
-```
-Audit: 3 files, ~12,500 tokens, ~$0.0234
-? Proceed? (Y/n)
-```
+- richer repo context than a single-file prompt
+- framework-aware hints for Flask, FastAPI, and Django-style handlers
+- verifier-backed evidence instead of a single opaque model verdict
+- a candidate ledger that keeps finding identity and stage transitions stable internally
 
 ### `skylos agent remediate`
 
@@ -261,7 +251,7 @@ skylos . --danger --quality --fix
 ```
 
 :::note
-For best results, use `skylos agent scan` and `skylos agent scan --security` instead. They provide full project context to the LLM, enabling detection of cross-file issues and hallucinated function calls.
+For best results, use `skylos agent scan` and `skylos agent scan --security` instead. They provide repo-aware context to the LLM, and the security path adds framework-aware file facts plus verifier-backed evidence instead of a single opaque pass.
 :::
 
 ## What Gets Detected

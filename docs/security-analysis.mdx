@@ -4,7 +4,7 @@ description: "Python SAST with taint analysis. Detect SQL injection, command inj
 ---
 
 :::info
-  **Enable security scanning:** `skylos . --danger`
+  **Enable security scanning:** `skylos . --danger` for static taint and dangerous-pattern checks, or `skylos agent scan . --security` for the verifier-backed security taskflow.
 :::
 
 ### Reading the Output
@@ -25,6 +25,15 @@ description: "Python SAST with taint analysis. Detect SQL injection, command inj
 | **Message** | What was found and why it's dangerous |
 | **Location** | `file:line` where the issue occurs |
 | **Symbol** | The function or scope containing the vulnerable code |
+
+## Security Taskflow Audit
+
+`skylos agent scan . --security` adds a repo-aware review path on top of Skylos's static security engine:
+
+- `repo_map` builds repo context, entrypoint hints, trust boundaries, and framework-aware file facts
+- `audit` performs whole-file security review with explicit sources, sinks, and guards in prompt context
+- `verify` re-reviews surviving findings and records evidence such as `hypothesis`, `review_supported`, and `refuted`
+- an internal candidate ledger keeps stable finding IDs across stages so later reporting can build on the same evidence model
 
 ## Why Pattern Matching Fails
 

@@ -153,7 +153,7 @@ Interactive mode requires the `inquirer` package.
 | Feature | Command | Description |
 |---------|---------|-------------|
 | **AI-Powered Analysis** | `skylos agent scan . --model gpt-4.1` | Hybrid static + LLM analysis with project context |
-| **AI Security Scan** | `skylos agent scan --security .` | Deep LLM review with interactive file selection |
+| **AI Security Scan** | `skylos agent scan . --security` | Security taskflow audit with repo map, file facts, and verifier-backed evidence |
 | **Automated Repair** | `skylos agent scan . --fix` | Let the LLM fix what it found |
 | **PR Review** | `skylos agent scan --changed` | Analyze only git-changed files |
 | **Local LLM** | `skylos agent scan . --base-url http://localhost:11434/v1 --model codellama` | Use Ollama/LM Studio (no API key needed) |
