@@ -1,365 +1,119 @@
 ---
 title: "Cloud Platform"
-description: "Track, analyze, and improve code health across your entire organization"
+description: "When to use Skylos Cloud, what it adds, and how it fits with the local CLI."
 ---
 
-The Skylos CLI runs locally and outputs results to your terminal. The **cloud platform** stores those results, tracks them over time, and gives your team the visibility to actually improve.
+Skylos is local-first. The CLI does the analysis on your machine or in CI. **Skylos Cloud** is the hosted layer that stores scan results, applies shared project policy, tracks issues over time, and gives your team one place to review and act.
 
-If you want the full operational flow, read:
+If you want the full repo-to-dashboard flow, read:
 
 - [CLI to Dashboard Workflow](/cloud-workflow)
-- [Project Policy](/project-policy)
-- [Custom Rules](/custom-rules)
+- [Authentication](/authentication)
+- [CI/CD Integration](/ci-cd)
 
 :::tip New Users
-Every new account gets **50 starter credits** and a **7-day Pro trial** — no credit card required. Just run `skylos . --upload` to get started.
+Every new account gets **50 starter credits** and a **7-day Pro trial**. You can start with `skylos . --upload` and add deeper GitHub integration later.
 :::
 
-## CLI vs Cloud
+## Use Local Only vs Add Cloud
 
-| What You Get | CLI (Free) | Cloud |
-|--------------|:----------:|:-----:|
-| Dead code detection | ✅ | ✅ |
-| Security scanning (taint analysis) | ✅ | ✅ |
-| Quality metrics | ✅ | ✅ |
-| CI/CD quality gate | ✅ | ✅ |
-| AI-powered fixes | ✅ | ✅ |
-| **Scan history** | ❌ | ✅ |
-| **Trend visualization** | ❌ | ✅ (Pro) |
-| **File hotspot analysis** | ❌ | ✅ |
-| **Violation pattern tracking** | ❌ | ✅ |
-| **Multi-project management** | ❌ | ✅ |
-| **Team collaboration** | ❌ | ✅ (Pro) |
-| **Slack & Discord notifications** | ❌ | ✅ (Pro) |
-| **Inline PR comments** | ❌ | ✅ (Pro) |
-| **Compliance reports** | ❌ | ✅ (Pro) |
-| **Custom governance policies** | ❌ | ✅ (Pro) |
+| If you want... | Use this |
+|---|---|
+| Local scan only | `skylos .` |
+| Local security, secrets, and quality checks | `skylos . --danger --secrets --quality` |
+| Local exit-code enforcement only | `skylos . --gate` |
+| Connect this repo to a cloud project | `skylos login` |
+| Upload a scan to the dashboard | `skylos . --upload` |
+| Pull project policy and suppressions into the repo | `skylos sync pull` |
+| Inspect which project this repo is linked to | `skylos project status` |
 
----
+Stay local when you only need a fast developer or CI scan.
 
-## The Problem with Point-in-Time Scans
+Add the cloud when you need:
+- scan history
+- shared suppressions
+- project policy managed in the dashboard
+- issues and exception workflows
+- trends across branches and time
+- GitHub-native features such as OIDC, the GitHub App, deep links, or PR checks
 
-The CLI answers: **"What's wrong right now?"**
+## What Cloud Adds
 
-But teams need to answer:
-- Are we getting **better or worse** over time?
-- Which **files** should we prioritize for refactoring?
-- Which **rules** does the team violate most often?
-- Did that cleanup sprint actually **reduce debt**?
-- How does `main` compare to `feature-x`?
+### Workspace Views
 
-**You can't improve what you don't measure.**
+Skylos Cloud currently gives you workspace-level navigation for:
+- `Overview`
+- `Projects`
+- `Scans`
+- `Issues`
+- `Exceptions`
+- `Rules`
+- `Trends`
 
----
+### Project Views
 
-## What the Platform Shows
+Each project currently has tabs for:
+- `Overview`
+- `Scans`
+- `Issues`
+- `Suppressions`
+- `Defense`
+- `Provenance`
+- `Settings`
 
-### Trend Charts
+### Project Settings
 
-Every scan is stored. The platform plots your security and quality issues over time, per branch:
+`Dashboard -> Settings` is the project-management surface for:
+- repository URL
+- API key rotation
+- GitHub App installation
+- Slack and Discord notifications
+- team members
+- workspace/project policy
+- policy inheritance
 
-- **Downward trend** → Team is improving
-- **Upward trend** → New issues being introduced
-- **Spikes** → Correlate with specific commits
-
-Filter by branch to compare `main` vs feature branches, or track how a specific PR affected your metrics.
-
-{/* ![Trends page](/img/trends-page.png) */}
-
-### File Hotspots
-
-The **Toxic Files** chart shows which files have the highest issue density.
-
-The Pareto principle applies to code: a small percentage of files contain most issues. Instead of fixing problems randomly, this chart tells you exactly where to focus for maximum impact.
-
-### Violation Patterns
-
-See which rules your team breaks most frequently.
-
-Use this for:
-- Targeted code review checklists
-- Team training priorities
-- Deciding which linter rules to enforce
-
-### Scan Details
-
-Click any scan to see:
-- Full list of findings, grouped by file
-- Code snippets with the problematic line highlighted
-- Deep links to the exact line in GitHub
-- Severity and category for each issue
-
-{/* ![Scan results](/img/scan-results.png) */}
-
-### Multi-Project Dashboard
-
-Manage multiple repositories from one place. Each project gets:
-- Isolated scan history
-- Separate trend tracking
-- Its own authentication context
-
-{/* ![Dashboard overview](/img/dashboard-overview.png) */}
-
----
-
-## How It Works
+## How the Cloud Fits the CLI
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#4C1D95', 'primaryTextColor': '#fff', 'primaryBorderColor': '#2E1065', 'lineColor': '#8B5CF6'}}}%%
 flowchart LR
-    A[CI runs skylos] --> B[Results sent via --upload] --> C[Stored in cloud] --> D[Dashboard updated]
+    A[Run Skylos locally] --> B[Optional: link repo with skylos login]
+    B --> C[skylos . --upload]
+    C --> D[Skylos Cloud stores scan and evaluates gate]
+    D --> E[Review scans, issues, exceptions, rules, trends]
+    E --> F[Change policy or suppressions in dashboard]
+    F --> G[skylos sync pull]
+    G --> H[Repo gets .skylos/config.yaml and .skylos/suppressions.json]
 ```
 
-### 1. Authenticate
+The split is simple:
+- **CLI:** analysis happens here
+- **Cloud:** history, policy, suppressions, grouping, and team workflows happen here
 
-Run `skylos . --upload` — the browser opens automatically for first-time setup. See [Authentication](/authentication) for details.
+## Repo URL: Optional vs Required
 
-### 2. Upload Results
+A project can stay cloud-only and still accept normal API-key uploads.
 
-```bash
-skylos . --danger --upload
-```
+Set the project `repo_url` when you want:
+- GitHub Actions OIDC uploads
+- GitHub App installation
+- GitHub deep links in the dashboard
+- PR-linked GitHub check runs or comments
+- repo-aware default-branch behavior
 
-The CLI scans locally, then uploads findings to the cloud. **Your source code never leaves your machine.**
+That distinction matters. Basic uploads do **not** require a GitHub repo binding. GitHub-native automation does.
 
-### 3. View Results
+## What Data Gets Sent
 
-After each scan, results appear in your dashboard within seconds.
+When you upload a scan, Skylos Cloud receives analysis results and metadata, not your repository contents.
 
----
+| Sent | Not sent |
+|---|---|
+| finding details | source code files |
+| file paths | full repository contents |
+| line numbers | secrets from your environment |
+| branch / commit metadata | your `.env` files as raw uploads |
+| summary counts and gate data | your git history as source blobs |
 
-## Setup
+## Next Step
 
-### Local Development
-
-Just run:
-
-```bash
-skylos . --upload
-```
-
-On first run, the browser opens automatically. You log in with GitHub, pick (or create) a project, and you're done. Future uploads work without any prompts.
-
-See [Authentication](/authentication) for the full details.
-
-### GitHub Actions (Recommended: Tokenless OIDC)
-
-**No secrets required!** GitHub Actions can authenticate using OpenID Connect:
-
-```yaml
-name: Skylos Quality Gate
-
-on:
-  pull_request:
-    branches: [main, master]
-
-permissions:
-  contents: read
-  id-token: write  # Enables tokenless auth
-
-jobs:
-  skylos:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - run: pip install skylos
-      - name: Run Skylos Scan
-        run: skylos . --danger --upload
-```
-
-No `SKYLOS_TOKEN` secret needed. The CLI detects the GitHub Actions environment and authenticates via OIDC automatically.
-
-### GitHub Actions (Manual Token)
-
-If you prefer explicit tokens:
-
-```yaml
-name: Skylos Quality Gate
-
-on:
-  pull_request:
-    branches: [main, master]
-
-jobs:
-  skylos:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - run: pip install skylos
-      - name: Run Skylos Scan
-        env:
-          SKYLOS_TOKEN: ${{ secrets.SKYLOS_TOKEN }}
-        run: skylos . --danger --upload
-```
-
-Add `SKYLOS_TOKEN` to your repository secrets (Settings → Secrets → Actions).
-
-### Other CI Systems (GitLab, CircleCI, Jenkins)
-
-Use the `SKYLOS_TOKEN` environment variable:
-
-**GitLab CI:**
-```yaml
-skylos:
-  image: python:3.11
-  script:
-    - pip install skylos
-    - skylos . --danger --upload
-  variables:
-    SKYLOS_TOKEN: $SKYLOS_TOKEN
-```
-
-**CircleCI:**
-```yaml
-- run:
-    name: Skylos Scan
-    command: skylos . --danger --upload
-    environment:
-      SKYLOS_TOKEN: $SKYLOS_TOKEN
-```
-
-Add `SKYLOS_TOKEN` as a CI/CD variable in your CI provider's settings.
-
----
-
-## What Data Is Sent
-
-When you use `--upload`, Skylos sends:
-
-| Sent | Not Sent |
-|------|----------|
-| Finding details (rule, message, severity) | Source code |
-| File paths | File contents |
-| Line numbers | Your codebase |
-| Metrics (counts, scores) | Environment variables |
-| Commit hash, branch name | Secrets |
-
-**Your code stays on your machine.** Only the analysis results are transmitted.
-
----
-
-## Custom Governance Policies
-
-Define organization-specific rules in the Settings page:
-
-```
-All database queries must use the ORM layer
-API endpoints must validate authentication
-No print() statements in production code
-Logging must not include PII fields
-```
-
-These rules are injected into the AI Auditor's context when you run `--audit`, giving you organization-aware code reviews.
-
-Pro plans support up to **50 custom rules**.
-
----
-
-## API Key Management
-
-From the Settings page, you can:
-
-- **View** your API key (hidden by default)
-- **Copy** to clipboard
-- **Rotate** the key (immediately invalidates the old one)
-
-For local development, browser-based authentication is now recommended over manual API keys. See [Authentication](/authentication) for details.
-
-:::warning
-Rotating your key requires updating all CI/CD secrets that use it. GitHub Actions with OIDC are not affected by key rotation.
-:::
-
----
-
-## Pricing
-
-Skylos uses **credit packs** — one-time purchases, no subscriptions. Credits never expire. Each purchase extends your **Pro access**.
-
-| Pack | Credits | Price | Per-Credit | Pro Access |
-|------|---------|-------|------------|------------|
-| **Starter** | 500 | $9 | $0.018 | 30 days |
-| **Builder** | 2,500 | $39 | $0.016 | 90 days |
-| **Team** | 10,000 | $129 | $0.013 | 180 days |
-| **Scale** | 50,000 | $499 | $0.010 | 365 days |
-
-Each cloud upload costs 1 credit. For a team doing 20 PRs/day, that's about 60 credits/day — the Team pack lasts over 5 months.
-
-**Enterprise plans** with unlimited credits, SSO, and compliance reports are available. Contact `founder@skylos.dev`.
-
-See [Billing & Credits](/billing) for full details on what costs credits and what's free.
-
----
-
-## Free vs Pro vs Enterprise
-
-| Feature | Free | Pro | Enterprise |
-|---------|------|-----|------------|
-| Local scans | ✅ | ✅ | ✅ |
-| Upload to dashboard | ✅ (1 credit) | ✅ (1 credit) | ✅ (unlimited) |
-| Projects | 1 | 10 | Unlimited |
-| Scan history | 10 scans | 500 scans | 10,000 scans |
-| History retention | 7 days | 90 days | 365 days |
-| API rate limit | 20/hour | 500/hour | 5,000/hour |
-| GitHub Actions | ✅ | ✅ | ✅ |
-| Server-controlled checks | ❌ | ✅ | ✅ |
-| Full trend charts | ❌ | ✅ | ✅ |
-| Team collaboration | ❌ | ✅ | ✅ |
-| Slack & Discord | ❌ | ✅ | ✅ |
-| Suppression governance | ❌ | ✅ | ✅ |
-| SARIF export | ❌ | ✅ | ✅ |
-| Inline PR comments | ❌ | ✅ | ✅ |
-| Findings export | ❌ | ✅ | ✅ |
-| Custom rules | ❌ | Up to 50 | Unlimited |
-| Compliance reports | ❌ | ✅ (500 credits) | ✅ (unlimited) |
-| SSO/SAML | ❌ | ❌ | ✅ |
-| Priority support | ❌ | ❌ | ✅ |
-
----
-
-## FAQ
-
-<details>
-<summary>Do I need the cloud to use the CLI?</summary>
-
-No. The CLI works completely independently. Local scanning is free forever with no limits. The cloud is optional — for teams that want history, trends, and team visibility.
-</details>
-
-<details>
-<summary>Can multiple team members access the dashboard?</summary>
-
-Yes. All members of your organization can view projects and scan history. Team collaboration features (shared suppressions, governance) require Pro.
-</details>
-
-<details>
-<summary>Do credits expire?</summary>
-
-No. Credits never expire. Buy them once, use them whenever you need.
-</details>
-
-<details>
-<summary>Does Pro access expire?</summary>
-
-Yes. Pro is time-bound — each credit pack purchase extends your Pro duration. If it expires, you drop to Free but keep your credits. Buy any pack to reactivate.
-</details>
-
-<details>
-<summary>What happens at zero credits?</summary>
-
-Local scanning still works. Cloud uploads return a 402 error with a link to buy more credits. Your CI pipeline won't crash — the scan results are still available in the build output.
-</details>
-
-<details>
-<summary>Is there a free trial?</summary>
-
-Yes! Every new account gets **50 starter credits** and a **7-day Pro trial** — no credit card required.
-</details>
+For the complete end-to-end flow from `skylos` to `skylos-cloud`, read [CLI to Dashboard Workflow](/cloud-workflow). That guide covers login, upload, policy sync, repo URL requirements, CI, and the difference between local vs cloud gating.

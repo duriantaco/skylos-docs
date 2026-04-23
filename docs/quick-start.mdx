@@ -103,9 +103,9 @@ skylos . --danger --secrets --quality
 Cloud gives you:
 - Dashboard to view all scans
 - Scan history and trend charts
-- Team collaboration and suppressions (Pro)
-- PR blocking that developers can't bypass (Pro)
-- Slack & Discord notifications (Pro)
+- Team collaboration and suppressions
+- Project policy managed in the dashboard
+- GitHub-native features when you link a repo URL
 
 :::tip New Users
 Every new account gets **50 starter credits** and a **7-day Pro trial** — no credit card required.
@@ -119,46 +119,35 @@ Just run:
 skylos . --upload
 ```
 
-**That's it.** On first run:
+On the first run:
 1. Your browser opens automatically
 2. Sign in with GitHub
-3. Pick (or create) a project — one click
+3. Pick or create a project
 4. Results upload to the dashboard
 
-```
-$ skylos . --upload
+Future uploads work automatically for that linked repo unless you pass `--no-upload`.
 
-Scanning Python files...
-✓ Found 15 issues
+### Step 2: Know When You Need a Repo URL
 
-No Skylos token found. Let's connect to Skylos Cloud.
+Basic uploads do **not** require a GitHub repo binding.
 
-Opening browser to connect to Skylos Cloud...
-Waiting for authentication...
+Set the project repo URL later in `Dashboard -> Settings` when you want:
+- GitHub Actions OIDC uploads
+- GitHub App setup
+- GitHub deep links and PR-native integration
 
-✓ Connected to Skylos Cloud!
-  Project:      my-project
-  Organization: My Team
-
-Uploading scan results...
-✓ Upload complete! View at https://skylos.dev/dashboard
-```
-
-Future uploads work automatically — no prompts, no tokens to copy.
-
-### Step 2: Add More Scan Types
+### Step 3: Add More Scan Types
 
 ```bash
-skylos . --danger --upload       # Security scan + upload
-skylos . --quality --upload      # Quality scan + upload
-skylos . --danger --quality --upload  # Everything
+skylos . --danger --upload
+skylos . --quality --upload
+skylos . --danger --quality --upload
 ```
 
 View results at: [skylos.dev/dashboard](https://skylos.dev/dashboard)
 
-See [Authentication](/authentication) for CI/CD setup and advanced options.
+See [CLI to Dashboard Workflow](/cloud-workflow) for the full repo-to-cloud flow and [Authentication](/authentication) for CI and token details.
 
----
 
 ## Part 3: Understand the Flags
 
@@ -178,7 +167,7 @@ See [Authentication](/authentication) for CI/CD setup and advanced options.
 
 ### Option A: GitHub Actions with OIDC (Recommended)
 
-**No secrets required!** Create `.github/workflows/skylos.yml`:
+Use this when your Skylos project already has the correct GitHub `repo_url` saved in the dashboard.
 
 ```yaml
 name: Skylos Quality Gate
@@ -189,7 +178,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write  # Enables tokenless auth
+  id-token: write
 
 jobs:
   skylos:
@@ -206,30 +195,9 @@ jobs:
         run: skylos . --danger --upload
 ```
 
-That's it — no tokens, no secrets to configure.
+### Option B: Token-Based GitHub Actions
 
----
-
-### Option B: One-Command Setup
-
-```bash
-skylos sync setup
-```
-
-This wizard will:
-1. Authenticate with Skylos Cloud (browser opens automatically)
-2. Ask what you want to install:
-   - **Git hooks** — blocks `git push` if scan fails
-   - **Pre-commit config** — blocks `git commit` if scan fails
-   - **GitHub Actions** — blocks PR merges if scan fails
-
-Just answer the prompts.
-
----
-
-### Option C: Manual GitHub Actions (with token)
-
-For explicit token management, create `.github/workflows/skylos.yml`:
+Use this when you want explicit secret management or you have not set up OIDC yet.
 
 ```yaml
 name: Skylos Quality Gate
@@ -252,27 +220,22 @@ jobs:
       - name: Run Skylos
         env:
           SKYLOS_TOKEN: ${{ secrets.SKYLOS_TOKEN }}
-        run: skylos . --danger --upload --strict
+        run: skylos . --danger --upload
 ```
 
-Then add your token to GitHub:
+### Option C: Scaffold a Workflow
 
-1. Go to your repo → **Settings → Secrets and variables → Actions**
-2. Click **New repository secret**
-3. Name: `SKYLOS_TOKEN`
-4. Value: your token from Skylos dashboard
+```bash
+skylos cicd init
+skylos cicd init --upload
+```
 
----
+Important behavior today:
+- `skylos cicd init --upload` generates a **token-based** upload workflow
+- `skylos sync setup` is also token-driven scaffolding, not the browser-based OIDC path
 
-### What `--strict` Does
+See [CI/CD Integration](/ci-cd) for the accurate OIDC vs token setup details.
 
-| Flag | Behavior |
-|------|----------|
-| `--upload` | Upload results to dashboard. If gate fails, shows warning but continues. |
-| `--upload --strict` | Upload results. If gate fails, exits with code 1 (blocks CI). |
-| `--gate` | Local only. Exits with code 1 if gate fails. No upload. |
-
----
 
 ## Part 5: Install GitHub App (Pro — Enforced Checks)
 
@@ -426,8 +389,8 @@ skylos agent scan . \
 | Upload to cloud | `skylos . --upload` |
 | Upload + block on fail | `skylos . --upload --strict` |
 | Local gate (no upload) | `skylos . --gate` |
-| One-command CI setup | `skylos sync setup` |
-| Connect to cloud | `skylos sync connect` |
+| Scaffold token-based CI or hooks | `skylos cicd init --upload` or `skylos sync setup` |
+| Connect to cloud | `skylos login` |
 | Check connection | `skylos sync status` |
 | Pull team config | `skylos sync pull` |
 | Disconnect | `skylos sync disconnect` |
@@ -447,7 +410,7 @@ skylos agent scan . \
 **"Q: No token found"**
 
 ```bash
-skylos sync connect
+skylos login
 ```
 
 **"Q: Invalid API token"**
