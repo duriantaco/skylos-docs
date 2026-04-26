@@ -2,13 +2,15 @@
 slug: /
 sidebar_position: 1
 title: "Getting Started"
-description: "Prerequisites, installation, and project initialization."
+description: "Install Skylos, run your first local scan, and add an open-source SAST and dead-code PR gate to CI."
 ---
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-This guide covers the setup process for using Skylos on a local machine.
+This guide covers the fastest path from installation to a useful local scan.
+Skylos works as a local CLI first; cloud upload, LLM review, and CI gates are
+optional layers you can add later.
 
 <div style={{position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', maxWidth: '100%', marginBottom: '2rem'}}>
   <iframe
@@ -26,7 +28,7 @@ This guide covers the setup process for using Skylos on a local machine.
 Before installing Skylos, ensure your environment meets the following requirements:
 
 * **Operating System:** macOS, Linux, or Windows (WSL2 recommended).
-* **Python:** Version 3.9, 3.10, 3.11, or 3.12.
+* **Python:** Version 3.10 or newer.
 * **Package Manager:** `pip` or `uv`.
 
 :::note
@@ -57,9 +59,25 @@ To verify the installation, run:
 skylos --version
 ```
 
-## Step 2: Initialize a Project
+## Step 2: Run Your First Scan
 
-To scan a repository, you must initialize Skylos in the project root. This creates the configuration file required to define your quality policies.
+Go to the repository root and scan it:
+
+```bash
+skylos .
+```
+
+This starts with dead code detection. To run the main local audit, including
+dead code, dangerous flows, secrets, quality, and dependency checks:
+
+```bash
+skylos . -a
+```
+
+## Optional: Initialize Project Config
+
+You do not need config for a first scan. Initialize Skylos when you want
+repository-owned thresholds, excludes, or gate policy.
 
 1. Navigate to your project folder.
 2. Run the initialization command:
@@ -75,9 +93,10 @@ nesting = 3
 max_args = 5
 ```
 
-## Step 3: Configure AI Access (Optional)
+## Optional: Configure AI Access
 
-Skylos does not require a proprietary token. However, to use Auto-Fix (`--fix`) or Audit (`--audit`) features, you must provide an API key for a supported LLM provider.
+Skylos does not require an LLM for core static analysis. Configure a provider
+only if you want agent review or remediation workflows.
 
 Skylos checks for keys in the following priority:
 
@@ -100,14 +119,7 @@ $env:OPENAI_API_KEY="sk-..."
   </TabItem>
 </Tabs>
 
-## Step 4: Run Your First Scan
-
-Once installed and initialized, you can perform a static analysis scan.
-```bash
-skylos .
-```
-
-### Reviewing Results
+## Step 3: Review Results
 
 The CLI outputs findings as tables, grouped by category. Each table includes a legend explaining what the columns mean.
 
@@ -116,11 +128,6 @@ The CLI outputs findings as tables, grouped by category. Each table includes a l
 - **Secrets** (`--secrets`): Hardcoded credentials. Shows the **Provider** (e.g. AWS, Stripe) and a masked **Preview**.
 - **Quality** (`--quality`): Complexity, nesting, duplicate literals, and structural issues. Shows the measured value vs. the configured threshold (e.g. `Complexity: 18 (max 10)`).
 - **SCA** (`--sca`): Known vulnerabilities in your dependencies. Shows the **Package**, **Reachability**, and the **Fix** version.
-
-To enable all scans at once:
-```bash
-skylos . -a
-```
 
 ### Reducing False Positives
 
@@ -133,7 +140,18 @@ This runs your test suite and records which functions were actually called, elim
 
 See [Smart Tracing](/smart-tracing) for details.
 
-## Step 5: Connect to Cloud (Optional)
+## Step 4: Add CI Or Cloud Later
+
+Generate a GitHub Actions workflow:
+
+```bash
+skylos cicd init
+```
+
+See [CI/CD Integration](/ci-cd) for local gates, cloud uploads, GitHub OIDC,
+tokens, annotations, and branch protection.
+
+## Optional: Connect to Cloud
 
 Upload your scan results to the Skylos Cloud dashboard for history tracking, team collaboration, and trend visualization.
 

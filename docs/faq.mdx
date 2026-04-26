@@ -7,7 +7,7 @@ description: "Frequently asked questions about Skylos"
 
 ### What is Skylos?
 
-Skylos is a static analysis tool for Python, TypeScript, Java, and Go that detects:
+Skylos is a static analysis tool for Python, TypeScript, JavaScript, Java, and Go that detects:
 
 - **Dead code:** Unused functions, imports, classes, variables
 - **Security vulnerabilities:** SQL injection, command injection, SSRF, XSS
@@ -17,15 +17,20 @@ Unlike simple linters, Skylos uses taint analysis to trace data flow and framewo
 
 ### Is Skylos free?
 
-Yes. Skylos is open source and free to use. The AI-powered features (`--fix`, `--audit`) require your own OpenAI or Anthropic API key.
+Yes. Skylos is open source and free to use. Core static analysis runs locally
+without an API key. Optional agent workflows can use your own OpenAI,
+Anthropic, or local OpenAI-compatible model endpoint.
 
 ### What Python versions are supported?
 
-Python 3.9, 3.10, 3.11, and 3.12 are supported.
+Python 3.10 and newer are supported.
 
 ### Does Skylos work with my framework?
 
-Skylos has built-in awareness for Django, Flask, FastAPI, Pydantic, and Pytest. Other frameworks work but may have more false positives for implicitly-called code.
+Skylos has built-in awareness for Django, Flask, FastAPI, Pydantic, pytest,
+SQLAlchemy, Next.js, React, package entrypoints, and common plugin patterns.
+Other frameworks work but may need baselines, whitelists, or tracing for
+implicitly-called code.
 
 ### How is Skylos different from Pylint/Bandit?
 
@@ -54,10 +59,11 @@ No. Skylos works out of the box with sensible defaults. For customization, run `
 
 ### How do I set up AI features?
 
-Set an environment variable and use the appropriate flag:
+Install the LLM extra, set an environment variable, and run an agent command:
 ```bash
+pip install "skylos[llm]"
 export OPENAI_API_KEY="sk-..."
-skylos . --fix
+skylos agent scan .
 ```
 
 ---
@@ -67,7 +73,7 @@ skylos . --fix
 ### What's the basic command?
 ```bash
 skylos .                              # Dead code only
-skylos . --danger --quality --secrets # Full analysis
+skylos . -a                           # Main local audit
 skylos . --danger --quality --gate    # With quality gate
 ```
 

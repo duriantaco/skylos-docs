@@ -8,8 +8,8 @@ import TabItem from '@theme/TabItem';
 
 ## Prerequisites
 
-* Python 3.9+
-* Pip or UV
+* Python 3.10+
+* `pip` or `uv`
 
 ## Install
 
@@ -27,6 +27,41 @@ uv pip install skylos
 
   </TabItem>
 </Tabs>
+
+Install optional LLM-powered agent workflows:
+
+```bash
+pip install "skylos[llm]"
+```
+
+Install all published optional extras:
+
+```bash
+pip install "skylos[all]"
+```
+
+The published extras are defined in the Skylos `pyproject.toml`. At the time of
+writing they are `web`, `llm`, `test`, and `all`.
+
+## Container Image
+
+Skylos publishes a first-party multi-arch CLI image to GHCR:
+
+```bash
+docker pull ghcr.io/duriantaco/skylos:latest
+```
+
+Run a scan against the current repository:
+
+```bash
+docker run --rm \
+  -v "$PWD":/work \
+  -w /work \
+  ghcr.io/duriantaco/skylos:latest \
+  . --json --no-provenance
+```
+
+For CI, prefer a pinned release tag instead of `latest`.
 
 ## Initialization
 
