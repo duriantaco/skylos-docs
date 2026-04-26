@@ -1,125 +1,118 @@
 ---
 title: "Authentication"
-description: "How to authenticate with Skylos Cloud — browser auth, manual tokens, OIDC, and more"
+description: "How Skylos CLI auth works today: browser login, API keys, GitHub OIDC, and token precedence."
 ---
 
-## Quick Start
+Skylos Cloud currently has three real auth paths:
 
-Get scan results in the cloud dashboard in under 60 seconds:
+| Auth path | Best for | Main command |
+|---|---|---|
+| Browser login | Humans linking a repo to a project | `skylos login` |
+| API key | CI, headless systems, explicit manual control | `skylos sync connect <token>` or `SKYLOS_TOKEN=...` |
+| GitHub OIDC | Secretless GitHub Actions uploads | `skylos . --upload` with `id-token: write` |
+
+## Quick Start
 
 ```bash
 skylos . --upload
 ```
 
-**First run:**
-1. Browser opens automatically
-2. Sign in with GitHub, pick (or create) a project
-3. Results upload to dashboard
-4. Future uploads work automatically
+On the first interactive run, Skylos will:
+1. open the browser
+2. let you sign in and choose or create a project
+3. verify the returned token
+4. store the repo link
+5. upload the scan
 
-**No API keys to copy, no config files, no manual setup.**
-
----
-
-## Browser Authentication
-
-### What Changed in v3.3.0?
-
-Skylos now offers **seamless browser-based authentication** similar to tools like GitHub CLI and Vercel.
-
-**Before (manual token):**
-Visit dashboard → Create project → Copy token → Set env var → Upload (~5 minutes, 6+ steps)
-
-**After (browser auth):**
-Run `skylos . --upload` (~30 seconds, 1 command)
-
-### How It Works
-
-1. CLI opens your browser to Skylos Cloud
-2. You log in with GitHub (if not already logged in)
-3. You select an existing project or create a new one
-4. CLI automatically receives the token and saves it
-5. You're ready to upload — no copy/pasting required
-
-### Terminal Output
-
-```bash
-$ skylos . --upload
-
-Scanning Python files...
-✓ Found 15 issues
-
-No Skylos token found. Let's connect to Skylos Cloud.
-
-Opening browser to connect to Skylos Cloud...
-If the browser doesn't open, visit:
-  https://skylos.dev/cli/connect?port=54321&repo=myproject
-
-Waiting for authentication (press Ctrl+C to cancel)...
-
-✓ Connected to Skylos Cloud!
-  Project:      my-project
-  Organization: My Team
-  Plan:         Pro
-
-Uploading scan results...
-✓ Upload complete! View at https://skylos.dev/dashboard
-```
-
-{/* ![Browser auth flow](/img/browser-auth.png) */}
-
-### Explicit Login Command
-
-For more control, use the dedicated login command:
+If you want to connect before running a scan, use:
 
 ```bash
 skylos login
 ```
 
-Use cases:
-- Switch to a different project
-- Set up before running scans
-- Prefer explicit authentication steps
+## Browser Authentication
 
----
+`skylos login` is the preferred human workflow.
 
-## Manual Tokens
+```bash
+skylos login
+```
 
-The manual token method is still fully supported for backward compatibility and headless environments.
+What it does:
+1. opens `skylos.dev/cli/connect`
+2. signs you in with GitHub if needed
+3. lets you select or create a project
+4. verifies the token with `/api/sync/whoami`
+5. stores the saved credentials and repo link
 
-### Steps
+Files written:
+- `~/.skylos/credentials.json`
+- `<repo>/.skylos/link.json`
 
-1. Visit [skylos.dev/dashboard](https://skylos.dev/dashboard)
-2. Create a project manually
-3. Go to Settings → API Keys
-4. Copy the API token
-5. Set environment variable:
-   ```bash
-   export SKYLOS_TOKEN=sky_live_xxx...
-   ```
-6. Run scan with upload:
-   ```bash
-   skylos . --upload
-   ```
+After a repo is linked, plain `skylos .` will auto-enable upload unless you pass `--no-upload`.
 
-### When to Use Manual Tokens
+```bash
+skylos .
+skylos . --no-upload
+```
 
-- **CI/CD pipelines** where you want explicit token management
-- **Automation scripts** that need predictable behavior
-- **Shared environments** where browser auth isn't practical
-- **Air-gapped systems** without internet access to Skylos Cloud
+### Switching or inspecting the linked project
 
----
+Useful commands:
 
-## GitHub Actions OIDC (Tokenless)
+```bash
+skylos project status
+skylos project list
+skylos project use
+skylos project unlink
+skylos sync status
+```
 
-:::tip Recommended for GitHub Actions
-OIDC authentication requires **zero secrets** — the most secure CI approach.
-:::
+Re-running `skylos login` opens the chooser again. If you complete the flow with a different project, the repo link is updated. If you close the browser flow, the current project is kept.
 
-GitHub Actions can authenticate with Skylos Cloud using OpenID Connect. No `SKYLOS_TOKEN` secret needed.
+## Manual API Keys
 
-### Setup
+Use API keys when you want explicit, non-browser auth.
+
+Get the key from:
+- `Dashboard -> Settings -> choose project -> API key`
+
+The current UI behavior is:
+- a newly created key is only shown once
+- rotating the key revokes the old one immediately
+
+### Save the key to the current repo
+
+```bash
+skylos sync connect sk_live_xxx...
+```
+
+Or run without an argument and paste it interactively:
+
+```bash
+skylos sync connect
+```
+
+### Use the key for a single run
+
+```bash
+SKYLOS_TOKEN=sk_live_xxx... skylos . --upload
+```
+
+### Best use cases for API keys
+
+- GitLab, CircleCI, Jenkins, and other non-GitHub CI
+- headless servers
+- scripted uploads
+- temporary override of the repo-linked project
+
+## GitHub Actions OIDC
+
+OIDC is the secretless GitHub Actions path.
+
+Preconditions:
+1. your Skylos project has a unique `repo_url` that matches the GitHub repository
+2. your workflow has `id-token: write`
 
 ```yaml
 name: Skylos Scan
@@ -127,327 +120,89 @@ on: [pull_request]
 
 permissions:
   contents: read
-  id-token: write  # Enables tokenless auth
+  id-token: write
 
 jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - run: pip install skylos
-      - run: skylos . --danger --upload  # No token needed!
+      - run: skylos . --danger --upload
 ```
 
-### How It Works
+How it works:
+1. GitHub Actions issues a short-lived OIDC token
+2. Skylos verifies the token against GitHub's OIDC issuer
+3. Skylos resolves the project by matching the GitHub `repository` claim to the project's `repo_url`
+4. the scan uploads with no `SKYLOS_TOKEN` secret
 
-1. GitHub Actions generates a short-lived OIDC token
-2. Token contains claims: `repository`, `actor`, `ref`, `sha`
-3. Skylos verifies the token against GitHub's public JWKS endpoint
-4. Skylos matches the repository to your project in the database
-5. Upload proceeds without any secrets
+### Important repo-binding rule
 
-### Benefits
+OIDC uploads only work when one GitHub repo maps to one Skylos project.
 
-- **Zero secrets** to manage, rotate, or leak
-- **Short-lived tokens** that expire in minutes
-- **Cryptographically signed** by GitHub
-- **Repository-bound** — can't be stolen or reused elsewhere
+If no project matches the repo URL, upload fails.
+If multiple projects match the same repo URL, upload also fails.
 
----
+## Token Resolution Order
 
-## Other CI Systems
+The current CLI token lookup order is:
+1. `SKYLOS_TOKEN`
+2. GitHub Actions OIDC
+3. the current repo link plus `~/.skylos/credentials.json`
+4. the legacy default saved token
+5. system keyring fallback
 
-For GitLab CI, CircleCI, Jenkins, and other CI systems, use the `SKYLOS_TOKEN` environment variable:
+That means `SKYLOS_TOKEN` is the cleanest way to override the linked project for one run.
 
-1. Get your token: [skylos.dev/dashboard/settings](https://skylos.dev/dashboard/settings)
-2. Add as a secret in your CI provider
-3. Reference it as `SKYLOS_TOKEN`
+## Headless and Remote Environments
 
-**GitLab CI:**
-```yaml
-skylos:
-  script:
-    - pip install skylos
-    - skylos . --danger --upload
-  variables:
-    SKYLOS_TOKEN: $SKYLOS_TOKEN
-```
+If browser auth is unavailable, Skylos falls back to manual token entry.
 
-**CircleCI:**
-```yaml
-- run:
-    name: Skylos Scan
-    command: skylos . --danger --upload
-    environment:
-      SKYLOS_TOKEN: $SKYLOS_TOKEN
-```
-
-See [CI/CD Integration](/ci-cd) for complete CI setup guides.
-
----
-
-## Token Priority
-
-The CLI checks for tokens in this order (highest priority first):
-
-1. **`SKYLOS_TOKEN` environment variable**
-2. **GitHub Actions OIDC** (only in GitHub Actions with `id-token: write`)
-3. **Linked project token** (from `.skylos/link.json` + `~/.skylos/credentials.json`)
-4. **Legacy global token** (deprecated: top-level `token` field in credentials)
-5. **System keyring** (macOS Keychain, Windows Credential Manager, Linux Secret Service)
-
-You can override the linked project for one-off scans:
+Use one of these:
 
 ```bash
-SKYLOS_TOKEN=sky_live_xxx skylos . --upload
+skylos sync connect
 ```
 
----
-
-## Multi-Project Management
-
-Browser auth manages tokens per repository automatically:
+or:
 
 ```bash
-# Project A - authenticate once
-cd ~/projectA
-skylos login  # Pick "Project A" in browser
-skylos . --upload
-
-# Project B - authenticate once
-cd ~/projectB
-skylos login  # Pick "Project B" in browser
-skylos . --upload
-
-# Future uploads remember the project!
-cd ~/projectA && skylos . --upload  # Uses Project A token
-cd ~/projectB && skylos . --upload  # Uses Project B token
+SKYLOS_TOKEN=sk_live_xxx... skylos . --upload
 ```
-
-The CLI remembers which project each repository is linked to via `.skylos/link.json`.
-
-### Switching Projects
-
-```bash
-skylos login  # Browser opens → pick a different project
-```
-
-Or use an explicit token:
-
-```bash
-SKYLOS_TOKEN=sky_live_xxx skylos . --upload
-```
-
----
-
-## Headless Environments
-
-### SSH / Remote Servers
-
-When running over SSH without display access, the CLI automatically falls back to manual token entry:
-
-```bash
-$ skylos login
-
-Browser auth unavailable: No display available
-
-Manual connection
-Get your API key at: https://skylos.dev/dashboard/settings
-
-Paste your API token: [paste here]
-
-✓ Connected to Skylos Cloud!
-  Project:      My Project
-  Organization: My Team
-```
-
-### Docker / CI
-
-The CLI detects CI environments and provides appropriate instructions. For GitHub Actions, it suggests OIDC if `id-token: write` permission isn't set.
-
----
-
-## Migration Guide
-
-### Local Development: Old → New
-
-Remove your old token and let browser auth take over:
-
-```bash
-# Remove environment variable
-unset SKYLOS_TOKEN
-
-# Remove from shell profile (~/.bashrc, ~/.zshrc)
-# Delete the SKYLOS_TOKEN line
-
-# Run upload - browser auth kicks in automatically
-skylos . --upload
-```
-
-Environment variables always take priority, so remove `SKYLOS_TOKEN` from your shell profile to use browser auth.
-
-### GitHub Actions: Manual Token → OIDC
-
-**Before:**
-```yaml
-- name: Scan and Upload
-  env:
-    SKYLOS_TOKEN: ${{ secrets.SKYLOS_TOKEN }}
-  run: skylos . --danger --upload
-```
-
-**After:**
-```yaml
-# Add at top of workflow
-permissions:
-  contents: read
-  id-token: write
-
-# Update step (remove SKYLOS_TOKEN)
-- name: Scan and Upload
-  run: skylos . --danger --upload
-```
-
-**Steps:**
-1. Add `id-token: write` permission to workflow
-2. Remove `SKYLOS_TOKEN` from workflow env
-3. Push the change — done!
-4. (Optional) Keep the secret around for rollback
-
-### Other CI Systems
-
-**No migration needed.** Continue using `SKYLOS_TOKEN` as before. Browser auth only affects local CLI usage.
-
----
-
-## Security Notes
-
-### Browser Auth vs Manual Tokens
-
-| Aspect | Manual Tokens | Browser Auth |
-|--------|---------------|--------------|
-| **Storage** | Environment variable (visible in `env`, process list) | File with 600 permissions (owner-only) |
-| **Visibility** | Visible in shell history if set inline | Never visible in shell history |
-| **Rotation** | Manual (must update everywhere) | Automatic (re-run `skylos login`) |
-| **Multi-project** | One token = one project | Manages all projects automatically |
-
-**Recommendation:** Browser auth is more secure for local development.
-
-### Token Scopes
-
-Skylos API tokens are **project-scoped**:
-- Each token grants access to one project only
-- Tokens cannot access other projects in your organization
-- Tokens can be revoked individually from the dashboard
-
-### OIDC Security (GitHub Actions)
-
-| Aspect | Manual Tokens | OIDC Tokens |
-|--------|---------------|-------------|
-| Lifetime | Until revoked | Minutes |
-| Secrets to manage | 1+ | 0 |
-| Can be stolen/reused | ⚠️ If leaked | ❌ Bound to repo |
-| Rotation | Manual | Automatic |
-
-### File Permissions
-
-- Tokens are stored with `600` permissions (owner read/write only)
-- On macOS/Windows, tokens can optionally use system keyring
-- Never commit `~/.skylos/credentials.json` or `.skylos/link.json` to version control
-
----
 
 ## Troubleshooting
 
-### Browser doesn't open
+### `skylos . --upload` opens a browser unexpectedly
 
-The CLI prints a URL you can open manually:
+The CLI could not find a usable token and is trying to connect interactively.
 
-```
-Opening browser to connect to Skylos Cloud...
-If the browser doesn't open, visit:
-  https://skylos.dev/cli/connect?port=54321&repo=myproject
-```
+### OIDC fails even though `id-token: write` is set
 
-### "Already connected" message
+Check the project's repo URL in the dashboard. OIDC resolution depends on that binding.
 
-You're good — just run `skylos . --upload`. To reconnect to a different project, type `y` when prompted or delete `.skylos/link.json`.
+### OIDC says the repo is ambiguous
 
-### "Invalid token" error (401)
+More than one project has the same `repo_url`. Remove the duplicate binding.
 
-Token may have expired or been revoked:
+### A token stopped working
 
-```bash
-rm ~/.skylos/credentials.json .skylos/link.json
-skylos login  # Re-authenticate
-```
+The key may have been rotated or revoked. Generate a new one in dashboard settings and update your CI secrets.
 
-### CI upload fails with "No token found"
-
-**For GitHub Actions:**
-- Ensure workflow has `id-token: write` permission
-- Use Skylos CLI v3.3.0 or later
-- Verify project has the correct repo URL in dashboard
-
-**For other CI:**
-- Verify `SKYLOS_TOKEN` secret is set correctly
-- Check the secret name matches exactly
-
-### SSH/Headless: "Browser auth unavailable"
-
-This is expected. The CLI automatically falls back to manual token entry. Follow the printed instructions.
-
-### Disconnecting
+### I need to move this repo to a different cloud project
 
 ```bash
-rm .skylos/link.json              # Disconnect this project
-rm ~/.skylos/credentials.json     # Remove all credentials
+skylos project unlink
+skylos login
 ```
 
-Or:
-```bash
-skylos sync disconnect
-```
+## Related Docs
 
----
-
-## FAQ
-
-<details>
-<summary>Can I use both browser auth and manual tokens?</summary>
-
-Yes! Environment variables (`SKYLOS_TOKEN`) always take priority. Browser auth is used when no token is found in the environment.
-</details>
-
-<details>
-<summary>Do I need to re-authenticate often?</summary>
-
-No. Tokens are saved permanently until you disconnect or they're revoked. You authenticate once per project.
-</details>
-
-<details>
-<summary>Does this work offline?</summary>
-
-No, browser auth requires internet. For offline scans (without `--upload`), no authentication is needed.
-</details>
-
-<details>
-<summary>What about team sharing?</summary>
-
-Each developer authenticates individually. The `.skylos/link.json` file can optionally be committed to share the project ID, but tokens are always user-specific and stored in `~/.skylos/credentials.json`.
-</details>
-
-<details>
-<summary>Can I keep using the old method?</summary>
-
-Absolutely. The manual token method is fully supported. Set `SKYLOS_TOKEN` and it takes priority over browser auth.
-</details>
-
-<details>
-<summary>How do I manage 10+ projects?</summary>
-
-Browser auth handles this automatically. Each repo gets linked to its project. No more managing multiple environment variables.
-</details>
+- [CLI to Dashboard Workflow](/cloud-workflow)
+- [CI/CD Integration](/ci-cd)
+- [Cloud Platform](/cloud)

@@ -28,8 +28,6 @@ Rule IDs are **unified across languages** — the same vulnerability uses the sa
 
 #### Dangerous Function Calls
 
-#### Dangerous Function Calls
-
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
 | `SKY-D200` | Dangerous Call (base) | varies | Python | Generic dangerous function call |
@@ -154,7 +152,7 @@ Scanned file types: `.py`, `.pyi`, `.pyw`, `.env`, `.yaml`, `.yml`, `.json`, `.t
 | `SKY-Q501` | God Class | MEDIUM | Python | 20 methods / 15 attributes |
 | `SKY-Q701` | Coupling Between Objects (CBO) | MEDIUM/HIGH | Python | Ce > 4 |
 | `SKY-Q702` | Lack of Cohesion of Methods (LCOM) | MEDIUM/HIGH | Python | LCOM4 > 2 |
-| `SKY-Q305` | Duplicate Condition | MEDIUM | TS | Same condition repeated in `if`/`else if` chain |
+| `SKY-Q305` | Duplicate Branch Logic | MEDIUM | Python, TS | Duplicate branch condition or semantically duplicate branch body |
 | `SKY-Q402` | Await in Loop | MEDIUM | TS | Sequential `await` in loop — use `Promise.all` |
 
 ### Architecture Rules (SKY-Q8xx)

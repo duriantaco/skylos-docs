@@ -1,321 +1,263 @@
 ---
 title: "CLI to Dashboard Workflow"
-description: "Complete Skylos Cloud workflow from CLI setup to dashboard policy, sync, and CI/CD."
+description: "The verified end-to-end flow from the local Skylos CLI to Skylos Cloud."
 ---
 
-This guide is the operational view of Skylos Cloud. It ties together the CLI, the dashboard, project policy, suppressions, custom rules, credits, and CI/CD so you can see the full flow end to end.
+This is the operational guide for the cloud workflow. It reflects the current `skylos` CLI and `skylos-cloud` app behavior.
 
-If you only need the feature overview, read [Cloud Platform](/cloud). If you want the detailed policy reference, read [Project Policy](/project-policy). If you want the structured rule system, read [Custom Rules](/custom-rules).
+Use this page when you want to answer:
+- Which command should I run?
+- What gets stored locally vs in the cloud?
+- When do I need a GitHub repo URL?
+- How do policy, suppressions, custom rules, and CI fit together?
 
-## The Full Workflow at a Glance
+If you only want the feature overview, read [Cloud Platform](/cloud). For auth details, read [Authentication](/authentication). For CI examples, read [CI/CD Integration](/ci-cd).
 
-1. Run Skylos locally and decide which repo you want to connect.
-2. Connect that repo to Skylos Cloud with `skylos login` or `skylos sync connect`.
-3. Upload the first scan with `skylos . --upload`.
-4. Review the scan in the dashboard.
-5. Configure project policy in **Dashboard → Settings**.
-6. Pull project config and suppressions back into the repo with `skylos sync pull`.
-7. Add CI/CD so every pull request is scanned and, if needed, blocked.
-8. Use the dashboard for trends, scan history, issue review, billing, compliance, and team workflows.
+## Command Map
 
----
+| You want to... | Use this | What it actually does |
+|---|---|---|
+| Connect the current repo to a cloud project | `skylos login` or `skylos project use` | Opens the browser chooser, lets you pick or create a project, verifies the token, and links this repo |
+| Upload a scan | `skylos . --upload` | Runs analysis locally, then uploads findings and metadata to Skylos Cloud |
+| Keep local policy and suppressions in sync | `skylos sync pull` | Writes `.skylos/config.yaml` and `.skylos/suppressions.json` into the repo |
+| See which project this repo uses | `skylos project status` | Shows the repo link and active project |
+| List known linked projects | `skylos project list` | Shows locally saved projects from `~/.skylos/credentials.json` |
+| Switch or remove the repo link | `skylos project use` / `skylos project unlink` | Rebinds the repo or removes only the repo-to-project link |
+| Check the saved cloud connection | `skylos sync status` | Verifies the saved token against `/api/sync/whoami` |
+| Connect headlessly with an API key | `skylos sync connect <token>` | Stores the token and links the repo without browser auth |
 
-## Step 1: Scan Locally First
+## End-to-End Flow
 
-You do not need the cloud to run Skylos:
+```mermaid
+flowchart LR
+    A[Repo checkout] --> B[Run Skylos locally]
+    B --> C{Connected to Cloud?}
+    C -- No --> D[skylos login / skylos project use]
+    C -- Yes --> E[skylos . --upload]
+    D --> E
+    E --> F[Skylos Cloud stores scan]
+    F --> G[Workspace views: Overview, Projects, Scans, Issues, Exceptions, Rules, Trends]
+    F --> H[Project settings: repo URL, policy, API key, GitHub App, notifications, team]
+    H --> I[skylos sync pull]
+    I --> J[Repo gets .skylos/config.yaml and .skylos/suppressions.json]
+    J --> K[CI runs skylos . --upload]
+```
+
+## 1. Start Local
+
+You do not need the cloud to use Skylos.
 
 ```bash
 skylos .
-```
-
-This runs analysis locally and prints results in your terminal. No source code is uploaded.
-
-Typical local variants:
-
-```bash
 skylos . --danger --quality --secrets
-skylos . --json -o skylos-results.json
 skylos . --gate
 ```
 
-Use the cloud when you want:
+Local-only mode is the right choice when you want:
+- a fast developer scan
+- no hosted state
+- repo-local thresholds and exit codes
+- no shared history or team review
 
-- Scan history
-- Trend charts
-- Dashboard review
-- Team visibility
-- Server-side project policy
-- Shared suppressions
-- PR-linked workflows
+Add the cloud when you want:
+- scan history and trends
+- project-level policy managed in the dashboard
+- shared suppressions
+- issue grouping and exception workflows
+- GitHub App integration, deep links, or repo-bound OIDC uploads
 
----
+## 2. Connect the Repo to Skylos Cloud
 
-## Step 2: Connect a Repo to Skylos Cloud
-
-### Preferred: `skylos login`
-
-`skylos login` is the preferred connection flow.
+Preferred command:
 
 ```bash
 skylos login
 ```
 
+`skylos project use` uses the same browser chooser but is framed around selecting the project for the current repo.
+
 What happens:
+1. The CLI opens `skylos.dev/cli/connect`.
+2. You sign in with GitHub if needed.
+3. You pick an existing project or create a new one.
+4. The CLI verifies the returned token with `/api/sync/whoami`.
+5. The CLI stores credentials and writes the repo link.
 
-1. Skylos opens a browser to the Skylos Cloud connect flow.
-2. You sign in and select or create a project.
-3. Skylos verifies the returned token with `/api/sync/whoami`.
-4. Skylos saves credentials globally.
-5. Skylos links the current git repo to the selected project.
-
-Files written by the CLI:
-
+Files written locally:
 - `~/.skylos/credentials.json`
 - `<repo>/.skylos/link.json`
 
-The repo link file stores the project binding for that git repository. The global credentials file stores project tokens and metadata.
+`link.json` is the repo-to-project binding. `credentials.json` stores saved project tokens and metadata.
 
-### Legacy/manual flow: `skylos sync connect`
+### Switching projects
 
-If you want to connect using a token directly:
+Re-running `skylos login` does not require a full disconnect. The chooser opens again. If you finish the flow with a different project, the repo link is updated. If you close the browser flow, the current project is kept.
+
+Useful repo commands:
+
+```bash
+skylos project status
+skylos project list
+skylos project unlink
+```
+
+### Headless or manual setup
+
+If you do not want browser auth:
 
 ```bash
 skylos sync connect
+# or
+skylos sync connect sk_live_xxx...
 ```
 
-or
+Get the API key from `Dashboard -> Settings -> choose project -> API key`.
 
-```bash
-skylos sync connect sky_live_xxx...
-```
+## 3. Upload Scans
 
-This verifies the token against Skylos Cloud, writes the same repo link, and stores the token in `~/.skylos/credentials.json`.
-
-### If you are already connected
-
-Running `skylos login` while already connected does not create a second link automatically. The CLI will tell you the current project and ask you to disconnect first if you want to switch.
-
----
-
-## Step 3: Upload the First Scan
-
-The simplest cloud upload is:
+Basic upload:
 
 ```bash
 skylos . --upload
 ```
 
-A more explicit scan usually looks like:
+Common variants:
 
 ```bash
-skylos . --danger --quality --secrets --upload
+skylos . --danger --quality --upload
+skylos defend . --upload
 ```
 
 What happens on upload:
+1. Analysis still runs locally.
+2. The CLI resolves auth.
+3. Findings and scan metadata are sent to Skylos Cloud.
+4. Skylos Cloud stores the scan, groups issues, applies suppressions, and evaluates the project gate.
+5. The dashboard updates.
 
-1. The CLI runs analysis locally.
-2. The CLI resolves auth from `SKYLOS_TOKEN`, GitHub OIDC, the repo link, or saved credentials.
-3. Results are sent to Skylos Cloud.
-4. Skylos Cloud applies project policy, suppressions, and any AI-assurance logic.
-5. The dashboard updates with the new scan.
+### What auth the CLI uses
 
-### Interactive fallback
+The current token resolution order is:
+1. `SKYLOS_TOKEN`
+2. GitHub Actions OIDC
+3. the current repo link plus `~/.skylos/credentials.json`
+4. the legacy default saved token
+5. system keyring fallback
 
-If you run `skylos . --upload` in an interactive terminal and Skylos cannot find credentials, the CLI will offer to launch the login flow immediately.
+### Linked repos auto-upload by default
 
-### Automatic upload after login
-
-After a repo is linked, future `skylos .` runs in that repo auto-enable upload unless you explicitly opt out:
+Once a repo is linked, plain `skylos .` will auto-enable upload unless you opt out:
 
 ```bash
 skylos .
 skylos . --no-upload
 ```
 
-This is useful, but it is important to know. Linking a repo changes the default behavior for that repo.
+That behavior is intentional and worth documenting for teams.
 
-### What happens in CI
+### Custom rules are loaded at scan time
 
-In CI, Skylos does not fall back to interactive login. Use one of these:
+If the CLI has a valid cloud token, it also asks Skylos Cloud for org-level custom rules during scan startup. Those rules are applied locally during analysis. They are not written by `skylos sync pull`.
 
-- `SKYLOS_TOKEN`
-- GitHub OIDC for tokenless uploads
+## 4. What Appears in Skylos Cloud
 
-See [Authentication](/authentication) for the auth options.
+Workspace navigation currently includes:
+- `Overview`
+- `Projects`
+- `Scans`
+- `Issues`
+- `Exceptions`
+- `Rules`
+- `Trends`
 
----
+Each project currently has tabs for:
+- `Overview`
+- `Scans`
+- `Issues`
+- `Suppressions`
+- `Defense`
+- `Provenance`
+- `Settings`
 
-## Step 4: Review the Dashboard
+In practice, the cloud split looks like this:
+- CLI: runs analysis
+- Cloud: stores history, groups recurring findings, applies shared policy, manages suppressions, and exposes team workflows
 
-After the first upload, the main dashboard workflow usually looks like this:
+## 5. Configure the Project in the Dashboard
 
-- **Dashboard**: organization-level summary
-- **Scan History**: every uploaded scan with pass/fail state
-- **Trends**: issue counts and changes over time
-- **Issue Inbox**: review findings across scans
-- **Projects**: manage linked repos
-- **Settings**: per-project analysis configuration
-- **Custom Rules**: org-level structured rules
-- **Compliance**: framework mapping and report generation
-- **Billing**: credits and plan state
+The main project management surface is:
 
-This is the key architectural split:
+`Dashboard -> Settings -> choose project`
 
-- The CLI is where scanning happens.
-- The cloud dashboard is where team policy, history, suppressions, and review workflows live.
+That surface currently manages:
+- repository URL
+- API key rotation
+- GitHub App installation
+- Slack and Discord notifications
+- team members
+- workspace/project policy
+- policy inheritance
 
----
+### Repo URL: optional for basic uploads, required for GitHub-native features
 
-## Step 5: Configure Project Policy
+A project can stay cloud-only with no repo URL and still accept normal API-key uploads.
 
-Project policy lives in:
+Set the repo URL when you want:
+- GitHub Actions OIDC uploads
+- GitHub App installation
+- GitHub deep links
+- PR-linked GitHub check runs and comments
+- repo-aware default-branch resolution
 
-**Dashboard → Settings → Analysis Configuration**
+OIDC uploads require one unique project whose `repo_url` matches the GitHub repository. If no project matches, or multiple projects match, OIDC upload fails.
 
-This is where you configure:
-
-- Quality thresholds
-- Gate mode
-- Scan categories
-- Exclude paths
-- Project-scoped governance prompts
-- AI assurance
-
-After saving project policy, pull it back into the repo:
-
-```bash
-skylos sync pull
-```
-
-Read the full field-by-field reference in [Project Policy](/project-policy).
-
----
-
-## Step 6: Pull Config and Suppressions into the Repo
-
-`skylos sync pull` is the repo-side sync command:
+## 6. Pull Cloud Policy and Suppressions Back Into the Repo
 
 ```bash
 skylos sync pull
 ```
 
-It writes:
-
+This writes:
 - `<repo>/.skylos/config.yaml`
 - `<repo>/.skylos/suppressions.json`
 
-Use it when:
+Use it after:
+- changing project policy in the dashboard
+- adding or revoking suppressions
+- changing gate mode or thresholds
+- updating exclude paths or security contracts
 
-- You changed policy thresholds in the dashboard
-- You changed gate settings
-- You updated exclude paths
-- You added or revoked suppressions
-- You want the repo’s local config snapshot to match the current cloud project
+### Local config precedence
 
-### What sync pull includes
+The local CLI does not treat the synced file as the only source of truth.
 
-The synced config includes the project-facing analysis configuration, such as:
+Current precedence is:
+1. Skylos defaults
+2. `.skylos/config.yaml` from `sync pull`
+3. `pyproject.toml` `[tool.skylos]`
+4. CLI flags
 
-- Gate mode and thresholds
-- Threshold toggles and values
-- Enabled scan categories
-- Exclude paths
-- Project-scoped governance rule strings
+That means dashboard policy can seed the repo, but local `pyproject.toml` and explicit flags can still override it for a given run.
 
-Suppressions are synced separately into `suppressions.json`.
+## 7. CI/CD
 
-### What sync pull does not replace
+There are two main cloud upload patterns.
 
-`skylos sync pull` does not replace all local config sources. Skylos can still use:
+### GitHub Actions with OIDC
 
-- `pyproject.toml`
-- `skylos-debt.yaml`
-- command-line flags
+Use this when you want secretless GitHub uploads.
 
-The dashboard policy is the cloud-managed project configuration. Local repo config and local gate behavior can still exist alongside it.
-
----
-
-## Step 7: Understand Local Gate vs Cloud Gate
-
-This is one of the most important distinctions in Skylos.
-
-### Local gate
-
-```bash
-skylos . --gate
-```
-
-This is a CLI-side gate. It uses local config and local findings to decide whether to pass or fail the command.
-
-Use it for:
-
-- local developer workflows
-- pre-commit or pre-push checks
-- repo-local policies
-
-### Cloud gate
-
-```bash
-skylos . --upload
-```
-
-When you upload, Skylos Cloud evaluates the uploaded findings against the dashboard-managed project policy, suppressions, and AI-assurance settings.
-
-Use it for:
-
-- dashboard-controlled project policy
-- shared suppressions
-- branch and PR-linked quality decisions
-- server-side enforcement tied to the cloud project
-
-If you want the dashboard to be the source of truth for policy, you need the upload path in your workflow.
-
----
-
-## Step 8: Add CI/CD
-
-### Fastest setup
-
-Generate a workflow:
-
-```bash
-skylos cicd init
-```
-
-Variants:
-
-```bash
-skylos cicd init --upload
-skylos cicd init --defend
-skylos cicd init --defend --upload
-skylos cicd init --llm --model gpt-4.1
-```
-
-Generated workflow behavior:
-
-- runs Skylos on pull requests and pushes
-- writes `skylos-results.json`
-- runs `skylos cicd gate`
-- emits GitHub annotations
-- can post PR review comments
-- optionally uploads scan results to Skylos Cloud
-
-### Generated upload workflow vs manual OIDC workflow
-
-This is a subtle but important distinction:
-
-- `skylos cicd init --upload` currently generates a workflow that uses `SKYLOS_TOKEN`
-- Skylos Cloud also supports GitHub OIDC for tokenless uploads
-
-So:
-
-- if you want the quickest generated workflow, use `SKYLOS_TOKEN`
-- if you want tokenless GitHub Actions auth, hand-author the workflow with `id-token: write` and run `skylos . --upload`
-
-Minimal tokenless OIDC example:
+Preconditions:
+- the project has a unique GitHub `repo_url` saved in dashboard settings
+- the workflow has `id-token: write`
 
 ```yaml
+name: Skylos Scan
+
+on:
+  pull_request:
+    branches: [main, master]
+
 permissions:
   contents: read
   id-token: write
@@ -334,134 +276,112 @@ jobs:
       - run: skylos . --danger --quality --upload
 ```
 
-### AI Defense in CI
+### Token-based CI
 
-If you are using Skylos for LLM application guardrails:
+Use this for GitHub without OIDC, GitLab, CircleCI, Jenkins, or any other CI.
 
-```bash
-skylos defend . --fail-on critical --min-score 70
+```yaml
+- name: Run Skylos
+  env:
+    SKYLOS_TOKEN: ${{ secrets.SKYLOS_TOKEN }}
+  run: skylos . --danger --quality --upload
 ```
 
-And to upload defense results to the dashboard:
+### Sync pull in CI
+
+If you want the CI runner to use the latest synced dashboard thresholds and suppressions locally before the scan, add:
 
 ```bash
-skylos defend . --fail-on critical --min-score 70 --upload
+skylos sync pull
 ```
 
-The generated workflow for `--defend --upload` follows this pattern.
+That requires `SKYLOS_TOKEN`, because OIDC is used for upload resolution, not for `sync pull`.
 
----
+### Generated workflows vs OIDC
 
-## Step 9: Add Structured Custom Rules If Needed
+`skylos cicd init --upload` currently generates a token-based upload workflow. It does not generate an OIDC workflow for you.
 
-Project policy and custom rules are different features.
+### `skylos sync setup`
 
-- **Project Policy → Custom Governance Rules**: project-scoped text rules used as additional governance instructions
-- **Dashboard → Custom Rules**: org-scoped structured YAML or Python rules
+`skylos sync setup` is a token-driven helper for scaffolding hooks and workflow files. It currently asks for a token and writes token-based workflow examples. It is not the browser-based OIDC setup path.
 
-Use project policy when you want lightweight project-specific guidance.
+## 8. How the Cloud Gate Decides Pass or Fail
 
-Use Custom Rules when you want:
+This is the key difference between `--gate` and `--upload`.
 
-- reusable organization-wide checks
-- severity/category metadata
-- YAML pattern rules
-- optional Python-backed rules on paid plans
-
-Read the full guide in [Custom Rules](/custom-rules).
-
----
-
-## Step 10: Monitor Credits and Plan State
-
-Local scanning is free. Upload and other cloud actions are not.
-
-Check balance from the CLI:
+### Local gate
 
 ```bash
-skylos credits
+skylos . --gate
 ```
 
-Or use the dashboard:
+Local gate uses local findings and local config. It only controls the CLI exit code.
 
-- **Dashboard → Billing**
+### Cloud gate
 
-Important distinctions:
+```bash
+skylos . --upload
+```
 
-- **Credit-gated**: upload and other compute-heavy cloud actions
-- **Plan-gated**: advanced gate modes, compliance, higher custom-rule limits, and some collaboration features
+Cloud gate uses the project in Skylos Cloud and evaluates:
+- the effective project policy
+- active suppressions
+- strict mode
+- AI assurance, if enabled
+- PR diff data when available
+- otherwise the latest successful or overridden baseline scan on the same branch, or the default branch
 
-Read [Billing & Credits](/billing) for exact pricing and plan behavior.
+That is why a repo linked to the dashboard can behave differently from a local-only run.
 
----
+## 9. Recommended Rollout
 
-## Recommended Team Workflow
-
-For most teams, this is the cleanest rollout:
+A clean team rollout usually looks like this:
 
 1. Start with local scans only.
-2. Connect each repo with `skylos login`.
-3. Upload scans from local dev or CI.
-4. Set project policy to `zero-new`.
-5. Pull config into the repo with `skylos sync pull`.
-6. Add CI/CD with `skylos cicd init --upload`.
-7. Add suppressions only for real false positives.
-8. Add structured Custom Rules after the base workflow is stable.
-9. Turn on AI assurance only after the team understands its stricter failure mode.
-
----
+2. Connect the repo with `skylos login`.
+3. Upload from a developer machine once with `skylos . --upload`.
+4. Set the project repo URL if you want GitHub-native features.
+5. Configure policy in `Dashboard -> Settings`.
+6. Run `skylos sync pull` so the repo has the latest synced config and suppressions.
+7. Add CI with either OIDC or `SKYLOS_TOKEN`.
+8. Add the GitHub App and branch protection only after uploads are stable.
 
 ## Troubleshooting
 
-### `skylos . --upload` opens a browser unexpectedly
+### `skylos .` uploads even without `--upload`
 
-That means Skylos could not find usable credentials and is trying to connect interactively.
+The repo is linked. Use `--no-upload` to force a local-only run.
 
-### `skylos .` uploads even though I did not pass `--upload`
+### OIDC says the repo is not linked
 
-The repo is linked. Skylos auto-enables upload for linked repos unless you pass `--no-upload`.
+Save the exact GitHub repo URL on the project in dashboard settings.
+
+### OIDC says the repo binding is ambiguous
+
+More than one project has the same `repo_url`. Fix the duplicate binding so one repo maps to one project.
 
 ### `skylos sync pull` says not connected
 
-Link the repo first:
-
-```bash
-skylos login
-```
-
-or
-
-```bash
-skylos sync connect
-```
-
-### Upload works locally but fails in CI
-
-CI cannot do interactive login. Add either:
-
-- `SKYLOS_TOKEN`
-- GitHub OIDC permissions and tokenless workflow setup
-
-### Upload was skipped because of credits
-
-The scan still ran locally. Top up credits, then re-run the upload path.
+Run `skylos login` or `skylos sync connect` first.
 
 ### The repo is connected to the wrong project
 
-Disconnect, then reconnect to the correct project:
+Use:
 
 ```bash
-skylos sync disconnect
+skylos project unlink
 skylos login
 ```
 
----
+### Custom rules do not appear locally
+
+Custom rules are loaded from the cloud only when a valid token is available. Paid-plan custom rule features also require the right plan.
 
 ## Related Docs
 
 - [Cloud Platform](/cloud)
 - [Authentication](/authentication)
+- [CI/CD Integration](/ci-cd)
 - [Project Policy](/project-policy)
 - [Custom Rules](/custom-rules)
 - [Billing & Credits](/billing)
-- [CI/CD Integration](/ci-cd)
