@@ -1,0 +1,179 @@
+---
+title: "Enterprise Trust"
+description: "Security, governance, auditability, and procurement posture for Skylos Cloud."
+---
+
+Skylos is built as a local-first scanner with optional Cloud governance. The CLI runs analysis locally or in CI. Skylos Cloud stores scan results, project policy, suppressions, audit history, and team workflow state.
+
+Use this page when a security team asks:
+
+- what data Skylos Cloud receives
+- how uploads are attributed
+- what actions are audited
+- what access controls exist
+- what is available today vs what is still on the enterprise roadmap
+
+## Current Posture
+
+Skylos Cloud is ready for a security-team pilot and controlled enterprise evaluation.
+
+It is not yet positioned as a completed regulated-procurement package for teams that require SSO, SCIM, a completed SOC 2 report, DPA automation, status-page commitments, SIEM streaming, and formal SLA paperwork before a pilot can start.
+
+| Area | Current status |
+|---|---|
+| Local-first scanning | Available |
+| Cloud project governance | Available |
+| Project API keys | Available |
+| GitHub Actions OIDC upload | Available |
+| Role-based access control | Available |
+| Audit event coverage for mutating routes | Available |
+| Audit export foundations | Available |
+| Upload attribution | Available |
+| SSO / SAML | Roadmap |
+| SCIM provisioning | Roadmap |
+| SOC 2 report | Roadmap |
+| DPA and subprocessor portal | Roadmap |
+| Public status page / SLA | Roadmap |
+| SIEM streaming | Roadmap |
+
+## Local-First Data Model
+
+Skylos analysis runs in the CLI, not in the browser dashboard.
+
+When you run:
+
+```bash
+skylos . --upload
+```
+
+the CLI sends analysis results and scan metadata to Skylos Cloud. It does not upload the full repository as source blobs.
+
+| Sent to Cloud | Not sent as part of normal scan upload |
+|---|---|
+| finding details | full repository contents |
+| file paths | raw source tree |
+| line numbers | `.env` files as raw uploads |
+| rule ids and severity | git history as source blobs |
+| branch and commit metadata | local dependency caches |
+| upload identity metadata | arbitrary local files outside the scan result |
+| gate and summary data | |
+
+Some features can include contextual evidence, snippets, or metadata where needed to explain a finding. Treat uploaded scan results as sensitive security data.
+
+## Upload Attribution
+
+Skylos Cloud records server-side attribution for uploaded scans.
+
+Supported upload paths:
+
+| Upload path | Attribution source |
+|---|---|
+| Browser-linked CLI upload | linked user and project credential |
+| Project API key upload | resolved project key identity |
+| GitHub Actions OIDC upload | verified GitHub OIDC claims and matched project binding |
+
+If two people upload to the same project from different machines, Skylos Cloud records the authenticated upload path and project identity instead of trusting a user-provided name alone.
+
+This is important for enterprise review because the audit trail should answer:
+
+- which project accepted the upload
+- which auth path was used
+- which repo or project root was resolved
+- which branch and commit were associated with the scan
+- when the upload happened
+
+## Access Control
+
+Skylos Cloud uses workspace membership and role-based permissions for team workflows.
+
+Current roles:
+
+| Role | Typical use |
+|---|---|
+| Owner | workspace ownership, billing, team governance |
+| Admin | project and integration administration |
+| Member | normal project usage and issue workflow |
+| Viewer | read-only review access |
+
+Protected actions require the relevant permission before the mutation runs. Examples include project changes, suppression changes, scan sharing, integrations, policy updates, billing checkout, and member governance.
+
+## Audit Events
+
+Skylos Cloud records audit activity for mutating governance workflows.
+
+Current audited areas include:
+
+- project creation, update, deletion, and bulk deletion
+- project repository and GitHub configuration changes
+- GitHub App installation binding
+- Slack and Discord integration changes
+- scan sharing, override, and deletion
+- finding and issue suppression workflows
+- issue assignment and comment changes
+- AI triage requests
+- report uploads
+- credit deduction and credit recovery events
+- billing checkout requests
+- compliance report requests
+- team invite and member governance
+- project API key lifecycle events
+- active organization switching
+- agent run ingestion
+- internal Judge admin import, seed, and suggestion promotion
+
+Audit writes are designed to fail closed for governance-sensitive mutations: if Skylos cannot write the required audit event, the mutation should not silently proceed.
+
+## Export and Review
+
+Audit export foundations are available for customer review workflows.
+
+Supported export shapes include:
+
+- JSON envelope
+- newline-delimited JSON
+- CSV
+
+These exports are intended for security review, procurement evidence, and incident investigation. SIEM streaming is still roadmap, so customers that require live Splunk, Datadog, or Sentinel forwarding should treat that as a procurement requirement rather than an already-shipped feature.
+
+## Cloud Providers and Shared Responsibility
+
+Skylos Cloud currently runs on hosted cloud infrastructure and managed services, including Vercel and Supabase.
+
+That means enterprise customers should evaluate Skylos using a shared-responsibility model:
+
+| Skylos responsibility | Customer responsibility |
+|---|---|
+| application access controls | choosing who belongs in the workspace |
+| audit event capture | reviewing and exporting audit history |
+| project key lifecycle support | rotating keys and limiting secret exposure |
+| upload attribution and policy enforcement | configuring repo/project bindings correctly |
+| secure handling of scan results | deciding which repos and branches upload findings |
+| incident response process | reporting suspected security issues quickly |
+
+## What To Say In Enterprise Evaluations
+
+Use precise language:
+
+> Skylos is ready for a security-team pilot. It is local-first, has Cloud governance, project-key attribution, RBAC, audit coverage for mutating governance workflows, and export foundations. For full regulated procurement, SSO, SCIM, SOC 2, DPA automation, public status/SLA, and SIEM streaming are on the enterprise roadmap.
+
+Do not claim that Skylos is SOC 2 certified, SAML-ready, SCIM-ready, or SIEM-streaming-ready until those controls are implemented and verified.
+
+## Roadmap Controls
+
+The highest-value enterprise controls still to add are:
+
+1. SAML SSO with enforced workspace login.
+2. SCIM deprovisioning and group mapping.
+3. Formal SOC 2 readiness program and report.
+4. DPA, subprocessor list, and security contact workflow.
+5. Public status page and incident communication process.
+6. SIEM audit log streaming.
+7. Enterprise support and SLA terms.
+
+## Related Docs
+
+- [Cloud Platform](/cloud)
+- [Authentication](/authentication)
+- [CLI to Dashboard Workflow](/cloud-workflow)
+- [Project Policy](/project-policy)
+- [Billing & Credits](/billing)

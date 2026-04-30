@@ -9,6 +9,7 @@ If you want the full repo-to-dashboard flow, read:
 
 - [CLI to Dashboard Workflow](/cloud-workflow)
 - [Authentication](/authentication)
+- [Enterprise Trust](/enterprise-trust)
 - [CI/CD Integration](/ci-cd)
 
 :::tip New Users
@@ -72,6 +73,19 @@ Each project currently has tabs for:
 - workspace/project policy
 - policy inheritance
 
+### Enterprise Trust Controls
+
+Skylos Cloud also provides the current trust foundations needed for a security-team pilot:
+
+- role-based workspace access
+- project API keys and GitHub OIDC upload paths
+- server-side upload attribution
+- audit events for mutating governance workflows
+- audit export foundations
+- project policy and suppression governance
+
+For the full buyer-facing view, including what exists today and what remains on the enterprise roadmap, see [Enterprise Trust](/enterprise-trust).
+
 ## How the Cloud Fits the CLI
 
 ```mermaid
@@ -113,6 +127,8 @@ When you upload a scan, Skylos Cloud receives analysis results and metadata, not
 | line numbers | secrets from your environment |
 | branch / commit metadata | your `.env` files as raw uploads |
 | summary counts and gate data | your git history as source blobs |
+
+Uploaded findings can include security-sensitive metadata and contextual evidence needed to explain results. Treat cloud scan results as sensitive security data even though Skylos does not upload the full repo as source blobs during normal scan upload.
 
 ## Next Step
 

@@ -255,9 +255,11 @@ skylos cicd review --input skylos-report.json --pr 42
 
 | Flag | Description |
 |------|-------------|
-| `--upload` | Upload scan results to Skylos Cloud (requires `skylos login` first). Costs 1 credit. |
+| `--upload` | Upload scan results and metadata to Skylos Cloud. Uses `SKYLOS_TOKEN`, GitHub OIDC, or saved `skylos login` credentials. Costs 1 credit. |
 | `--strict` | Exit with code 1 if quality gate fails (use in CI to block merges) |
 | `--force`, `-f` | Bypass quality gate locally (still uploads if `--upload` is set) |
+
+Cloud uploads are attributed by the resolved auth path. See [Authentication](/authentication) and [Enterprise Trust](/enterprise-trust) for the exact upload attribution and data-handling model.
 
 ## Runtime Analysis
 

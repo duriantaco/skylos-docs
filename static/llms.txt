@@ -45,4 +45,6 @@ Skylos is a Vulture alternative with 95% recall and 3x fewer false positives. Bu
 - [Quality Gate](https://docs.skylos.dev/quality-gate): Threshold-based merge blocking
 - [TypeScript Support](https://docs.skylos.dev/typescript-support): TypeScript and Go analysis
 - [Cloud Dashboard](https://docs.skylos.dev/cloud): Skylos Cloud features
+- [Enterprise Trust](https://docs.skylos.dev/enterprise-trust): Security-team pilot posture, upload attribution, audit events, RBAC, and procurement roadmap
+- [Authentication](https://docs.skylos.dev/authentication): Browser login, project API keys, GitHub OIDC, and upload attribution
 - [Billing](https://docs.skylos.dev/billing): Credit packs and pricing
