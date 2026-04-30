@@ -19,7 +19,7 @@ This is not a summarizer or wrapper — it runs the same analysis as `skylos . -
 
 ## What Skylos Detects
 
-Skylos is a hybrid static analysis tool for Python (and TypeScript). Through MCP, your AI assistant gets access to:
+Skylos is a hybrid static analysis tool for Python, TypeScript, JavaScript, Java, Go, PHP, and Rust. Through MCP, your AI assistant gets access to:
 
 | Capability | What It Finds | Rule IDs |
 |------------|---------------|----------|
@@ -230,7 +230,7 @@ Detects hardcoded credentials and sensitive data.
 
 **Returns**: All SKY-S101 findings — API keys, tokens, passwords, and private keys with the file, line number, and detected provider.
 
-**Scanned file types**: `.py`, `.pyi`, `.pyw`, `.env`, `.yaml`, `.yml`, `.json`, `.toml`, `.ini`, `.cfg`, `.conf`, `.ts`, `.tsx`, `.js`, `.jsx`, `.go`
+**Scanned file types**: `.py`, `.pyi`, `.pyw`, `.env`, `.yaml`, `.yml`, `.json`, `.toml`, `.ini`, `.cfg`, `.conf`, `.ts`, `.tsx`, `.js`, `.jsx`, `.go`, `.java`, `.php`, `.rs`
 
 **Detected providers**: AWS, Stripe, GitHub, GitLab, Slack, Google, SendGrid, Twilio, OpenAI, Anthropic, and generic high-entropy strings.
 

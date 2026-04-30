@@ -3,7 +3,7 @@ title: "TypeScript Support"
 description: "Analyzing TypeScript and JavaScript files with Skylos"
 ---
 
-Skylos provides analysis capabilities for TypeScript (`.ts`, `.tsx`) and JavaScript files using tree-sitter parsing.
+Skylos provides analysis capabilities for TypeScript (`.ts`, `.tsx`) and JavaScript (`.js`, `.jsx`) files using tree-sitter parsing.
 
 ## Features
 
@@ -234,7 +234,7 @@ complexity = 15  # Higher threshold for TS
 Skylos automatically detects TypeScript files in the scan path:
 
 ```bash
-# Scans both Python and TypeScript
+# Scans Python, TypeScript, and JavaScript
 skylos ./src --danger --quality
 ```
 
@@ -244,6 +244,8 @@ Supported extensions:
 
 - `.ts` - TypeScript
 - `.tsx` - TypeScript with JSX
+- `.js` - JavaScript
+- `.jsx` - JavaScript with JSX
 
 ## Output Example
 
@@ -270,12 +272,26 @@ Supported extensions:
  4   SKY-Q604   Low        Function 'configure' has 8 params    src/config.ts:22
 ```
 
+## Monorepo And Import Resolution
+
+Skylos discovers TypeScript and JavaScript workspaces from:
+
+- `package.json` `workspaces` arrays and `{ "packages": [...] }` objects
+- `pnpm-workspace.yaml` `packages` entries
+- `lerna.json` `packages` entries
+- `rush.json` `projects[].projectFolder` entries
+- root `tsconfig.json` project references
+
+Declared workspace packages are used for package-name import resolution. Skylos also resolves `tsconfig` `baseUrl`/`paths`, `extends`, package self-imports, package `exports`, package `imports`, `main`, `module`, and common source entrypoints such as `src/index.ts`, `src/index.tsx`, `index.js`, and `index.jsx`.
+
+Workspace inventory is included in scan metadata so cloud uploads and JSON consumers can tell which packages were discovered, which files declared them, and whether undeclared package folders were found.
+
 ## Limitations
 
 ### Not Supported
 
 - **Type checking:** Skylos doesn't validate TypeScript types
-- **Import resolution:** Cross-file imports are not fully resolved
+- **Full Node resolver emulation:** resolution covers common source and package metadata patterns, but not every conditional export or package-manager-specific edge case
 - **JSDoc:** Documentation comments are not analyzed
 
 ### Workarounds
