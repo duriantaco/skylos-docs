@@ -41,6 +41,19 @@ scores.
 skylos . -a
 ```
 
+Create a project config with thresholds, prompt-template hooks, and vibe-code dictionary extensions:
+
+```bash
+skylos init
+```
+
+Create a starter local rule pack:
+
+```bash
+skylos rules init
+skylos rules validate .skylos/rules/local.yml
+```
+
 The `-a` scan enables the main static checks:
 
 | Family | Examples |
@@ -109,6 +122,8 @@ OIDC, tokens, annotations, and branch protection.
 | Check code quality | `skylos . --quality` |
 | Scan changed lines only | `skylos . -a --diff origin/main` |
 | Gate locally | `skylos . -a --gate` |
+| Create project config | `skylos init` |
+| Create local rule pack | `skylos rules init` |
 | Generate GitHub Actions workflow | `skylos cicd init` |
 | Export JSON | `skylos . -a --json -o skylos-results.json` |
 

@@ -1,6 +1,6 @@
 ---
 title: "Configuration"
-description: "Configure Skylos via pyproject.toml. Set exclusions, confidence thresholds, quality gate rules, and framework-specific settings."
+description: "Configure Skylos via pyproject.toml. Set exclusions, confidence thresholds, prompt templates, vibe dictionaries, quality gates, and framework-specific settings."
 ---
 
 Skylos uses `pyproject.toml` for configuration. Run `skylos init` to generate a configuration file with sensible defaults, or add the `[tool.skylos]` section to an existing file.
@@ -20,6 +20,22 @@ ignore = []
 
 # AI model for --fix and --audit
 model = "gpt-4.1"
+
+[tool.skylos.templates]
+# Optional prompt extensions for LLM-powered workflows.
+# These extend Skylos' built-in prompts; they do not replace JSON output or untrusted-code safety rules.
+# security = ".skylos/templates/security.md"
+# quality = ".skylos/templates/quality.md"
+# security_audit = ".skylos/templates/security_audit.md"
+# review = ".skylos/templates/review.md"
+
+[tool.skylos.vibe]
+# Optional dictionary extensions for project-specific vibe-code checks.
+extra_phantom_names = []
+extra_phantom_decorators = []
+extra_credential_names = []
+extra_sensitive_file_keywords = []
+extra_network_timeout_calls = []
 
 [tool.skylos.whitelist]
 # Glob patterns to ignore as unused
@@ -72,6 +88,26 @@ strict = false
 |--------|------|---------|-------------|
 | `ignore` | list | `[]` | List of rule IDs to suppress (e.g., `["SKY-L002", "SKY-Q301"]`) |
 | `model` | string | `"gpt-4.1"` | LLM model for AI-powered features |
+| `templates` | table | built-in prompts | Optional prompt-template extensions for LLM-powered security, quality, review, and audit workflows |
+| `vibe` | table | built-in dictionaries | Optional dictionary extensions for phantom helpers, decorators, credential names, sensitive files, and network timeout calls |
+
+### Prompt Templates And Vibe Dictionaries
+
+Use `[tool.skylos.templates]` when you want LLM-powered workflows to include project-specific review instructions. Template files are appended to Skylos' built-in system prompts, while Skylos keeps its JSON-only output contract and untrusted-input safety framing.
+
+Use `[tool.skylos.vibe]` when your project has local names Skylos should treat as suspicious. This is useful for fake auth helpers, house credential names, sensitive file naming conventions, and SDK calls that must set timeouts.
+
+```toml
+[tool.skylos.templates]
+security = ".skylos/templates/security.md"
+quality = ".skylos/templates/quality.md"
+
+[tool.skylos.vibe]
+extra_phantom_names = ["verify_enterprise_auth"]
+extra_phantom_decorators = ["tenant_admin_required"]
+extra_credential_names = ["tenant_signing_secret"]
+extra_network_timeout_calls = ["vendor_sdk.fetch"]
+```
 
 ### Gate Configuration
 

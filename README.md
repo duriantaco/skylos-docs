@@ -1,6 +1,8 @@
 # Skylos Documentation
 
-Documentation for Skylos - a static analysis tool for Python that finds dead code, security vulnerabilities, and code quality issues.
+Skylos is a local-first scanner and PR gate for dead code, security, secrets, quality, and AI-generated-code mistakes.
+Install with `pip install skylos`, run `skylos .`, use `skylos . -a` for the main audit, and add CI with `skylos cicd init`.
+Main commands: `skylos init`, `skylos rules init`, `skylos defend .`, `skylos agent scan .`, and `skylos debt .`.
 
 ## Quick Links
 

@@ -198,6 +198,7 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-L027` | Duplicate String Literal | LOW/MEDIUM | Same string repeated 3+ times — extract to a constant. Configurable via `duplicate_strings` in `[tool.skylos]` |
 | `SKY-L028` | Too Many Returns | LOW | Function has 5+ return statements |
 | `SKY-L029` | Boolean Trap | LOW | Boolean positional parameter harms call-site readability |
+| `SKY-L031` | Missing Network Timeout | MEDIUM | `requests.*`, `httpx.*`, or `urlopen()` network call without `timeout=` (CWE-400) |
 
 ### Performance Rules (SKY-P)
 

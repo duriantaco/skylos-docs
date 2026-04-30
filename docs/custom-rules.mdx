@@ -120,6 +120,16 @@ Dashboard categories include examples such as:
 
 ## Quick Start: Create a YAML Rule
 
+For local project-scoped rules, scaffold a starter pack first:
+
+```bash
+skylos rules init
+skylos rules validate .skylos/rules/local.yml
+```
+
+The starter pack includes examples for taint-flow checks and route-auth checks. Installed community rules still live under `~/.skylos/rules`, while local rule packs are useful for repo-specific checks you want to commit.
+
+
 The dashboard ships with useful starter templates such as:
 
 - Require Auth Decorator
