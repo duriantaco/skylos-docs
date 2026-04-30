@@ -18,7 +18,7 @@ description: "Complete reference for all Skylos static analysis rules — securi
 | `SKY-UC` | Unreachable Code | Code that can never execute |
 | `SKY-E` | Empty File | Files with no meaningful code |
 
-Rule IDs are **unified across languages** — the same vulnerability uses the same ID regardless of whether it's found in Python, TypeScript, or Go.
+Rule IDs are **unified across languages** — when multiple scanners detect the same vulnerability class, Skylos reports it with the same ID across Python, TypeScript/JavaScript, Go, PHP, Rust, and other supported ecosystems.
 
 ---
 
@@ -34,7 +34,7 @@ Rule IDs are **unified across languages** — the same vulnerability uses the sa
 | `SKY-D201` | `eval()` | HIGH | Python, TS | Dynamic code execution via `eval()` |
 | `SKY-D202` | Dynamic Exec | HIGH | Python, TS | `exec()`, `new Function()`, `setTimeout`/`setInterval` with string |
 | `SKY-D203` | `os.system()` | CRITICAL | Python | OS command execution |
-| `SKY-D204` | `pickle.load` | CRITICAL | Python | Untrusted deserialization via `pickle.load` |
+| `SKY-D204` | Unsafe Deserialization | CRITICAL | Python, PHP | Untrusted deserialization via `pickle.load` or PHP `unserialize()` |
 | `SKY-D205` | `pickle.loads` | CRITICAL | Python | Untrusted deserialization via `pickle.loads` |
 | `SKY-D206` | `yaml.load` | HIGH | Python | `yaml.load()` without SafeLoader |
 | `SKY-D207` | Weak Hash: MD5 | MEDIUM | Python, TS, Go | `hashlib.md5()` / `crypto.createHash('md5')` / `crypto/md5` |
@@ -48,8 +48,8 @@ Rule IDs are **unified across languages** — the same vulnerability uses the sa
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
 | `SKY-D211` | SQL Injection | CRITICAL | Python, TS, Go | Tainted/interpolated SQL in `execute` / template literals / `fmt.Sprintf` |
-| `SKY-D212` | Command Injection | CRITICAL | Python, TS, Go | Tainted input to `os.system()`, `child_process.exec()`, `exec.Command` |
-| `SKY-D215` | Path Traversal | HIGH | Python, Go | Tainted input used in filesystem path |
+| `SKY-D212` | Command Injection | CRITICAL | Python, TS/JS, Go, Rust | Tainted input to `os.system()`, `child_process.exec()`, `exec.Command`, or Rust `Command::new` / shell `-c` |
+| `SKY-D215` | Path Traversal | HIGH | Python, Go, PHP, Rust | Tainted input used in filesystem paths or include/file sinks |
 | `SKY-D216` | SSRF | CRITICAL | Python, TS, Go | Tainted URL passed to HTTP client |
 | `SKY-D217` | SQL Injection (raw) | CRITICAL | Python | Tainted input in `sqlalchemy.text()`, `pandas.read_sql()`, Django `.raw()` |
 
@@ -111,7 +111,7 @@ Rule IDs are **unified across languages** — the same vulnerability uses the sa
 |---------|------|----------|-----------|-------------|
 | `SKY-S101` | Hardcoded Secret | CRITICAL | All | API keys, passwords, tokens, private keys in source code |
 
-Scanned file types: `.py`, `.pyi`, `.pyw`, `.env`, `.yaml`, `.yml`, `.json`, `.toml`, `.ini`, `.cfg`, `.conf`, `.ts`, `.tsx`, `.js`, `.jsx`, `.go`
+Scanned file types: `.py`, `.pyi`, `.pyw`, `.env`, `.yaml`, `.yml`, `.json`, `.toml`, `.ini`, `.cfg`, `.conf`, `.ts`, `.tsx`, `.js`, `.jsx`, `.go`, `.java`, `.php`, `.rs`
 
 ### Go-Specific Rules (SKY-G)
 
@@ -140,7 +140,7 @@ Go rules that **do** have equivalents (SQL injection, command injection, etc.) a
 | SKY-G216 | SKY-D216 | SSRF |
 | SKY-G220 | SKY-D230 | Open redirect |
 
-Scanned file types: `.py`, `.pyi`, `.pyw`, `.env`, `.yaml`, `.yml`, `.json`, `.toml`, `.ini`, `.cfg`, `.conf`, `.ts`, `.tsx`, `.js`, `.jsx`, `.go`
+Go-specific rules scan `.go` files. Secrets and cross-language rules also scan the source and config file types listed above.
 
 ### Quality Rules — Python (SKY-Q)
 
@@ -347,14 +347,14 @@ subprocess.run(["rm", "-rf", path])
 
 ---
 
-### SKY-D204 · pickle.load / SKY-D205 · pickle.loads
+### SKY-D204 / SKY-D205 · Unsafe Deserialization
 
 | | |
 |---|---|
 | **Severity** | CRITICAL |
-| **Languages** | Python |
-| **What** | Untrusted deserialization via `pickle` |
-| **Risk** | Arbitrary code execution — pickle can execute any Python code on load |
+| **Languages** | Python, PHP |
+| **What** | Untrusted deserialization via Python `pickle` or PHP `unserialize()` |
+| **Risk** | Arbitrary code execution or object-injection side effects when attacker-controlled data is deserialized |
 
 ```python
 # Bad
@@ -362,6 +362,14 @@ data = pickle.loads(untrusted_bytes)
 
 # Good
 data = json.loads(untrusted_bytes)
+```
+
+```php
+// Bad
+$user = unserialize($_POST["payload"]);
+
+// Good
+$user = json_decode($_POST["payload"], true);
 ```
 
 ---
@@ -442,7 +450,7 @@ db.Query("SELECT * FROM users WHERE id = $1", userID)
 | | |
 |---|---|
 | **Severity** | CRITICAL |
-| **Languages** | Python, TypeScript, Go |
+| **Languages** | Python, TypeScript/JavaScript, Go, Rust |
 | **What** | Tainted input flows to shell command execution |
 | **Risk** | Attackers can execute arbitrary shell commands |
 
@@ -470,6 +478,15 @@ exec.Command("sh", "-c", userInput).Run()
 exec.Command("ls", userDir).Run()
 ```
 
+```rust
+// Bad (Rust)
+Command::new(cmd).spawn()?;
+Command::new("sh").arg("-c").arg(user_input).output()?;
+
+// Good
+Command::new("git").arg("status").output()?;
+```
+
 ---
 
 ### SKY-D215 · Path Traversal
@@ -477,8 +494,8 @@ exec.Command("ls", userDir).Run()
 | | |
 |---|---|
 | **Severity** | HIGH |
-| **Languages** | Python, Go |
-| **What** | Tainted input used in filesystem path |
+| **Languages** | Python, Go, PHP, Rust |
+| **What** | Tainted input used in filesystem paths or include/file sinks |
 | **Risk** | Attackers can read/write arbitrary files via `../` sequences |
 
 ```python
@@ -489,6 +506,15 @@ open(file_path)
 # Good
 safe_name = os.path.basename(user_filename)
 file_path = os.path.join("/uploads", safe_name)
+```
+
+```rust
+// Bad
+fs::read_to_string(path)?;
+
+// Good
+let safe = Path::new(&filename).file_name().ok_or("bad file")?;
+fs::read_to_string(safe)?;
 ```
 
 ---

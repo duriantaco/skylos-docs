@@ -32,17 +32,19 @@ Skylos currently supports the following languages and frameworks.
 
 | Language | Static Analysis | Runtime Tracking | AI Repair |
 | :--- | :---: | :---: | :---: |
-| **Python** (3.9+) | ✅ | ✅ | ✅ |
+| **Python** (3.10+) | ✅ | ✅ | ✅ |
 | **TypeScript** | ✅ | ❌ | ❌ |
+| **JavaScript** | ✅ | ❌ | ❌ |
 | **Java** | ✅ | ❌ | ❌ |
 | **Go** | ✅ | ❌ | ❌ |
-| **JavaScript** | ⚠️ (Beta) | ❌ | ❌ |
+| **PHP** | ✅ | ❌ | ❌ |
+| **Rust** | ✅ | ❌ | ❌ |
 
 ### Frameworks
 
 Skylos includes specific heuristics to support "magic" patterns in these frameworks [cite: 478-480]:
 
-* **Web:** Django, Flask, FastAPI, Starlette, Pydantic, Spring (Boot/MVC).
+* **Web:** Django, Flask, FastAPI, Starlette, Pydantic, Spring (Boot/MVC), Next.js, and React.
 * **Async:** Uvicorn, Celery.
 * **Testing:** Pytest, Unittest.
 
