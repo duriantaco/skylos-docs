@@ -1,6 +1,6 @@
 # Skylos Documentation
 
-> Documentation for Skylos, an open-source static analysis tool for Python, TypeScript, and Go. Detects dead code, security vulnerabilities (SQL injection, SSRF, XSS, command injection, secrets), and code quality issues with framework-aware analysis.
+> Documentation for Skylos, an open-source static analysis tool for Python, TypeScript, JavaScript, Java, Go, PHP, and Rust. Detects dead code, security vulnerabilities (SQL injection, SSRF, XSS, command injection, secrets), and code quality issues with framework-aware analysis.
 
 Skylos is a Vulture alternative with 95% recall and 3x fewer false positives. Built-in awareness for Django, Flask, FastAPI, Pydantic, and pytest. Available as CLI, MCP server, VS Code extension, and GitHub Action.
 
@@ -43,7 +43,7 @@ Skylos is a Vulture alternative with 95% recall and 3x fewer false positives. Bu
 
 - [AI Features](https://docs.skylos.dev/ai-features): LLM-powered auto-fix and audit
 - [Quality Gate](https://docs.skylos.dev/quality-gate): Threshold-based merge blocking
-- [TypeScript Support](https://docs.skylos.dev/typescript-support): TypeScript and Go analysis
+- [TypeScript Support](https://docs.skylos.dev/typescript-support): TypeScript, JavaScript, and monorepo analysis
 - [Cloud Dashboard](https://docs.skylos.dev/cloud): Skylos Cloud features
 - [Enterprise Trust](https://docs.skylos.dev/enterprise-trust): Security-team pilot posture, upload attribution, audit events, RBAC, and procurement roadmap
 - [Authentication](https://docs.skylos.dev/authentication): Browser login, project API keys, GitHub OIDC, and upload attribution
