@@ -193,6 +193,45 @@ Skylos may not recognize custom sanitization functions. Use standard library san
 
 ---
 
+## Enterprise Trust
+
+### Is Skylos enterprise-ready?
+
+Skylos Cloud is ready for a security-team pilot and controlled enterprise evaluation.
+
+Current enterprise foundations include:
+
+- local-first scanning
+- Cloud project governance
+- project API keys
+- GitHub Actions OIDC uploads
+- role-based workspace access
+- audit coverage for mutating governance workflows
+- upload attribution
+- audit export foundations
+
+Full regulated procurement controls such as SAML SSO, SCIM, SOC 2 reporting, DPA automation, public status/SLA, and SIEM streaming are still on the enterprise roadmap.
+
+See [Enterprise Trust](/enterprise-trust) for the current trust posture.
+
+### Does Skylos upload my whole repository?
+
+Normal `skylos . --upload` sends scan results and metadata to Skylos Cloud, not the full repository as source blobs.
+
+Uploaded findings can include security-sensitive metadata, file paths, line numbers, rule ids, branch/commit metadata, and contextual evidence needed to explain results. Treat uploaded scan results as sensitive security data.
+
+### How do we know who uploaded a scan?
+
+Skylos Cloud records attribution from the server-side auth path:
+
+- browser-linked CLI uploads use the linked user and project credential
+- API key uploads use the resolved project key identity
+- GitHub OIDC uploads use verified GitHub OIDC claims and the matched project binding
+
+This means two people can upload from different desktops to the same project, and Cloud still records the resolved project, auth path, repo/project-root context, branch, commit metadata, and upload time.
+
+---
+
 ## Quality Gate
 
 ### How does the quality gate work?

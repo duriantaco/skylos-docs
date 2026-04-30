@@ -12,6 +12,7 @@ Use this page when you want to answer:
 - How do policy, suppressions, custom rules, and CI fit together?
 
 If you only want the feature overview, read [Cloud Platform](/cloud). For auth details, read [Authentication](/authentication). For CI examples, read [CI/CD Integration](/ci-cd).
+For security-team review and procurement posture, read [Enterprise Trust](/enterprise-trust).
 
 ## Command Map
 
@@ -134,6 +135,8 @@ What happens on upload:
 3. Findings and scan metadata are sent to Skylos Cloud.
 4. Skylos Cloud stores the scan, groups issues, applies suppressions, and evaluates the project gate.
 5. The dashboard updates.
+
+Skylos Cloud records server-side upload attribution for the resolved project and auth path. For API keys, the upload is tied to the resolved project key identity. For GitHub Actions OIDC, it is tied to verified GitHub OIDC claims and the matched repo/project binding.
 
 ### What auth the CLI uses
 

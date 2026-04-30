@@ -160,6 +160,20 @@ The current CLI token lookup order is:
 
 That means `SKYLOS_TOKEN` is the cleanest way to override the linked project for one run.
 
+## Upload Attribution
+
+Skylos Cloud records upload attribution from the server-side auth path.
+
+| Upload path | Attribution source |
+|---|---|
+| Browser login | linked user and project credential |
+| API key | resolved project key identity |
+| GitHub OIDC | verified GitHub OIDC claims and matched project binding |
+
+If two people upload from different machines to the same project, Skylos does not rely only on a client-supplied name. Cloud records the resolved project, auth path, repo/project-root context, branch, commit metadata, and upload time.
+
+For enterprise security review, see [Enterprise Trust](/enterprise-trust).
+
 ## Headless and Remote Environments
 
 If browser auth is unavailable, Skylos falls back to manual token entry.

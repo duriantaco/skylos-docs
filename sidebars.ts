@@ -37,6 +37,7 @@ const sidebars = {
       collapsible: false,
       items: [
         { type: 'doc', id: 'cloud', label: 'Cloud Platform' },
+        { type: 'doc', id: 'enterprise-trust', label: 'Enterprise Trust' },
         { type: 'doc', id: 'cloud-workflow', label: 'CLI to Dashboard' },
         { type: 'doc', id: 'authentication', label: 'Authentication' },
         { type: 'doc', id: 'project-policy', label: 'Project Policy' },
