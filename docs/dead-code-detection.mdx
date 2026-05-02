@@ -196,7 +196,6 @@ def test_user_creation(db_session):
     user = User(name='Test')
     assert user.name == 'Test'
 ```
-
   </TabItem>
 </Tabs>
 
@@ -372,6 +371,20 @@ skylos . --json -o report.json
   "unused_imports": [...]
 }
 ```
+
+  </TabItem>
+  <TabItem value="concise" label="Concise">
+```bash
+skylos --format concise src/test.py
+```
+```text
+src/test.py:1  unused function
+src/test.py:5  unused class
+```
+
+Concise output is designed for IDE terminals and scripts. It suppresses rich
+tables, banners, progress text, tips, and CTAs. Clean scans print nothing and
+exit `0`; scans with findings exit `1` unless `--force` is used.
 
   </TabItem>
 </Tabs>
