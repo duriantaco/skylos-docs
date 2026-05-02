@@ -14,6 +14,7 @@ Use it when you want to:
 - remove unused code without breaking framework entrypoints
 - catch exploitable flows before they reach `main`
 - detect hardcoded secrets and risky configuration
+- enforce standards-backed coding practices for typing, framework routes, and repo policy
 - keep pull requests focused on new issues instead of legacy noise
 - review AI-assisted edits for missing controls, phantom helpers, and unfinished code
 
@@ -51,7 +52,8 @@ template rendering, subprocess execution, and deserialization.
 
 Skylos can run locally or in CI. Diff-aware scans keep new work separate from
 legacy findings, and GitHub annotations put results where reviewers already
-work.
+work. Standards-backed quality checks can start as advisory CI signals before
+becoming hard merge gates.
 
 ### Local-First By Default
 

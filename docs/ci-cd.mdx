@@ -92,6 +92,29 @@ Use `SKYLOS_TOKEN` for:
 - `skylos sync pull` in CI
 - fallback while migrating to OIDC
 
+## Advisory Quality Checks
+
+When adopting standards-backed quality checks in an existing repository, run them as advisory first. The workflow should warn, annotate, and write a summary, but return exit code 0 until legacy findings are under control.
+
+Recommended advisory bundle:
+
+- Ruff for Python lint policy
+- mypy or pyright for Python type-check policy
+- TypeScript compile/build scripts for packages with `tsconfig.json`
+- Rustfmt and Clippy for Rust crates
+- diff-aware Skylos scans using `--diff-base` and `--diff`
+
+```yaml
+- name: Skylos advisory scan
+  run: skylos . --danger --secrets --quality --diff-base origin/main --diff origin/main --json -o skylos-results.json
+
+- name: Advisory quality summary
+  if: always()
+  run: skylos cicd gate --input skylos-results.json --summary --advisory
+```
+
+Use a hard gate later, after findings are diff-aware, baseline-aware, or low enough to enforce.
+
 ## Pulling Policy in CI
 
 If you want the CI runner to use the latest dashboard-managed thresholds and suppressions locally before the scan, add:

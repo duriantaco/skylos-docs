@@ -10,6 +10,22 @@ import TabItem from '@theme/TabItem';
 **Enable quality checks:** `skylos . --quality`
 :::
 
+## What Counts As Good Coding Practice
+
+Skylos treats a coding practice as enforceable only when it has a clear source of authority. That source can be a language standard, a security standard, an accepted ecosystem tool, a framework convention, or an explicit repository policy.
+
+Taste-only preferences should not become default rules. They can still be enforced as project policy, but the recommended rollout is advisory first, then blocking once the team has burned down existing findings.
+
+| Practice area | Source | Skylos / CI coverage |
+|---|---|---|
+| Python style and lint hygiene | PEP 8, Ruff | `SKY-R102`, advisory `ruff check .` |
+| Python type clarity | PEP 484, mypy / pyright | `SKY-T101`, `SKY-T102`, `SKY-R101`, advisory mypy |
+| TypeScript type safety | TypeScript strict mode | `SKY-R105`, advisory TypeScript build |
+| Rust idioms and correctness | Rustfmt, Clippy | advisory `cargo fmt --check`, `cargo clippy` |
+| API authorization and response contracts | OWASP API Security Top 10, FastAPI conventions, CWE | `SKY-F101`, `SKY-F102` |
+| Maintainability and complexity | ISO/IEC 5055, ISO/IEC 25010, CWE coding-standard classes | `SKY-Q*`, `SKY-C*`, `SKY-L*` |
+| Repository enforcement | `pyproject.toml`, `.pre-commit-config.yaml`, CI workflow policy | `SKY-R101` through `SKY-R105` |
+
 ## Why Quality Metrics Matter
 
 Complex code isn't just hard to read—it's statistically more likely to contain bugs.
@@ -314,6 +330,24 @@ if value is None:
 
 ---
 
+## Standards-Backed Practice Rules
+
+These checks are intended to catch bad coding practices that create review, security, or maintenance risk.
+
+| Rule | What it catches | Why it matters |
+|---|---|---|
+| `SKY-T101` | Public functions in typed modules with untyped parameters | Public API contracts are harder to review and type-check |
+| `SKY-T102` | Public functions in typed modules without return annotations | Callers lose the API contract and regressions hide until runtime |
+| `SKY-F101` | FastAPI routes without `response_model`, `response_class`, or return annotation | Responses become undocumented and harder to validate |
+| `SKY-F102` | Mutating routes without an obvious auth, security, or dependency guard | API write paths need an explicit authorization boundary |
+| `SKY-R101` | Python repos without mypy or pyright policy | Type checking should be visible as repo policy |
+| `SKY-R102` | Python repos without Ruff policy | Lint policy should be explicit and repeatable |
+| `SKY-R103` | Repos without `[tool.skylos.gate]` | Gate thresholds should be checked into source control |
+| `SKY-R104` | Repos without pre-commit config | Local staged checks should be part of the workflow |
+| `SKY-R105` | TypeScript packages with `tsconfig.json` but no `tsc` script | TypeScript type checking should be runnable in CI |
+
+---
+
 ## Reading the Output
 
 When you run Skylos with `--quality`, you get a table like this:
@@ -325,13 +359,15 @@ When you run Skylos with `--quality`, you get a table like this:
  3   Structure   generate_report       Line count: 142, 142 lines       reports.py:10
  4   Quality     "lokal"               repeated 12× (max 3)             PDF_in_Akte.py:588
  5   Logic       create_cache          Mutable default argument         cache.py:5
+ 6   Typing      create_user           missing return annotation        users.py:12
+ 7   Framework Security create_user    mutating route has no auth guard api.py:34
 ```
 
 **What each column means:**
 
 | Column | Meaning |
 |--------|---------|
-| **Type** | The category: Complexity, Nesting, Structure, Quality (duplicate literals, coupling, cohesion), Logic |
+| **Type** | The category: Complexity, Nesting, Structure, Quality (duplicate literals, coupling, cohesion), Logic, Typing, Framework, Framework Security, or Repo Policy |
 | **Name** | The function, class, or string literal that triggered the finding |
 | **Detail** | The measured value and the threshold. For example: `Complexity: 18 (max 10)` means 18 branches were found but the limit is 10. `repeated 12× (max 3)` means a string literal appears 12 times — extract it to a named constant |
 | **Location** | `file:line` where the finding starts |
@@ -379,6 +415,18 @@ With configuration:
 [tool.skylos.gate]
 max_quality = 10  # Fail if >10 quality issues
 ```
+
+### Advisory rollout
+
+For existing repos, start with advisory checks so teams see the signal without failing every pull request on legacy debt. A typical advisory bundle includes:
+
+- `ruff check .`
+- `mypy skylos` or your chosen mypy/pyright target
+- TypeScript compile/build scripts
+- `cargo fmt --check` and `cargo clippy` for Rust crates
+- `skylos . --danger --secrets --quality --diff-base origin/main --diff origin/main`
+
+Use the hard gate only after the findings are diff-aware, baseline-aware, or low enough to enforce.
 
 ---
 
