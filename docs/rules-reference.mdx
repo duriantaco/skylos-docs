@@ -171,6 +171,30 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-C303` | Too Many Arguments | MEDIUM | All | 5 arguments |
 | `SKY-C304` | Function Too Long | MEDIUM | All | 50 lines |
 
+### Typing Practice Rules (SKY-T)
+
+| Rule ID | Name | Severity | Languages | Description |
+|---------|------|----------|-----------|-------------|
+| `SKY-T101` | Untyped Public Parameters | LOW | Python | Public function in a typed module has one or more untyped parameters |
+| `SKY-T102` | Missing Public Return Type | LOW | Python | Public function in a typed module has no return annotation |
+
+### Framework Practice Rules (SKY-F)
+
+| Rule ID | Name | Severity | Languages | Description |
+|---------|------|----------|-----------|-------------|
+| `SKY-F101` | FastAPI Response Contract | LOW | Python | FastAPI route lacks `response_model`, `response_class`, or return annotation |
+| `SKY-F102` | Mutating Route Auth Guard | MEDIUM | Python | POST/PUT/PATCH/DELETE route lacks an obvious auth, security, or dependency guard |
+
+### Repository Policy Rules (SKY-R)
+
+| Rule ID | Name | Severity | Languages | Description |
+|---------|------|----------|-----------|-------------|
+| `SKY-R101` | Python Type-Check Policy | MEDIUM | Repo | Python project has no mypy or pyright policy configured |
+| `SKY-R102` | Python Lint Policy | LOW | Repo | Python project has no Ruff policy configured |
+| `SKY-R103` | Skylos Gate Policy | LOW | Repo | Repository has no `[tool.skylos.gate]` policy |
+| `SKY-R104` | Pre-Commit Policy | LOW | Repo | Repository has no pre-commit policy file |
+| `SKY-R105` | TypeScript Type-Check Policy | LOW | Repo | Package has `tsconfig.json` but no npm script that runs `tsc` |
+
 ### Logic Rules (SKY-L)
 
 | Rule ID | Name | Severity | Description |
