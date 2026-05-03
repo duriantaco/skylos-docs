@@ -10,7 +10,7 @@ Skylos provides analysis capabilities for TypeScript (`.ts`, `.tsx`) and JavaScr
 TypeScript analysis includes:
 
 - **Dead code detection:** Unused functions, classes, interfaces, enums, type aliases, variables, methods, and imports
-- **Security scanning:** `eval()`, unsafe `innerHTML`, `document.write()`, `new Function()`, `outerHTML`, string-based timers, command injection
+- **Security scanning:** `eval()`, unsafe `innerHTML`, `document.write()`, `new Function()`, `outerHTML`, string-based timers, command injection, webhook signature verification
 - **Quality analysis:** Cyclomatic complexity, nesting depth, function length, and parameter count
 
 ## How It Works
@@ -127,6 +127,27 @@ setTimeout(() => alert('ok'), 1000);
 ### SKY-D506: child_process.exec()
 
 Detects `.exec()` calls that may indicate command injection. Safe objects like `regex`, `db`, `stmt`, and `cursor` are automatically excluded.
+
+### SKY-D282: Unverified webhook handler
+
+Detects Next.js, Express, and similar webhook handlers that process inbound provider events without obvious signature verification.
+
+```typescript
+// Flagged (HIGH)
+export async function POST(req: Request) {
+  const event = await req.json();
+  await grantCredits(event.data.object.customer);
+}
+
+// Not flagged - provider signature is verified before trusting the event
+export async function POST(req: Request) {
+  const body = await req.text();
+  const sig = req.headers.get("stripe-signature");
+  const event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+}
+```
+
+The rule requires webhook/provider evidence, POST handling, and body usage, then suppresses when strong verification evidence such as `constructEvent`, `createHmac`, or `crypto.timingSafeEqual` is present.
 
 ```typescript
 // Flagged (HIGH)
