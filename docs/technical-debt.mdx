@@ -80,6 +80,12 @@ skylos debt . --baseline
 
 # Append the current project summary to debt history
 skylos debt . --history
+
+# Show saved debt history without running a new scan
+skylos debt . --show-history
+
+# Show only the latest saved history entries
+skylos debt . --show-history --history-limit 5
 ```
 
 Baseline status is reported per hotspot as one of:
@@ -88,6 +94,41 @@ Baseline status is reported per hotspot as one of:
 - `worsened`
 - `improved`
 - `unchanged`
+
+### Debt History Reports
+
+`--history` appends the current project score, risk rating, hotspot count, signal count, and latest top hotspot files to `.skylos/debt_history.jsonl`.
+
+`--show-history` reads that saved history without running a new scan.
+
+Example:
+
+```bash
+skylos debt . --show-history
+```
+
+Output includes the saved score trend and the latest recorded hotspot files:
+
+```text
+Skylos Debt History
+Entries: 2 shown (2 total)
+
+Timestamp                         Score  Delta Risk       Hotspots  Signals
+2026-05-01T00:00:00+00:00           72%      - HIGH             41      180
+2026-05-02T00:00:00+00:00           76%     +4 MODERATE         38      160
+
+Latest Top Hotspots:
+  1. skylos/cli.py | score=36.50 | signals=6 | maintainability
+  2. skylos/analyzer.py | score=35.00 | signals=5 | complexity
+```
+
+Machine-readable history is available with:
+
+```bash
+skylos debt . --show-history --json
+```
+
+Older history entries saved before hotspot details were recorded still load, but the latest-hotspot section will say the details were not recorded.
 
 ### Important Scope Rule
 
@@ -165,4 +206,7 @@ skylos debt . --changed
 
 # 4. Check whether hotspots are getting worse over time
 skylos debt . --baseline
+
+# 5. Review saved debt score history and latest hotspot locations
+skylos debt . --show-history
 ```

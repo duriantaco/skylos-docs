@@ -65,6 +65,7 @@ Analyze technical debt hotspots for the specified path.
 skylos debt .
 skylos debt . --changed
 skylos debt . --baseline
+skylos debt . --show-history
 ```
 
 Use this command when you want a debt hotspot report instead of the normal dead-code/security/quality output.
@@ -78,6 +79,8 @@ Use this command when you want a debt hotspot report instead of the normal dead-
 | `--baseline` | Compare current hotspots against the saved debt baseline |
 | `--save-baseline` | Save the current project debt snapshot as the debt baseline |
 | `--history` | Append the current project debt summary to the debt history log |
+| `--show-history` | Show saved debt history without running a new scan |
+| `--history-limit <n>` | Limit saved history output to the latest N entries |
 | `--policy <file>` | Use a specific `skylos-debt.yaml` policy file |
 | `--min-score <n>` | Exit 1 if the repo debt score falls below the threshold |
 | `--fail-on-status <status>` | Exit 1 if hotspots with a given baseline status exist |
