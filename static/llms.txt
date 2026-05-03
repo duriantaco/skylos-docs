@@ -14,7 +14,7 @@ Skylos is a Vulture alternative with 95% recall and 3x fewer false positives. Bu
 ## Core Features
 
 - [Dead Code Detection](https://docs.skylos.dev/dead-code-detection): Find unused functions, imports, classes, and variables
-- [Security Analysis](https://docs.skylos.dev/security-analysis): SAST with taint analysis for SQL injection, SSRF, XSS, command injection, path traversal
+- [Security Analysis](https://docs.skylos.dev/security-analysis): SAST with taint analysis for SQL injection, SSRF, XSS, command injection, path traversal, and unsigned webhook handlers
 - [Code Quality](https://docs.skylos.dev/code-quality): Complexity, nesting depth, mutable defaults, standards-backed practice rules, and advisory quality rollout
 - [Technical Debt](https://docs.skylos.dev/technical-debt): Structural debt hotspots, baseline comparison, changed-scope reviews, and saved debt history reports
 - [Framework Awareness](https://docs.skylos.dev/framework-awareness): Django, Flask, FastAPI, Pydantic, and pytest recognition to reduce false positives

@@ -65,6 +65,7 @@ Rule IDs are **unified across languages** — when multiple scanners detect the 
 | `SKY-D231` | CORS Misconfiguration | HIGH | Python | Wildcard origins, credential leaks, overly permissive headers |
 | `SKY-D232` | JWT Vulnerabilities | CRITICAL | Python | `algorithms=['none']`, `verify=False`, weak secrets |
 | `SKY-D234` | Mass Assignment | HIGH | Python | Django `Meta.fields = '__all__'` exposes all model fields |
+| `SKY-D282` | Unverified Webhook Handler | HIGH | Python, TS | Webhook handler processes provider events without obvious signature verification |
 | `SKY-D510` | Prototype Pollution | HIGH | TS | `__proto__` access |
 
 #### TypeScript-Specific Security
@@ -811,6 +812,51 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'name', 'email']
 ```
+
+---
+
+### SKY-D282 · Unverified Webhook Handler
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Python, TypeScript / JavaScript |
+| **What** | Webhook handler reads provider event bodies without obvious signature verification |
+| **Risk** | Forged webhook requests can trigger billing, account, or workflow state changes |
+
+Skylos reports this only when the file looks like a real inbound webhook handler: webhook/provider evidence, POST handling, request body usage, and no strong signature verification signal.
+
+```python
+# Bad
+@app.post("/stripe/webhook")
+async def stripe_webhook(request):
+    event = await request.json()
+    grant_credits(event["data"]["object"]["customer"])
+
+# Good
+@app.post("/stripe/webhook")
+async def stripe_webhook(request):
+    body = await request.body()
+    sig = request.headers.get("stripe-signature")
+    event = stripe.Webhook.construct_event(body, sig, STRIPE_WEBHOOK_SECRET)
+```
+
+```typescript
+// Bad
+export async function POST(req: Request) {
+  const event = await req.json();
+  await grantCredits(event.data.object.customer);
+}
+
+// Good
+export async function POST(req: Request) {
+  const body = await req.text();
+  const sig = req.headers.get("stripe-signature");
+  const event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+}
+```
+
+Verification evidence includes provider helpers such as `construct_event` / `constructEvent`, explicit HMAC verification, `hmac.compare_digest`, `createHmac`, and `crypto.timingSafeEqual`.
 
 ---
 

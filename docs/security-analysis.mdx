@@ -1,6 +1,6 @@
 ---
 title: "Security Analysis"
-description: "Python SAST with taint analysis. Detect SQL injection, command injection, SSRF, XSS, path traversal, hardcoded secrets, and prompt injection payloads across data flows. AI supply chain security for codebases using LLM agents."
+description: "Python SAST with taint analysis. Detect SQL injection, command injection, SSRF, XSS, path traversal, unsigned webhook handlers, hardcoded secrets, and prompt injection payloads across data flows. AI supply chain security for codebases using LLM agents."
 ---
 
 :::info
@@ -304,6 +304,31 @@ Beyond taint analysis, Skylos flags inherently dangerous patterns:
 | `hashlib.md5()` | Weak cryptographic hash | SKY-D206 | MEDIUM |
 | `hashlib.sha1()` | Weak cryptographic hash | SKY-D207 | MEDIUM |
 | `requests.get(verify=False)` | SSL verification disabled | SKY-D208 | HIGH |
+
+---
+
+## Webhook Signature Checks
+
+Skylos flags webhook handlers that read inbound provider events without obvious signature verification (`SKY-D282`).
+
+This is separate from normal auth checks: webhook endpoints are usually public, but the request still needs to prove it came from the provider.
+
+```python
+# Vulnerable - trusts the webhook JSON body directly
+@app.post("/stripe/webhook")
+async def stripe_webhook(request):
+    event = await request.json()
+    grant_credits(event["data"]["object"]["customer"])
+
+# Safer - verifies the provider signature first
+@app.post("/stripe/webhook")
+async def stripe_webhook(request):
+    body = await request.body()
+    sig = request.headers.get("stripe-signature")
+    event = stripe.Webhook.construct_event(body, sig, STRIPE_WEBHOOK_SECRET)
+```
+
+The check is intentionally conservative: it requires webhook/provider evidence, POST handling, request body usage, and no strong verification signal such as provider signature helpers or HMAC comparison.
 
 ---
 
