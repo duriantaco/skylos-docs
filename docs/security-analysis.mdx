@@ -1,6 +1,6 @@
 ---
 title: "Security Analysis"
-description: "Python SAST with taint analysis. Detect SQL injection, command injection, SSRF, XSS, path traversal, unsigned webhook handlers, hardcoded secrets, and prompt injection payloads across data flows. AI supply chain security for codebases using LLM agents."
+description: "Multi-language SAST with taint analysis. Detect SQL injection, command injection, SSRF, XSS, path traversal, unsigned webhook handlers, hardcoded secrets, and prompt injection payloads across data flows. AI supply chain security for codebases using LLM agents."
 ---
 
 :::info
@@ -269,6 +269,11 @@ requests.get(user_provided_url)
 # Attacker provides: http://169.254.169.254/latest/meta-data/
 # -> Accesses AWS instance metadata, potentially leaking credentials
 ```
+
+Skylos also checks Java and Go SSRF patterns. Java coverage includes servlet
+input flowing into `URL.openStream()` / `openConnection()`, Java
+`HttpRequest` builders, and typed `RestTemplate` URL calls. Go coverage
+includes direct `http.Get` style calls and `http.NewRequest*` construction.
 
 ### Path Traversal
 
