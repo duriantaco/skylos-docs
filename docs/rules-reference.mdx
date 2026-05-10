@@ -50,7 +50,7 @@ Rule IDs are **unified across languages** — when multiple scanners detect the 
 | `SKY-D211` | SQL Injection | CRITICAL | Python, TS, Go | Tainted/interpolated SQL in `execute` / template literals / `fmt.Sprintf` |
 | `SKY-D212` | Command Injection | CRITICAL | Python, TS/JS, Go, Rust | Tainted input to `os.system()`, `child_process.exec()`, `exec.Command`, or Rust `Command::new` / shell `-c` |
 | `SKY-D215` | Path Traversal | HIGH | Python, Go, PHP, Rust | Tainted input used in filesystem paths or include/file sinks |
-| `SKY-D216` | SSRF | CRITICAL | Python, TS, Go | Tainted URL passed to HTTP client |
+| `SKY-D216` | SSRF | CRITICAL | Python, TS, Go, Java | Tainted URL passed to HTTP clients or request builders |
 | `SKY-D217` | SQL Injection (raw) | CRITICAL | Python | Tainted input in `sqlalchemy.text()`, `pandas.read_sql()`, Django `.raw()` |
 
 #### Web Security
@@ -61,7 +61,7 @@ Rule IDs are **unified across languages** — when multiple scanners detect the 
 | `SKY-D226` | XSS | CRITICAL | Python, TS | `mark_safe()`, `innerHTML`, `outerHTML`, `document.write()`, `dangerouslySetInnerHTML` |
 | `SKY-D227` | XSS (Template) | HIGH | Python | Template uses `\|safe` filter or disables autoescape |
 | `SKY-D228` | XSS (HTML Build) | HIGH | Python | HTML string built with unescaped user input |
-| `SKY-D230` | Open Redirect | HIGH | Python, TS, Go | User-controlled URL in `redirect()` / `res.redirect()` / `http.Redirect` |
+| `SKY-D230` | Open Redirect | HIGH | Python, TS, Go, Java | User-controlled URL in `redirect()` / `res.redirect()` / `http.Redirect` / `sendRedirect` |
 | `SKY-D231` | CORS Misconfiguration | HIGH | Python | Wildcard origins, credential leaks, overly permissive headers |
 | `SKY-D232` | JWT Vulnerabilities | CRITICAL | Python | `algorithms=['none']`, `verify=False`, weak secrets |
 | `SKY-D234` | Mass Assignment | HIGH | Python | Django `Meta.fields = '__all__'` exposes all model fields |
@@ -549,8 +549,8 @@ fs::read_to_string(safe)?;
 | | |
 |---|---|
 | **Severity** | CRITICAL |
-| **Languages** | Python, TypeScript, Go |
-| **What** | Tainted URL passed to HTTP client |
+| **Languages** | Python, TypeScript, Go, Java |
+| **What** | Tainted URL passed to HTTP clients or request builders |
 | **Risk** | Access internal services, cloud metadata endpoints (169.254.169.254) |
 
 ```python
@@ -573,6 +573,48 @@ fetch(userUrl)
 const url = new URL(userUrl)
 if (!ALLOWED_HOSTS.includes(url.hostname)) throw new Error("Blocked")
 fetch(userUrl)
+```
+
+Java coverage includes servlet-controlled data reaching `URL` network methods
+such as `openStream()` / `openConnection()`, Java `HttpRequest` builders, and
+typed `RestTemplate` URL sinks. Constructor-only URL parsing is not reported
+unless the value reaches network use.
+
+```java
+// Bad (Java)
+String target = request.getParameter("url");
+HttpRequest outbound = HttpRequest.newBuilder(URI.create(target)).build();
+
+// Good
+URI uri = URI.create(target);
+if (!"api.example.com".equals(uri.getHost())) {
+  throw new IllegalArgumentException("blocked host");
+}
+HttpRequest outbound = HttpRequest.newBuilder(uri).build();
+```
+
+```java
+// Bad (Java)
+String target = request.getParameter("url");
+new URL(target).openStream();
+
+// Good
+URI uri = URI.create(target);
+if (!"api.example.com".equals(uri.getHost())) {
+  throw new IllegalArgumentException("blocked host");
+}
+new URL(uri.toString()).openStream();
+```
+
+Go coverage includes direct `http.Get` / `Post` style calls and request
+construction via `http.NewRequest` and `http.NewRequestWithContext`.
+
+```go
+// Bad (Go)
+req, err := http.NewRequest("GET", targetURL, nil)
+
+// Good
+req, err := http.NewRequest("GET", "https://api.example.com/users", nil)
 ```
 
 ---
@@ -703,7 +745,7 @@ html = f"<div>{escape(user_input)}</div>"
 | | |
 |---|---|
 | **Severity** | HIGH |
-| **Languages** | Python, TypeScript, Go |
+| **Languages** | Python, TypeScript, Go, Java |
 | **What** | User-controlled URL passed to redirect |
 | **Risk** | Phishing — attacker redirects users to malicious sites via your domain |
 
@@ -728,6 +770,21 @@ const url = new URL(req.query.next, req.protocol + '://' + req.hostname)
 if (url.hostname !== req.hostname) res.redirect('/')
 else res.redirect(req.query.next)
 ```
+
+```java
+// Bad (Java Servlet)
+String next = request.getParameter("next");
+response.sendRedirect(next);
+
+// Good
+if (!next.startsWith("/") || next.startsWith("//")) {
+  throw new IllegalArgumentException("bad redirect");
+}
+response.sendRedirect(next);
+```
+
+Skylos treats `startsWith("/")` alone as insufficient because protocol-relative
+URLs such as `//evil.example` can still leave the trusted origin.
 
 ---
 
