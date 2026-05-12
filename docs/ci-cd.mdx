@@ -25,6 +25,11 @@ and missing timeouts on privileged jobs.
 See [GitHub Actions Security](/github-actions-security) for setup guidance and
 the full scanner scope.
 
+This workflow-configuration scanner is GitHub Actions-specific. GitLab CI,
+CircleCI, Jenkins, and other providers can still run Skylos as a CLI gate, but
+Skylos does not currently parse their CI configuration files for provider-level
+misconfiguration rules.
+
 ## GitHub Actions with OIDC
 
 OIDC is the cleanest GitHub Actions path because it avoids long-lived secrets.
