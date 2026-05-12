@@ -15,6 +15,7 @@ Skylos is a Vulture alternative with 95% recall and 3x fewer false positives. Bu
 
 - [Dead Code Detection](https://docs.skylos.dev/dead-code-detection): Find unused functions, imports, classes, and variables
 - [Security Analysis](https://docs.skylos.dev/security-analysis): SAST with taint analysis for SQL injection, SSRF, XSS, command injection, path traversal, and unsigned webhook handlers
+- [GitHub Actions Security](https://docs.skylos.dev/github-actions-security): CI/CD workflow scanner for dangerous triggers, broad permissions, unpinned actions, unsafe secrets, OIDC release risk, and mutable containers
 - [Code Quality](https://docs.skylos.dev/code-quality): Complexity, nesting depth, mutable defaults, standards-backed practice rules, and advisory quality rollout
 - [Technical Debt](https://docs.skylos.dev/technical-debt): Structural debt hotspots, baseline comparison, changed-scope reviews, and saved debt history reports
 - [Framework Awareness](https://docs.skylos.dev/framework-awareness): Django, Flask, FastAPI, Pydantic, and pytest recognition to reduce false positives
@@ -23,6 +24,7 @@ Skylos is a Vulture alternative with 95% recall and 3x fewer false positives. Bu
 ## Integrations
 
 - [CI/CD Integration](https://docs.skylos.dev/ci-cd): GitHub Actions, advisory quality checks, GitLab CI, Jenkins setup with quality gates
+- [GitHub Actions Security](https://docs.skylos.dev/github-actions-security): Workflow hardening and PR-time CI/CD supply-chain checks
 - [VS Code Extension](https://docs.skylos.dev/vscode): Real-time analysis in the editor
 - [MCP Server](https://docs.skylos.dev/mcp-server): Connect to Claude Desktop, Cursor, and AI assistants via Model Context Protocol
 - [Claude Code Security](https://docs.skylos.dev/integrations/claude-code-security): Security ingestion for Claude Code

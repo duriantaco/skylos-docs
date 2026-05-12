@@ -94,6 +94,7 @@ const sidebars = {
       items: [
         { type: 'doc', id: 'quality-gate', label: 'Quality Gate' },
         { type: 'doc', id: 'ci-cd', label: 'CI/CD Integration' },
+        { type: 'doc', id: 'github-actions-security', label: 'GitHub Actions Security' },
       ],
     },
 

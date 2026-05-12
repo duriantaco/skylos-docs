@@ -4,8 +4,21 @@ description: "Python SAST with taint analysis. Detect SQL injection, command inj
 ---
 
 :::info
-  **Enable security scanning:** `skylos . --danger` for static taint and dangerous-pattern checks, or `skylos agent scan . --security` for the verifier-backed security taskflow.
+  **Enable security scanning:** `skylos . --danger` for static taint, dangerous-pattern, and GitHub Actions workflow checks, or `skylos agent scan . --security` for the verifier-backed security taskflow.
 :::
+
+## GitHub Actions Workflow Security
+
+When run from the repository root, `skylos . --danger` scans GitHub Actions
+workflow files and local action metadata in addition to source code.
+
+It reports CI/CD risks such as `pull_request_target`, broad token permissions,
+unpinned third-party actions, unsafe secret exposure, mutable Docker images,
+template injection, OIDC release jobs that invoke repo-controlled scripts, and
+missing timeouts on privileged jobs.
+
+See [GitHub Actions Security](/github-actions-security) for workflow examples
+and the full rule scope.
 
 ### Reading the Output
 

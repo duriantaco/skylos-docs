@@ -10,8 +10,20 @@ Skylos fits into CI in three different ways. The right choice depends on whether
 | Goal | Use this | Notes |
 |---|---|---|
 | Local-only CI gate | `skylos . --gate` | No cloud state required |
+| Workflow security review | `skylos . --danger` | Scans `.github/workflows/*` and local action metadata |
 | Cloud upload with dashboard policy | `skylos . --upload` | Uses project policy, suppressions, and cloud history |
 | GitHub hard enforcement | `skylos . --upload` plus GitHub App and branch protection | Requires repo URL and cloud setup |
+
+## GitHub Actions Workflow Security
+
+`skylos . --danger` also scans GitHub Actions workflows and local action
+metadata. It flags CI/CD supply-chain risks such as privileged triggers, broad
+`GITHUB_TOKEN` permissions, unpinned actions, unsafe checkout credentials,
+template injection, secret overexposure, mutable containers, OIDC release risk,
+and missing timeouts on privileged jobs.
+
+See [GitHub Actions Security](/github-actions-security) for setup guidance and
+the full scanner scope.
 
 ## GitHub Actions with OIDC
 

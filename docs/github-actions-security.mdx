@@ -1,0 +1,188 @@
+---
+title: "GitHub Actions Security"
+description: "Scan GitHub Actions workflows and local action metadata with Skylos to catch CI/CD supply-chain risks before merge."
+---
+
+Skylos can scan GitHub Actions workflow files as part of `--danger`.
+
+This means the same CLI run that catches application security issues can also
+review CI/CD configuration in:
+
+- `.github/workflows/*.yml`
+- `.github/workflows/*.yaml`
+- `action.yml`
+- `action.yaml`
+
+Use this when you want pull requests to flag workflow changes that affect
+tokens, secrets, runners, release jobs, containers, or third-party action code.
+
+## Run The Scanner
+
+From the repository root:
+
+```bash
+skylos . --danger
+```
+
+For a normal PR gate, combine workflow security with secrets and quality checks:
+
+```bash
+skylos . --danger --secrets --quality --gate
+```
+
+For changed-code review:
+
+```bash
+skylos . --danger --secrets --quality --diff origin/main
+```
+
+Workflow findings appear in the same `Security Issues` output as application
+security findings.
+
+## What Skylos Catches
+
+Skylos focuses on CI/CD patterns that are high-signal in code review.
+
+| Risk | Examples |
+|---|---|
+| Privileged triggers | `pull_request_target`, `workflow_run` |
+| Broad token permissions | missing `permissions`, `write-all`, workflow-level write scopes |
+| Mutable third-party code | unpinned `uses:` references and reusable workflows |
+| Checkout credentials | `actions/checkout` without `persist-credentials: false` |
+| Template injection | attacker-controlled GitHub contexts expanded in `run`, action inputs, or container options |
+| Runner trust | self-hosted runners and dynamic `runs-on` expressions |
+| Mutable containers | job containers, services, Docker actions, `docker pull`, and `docker run` without digest pinning |
+| Secret exposure | `secrets: inherit`, `toJSON(secrets)`, dynamic secret lookup, broad secret env scope |
+| Release risk | OIDC jobs invoking repo-controlled build or release scripts |
+| Artifact and package risk | lax artifact uploads, package installs that run lifecycle scripts, missing timeouts |
+
+See [Rules Reference](/rules-reference#github-actions--cicd-security) for the
+full rule list.
+
+## Example Finding
+
+```yaml
+name: CI
+on:
+  pull_request_target:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "${{ github.event.pull_request.title }}"
+```
+
+This workflow can produce findings for:
+
+- privileged `pull_request_target` execution
+- missing explicit token permissions
+- unpinned action reference
+- checkout credentials left available for later steps
+- attacker-controlled pull-request title expanded directly in shell
+
+## Safer Baseline
+
+For untrusted pull requests, keep the workflow unprivileged:
+
+```yaml
+name: Skylos Security Gate
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  skylos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@42375524d7b3f331cfa0bf3d4e21d0d3e1df3630
+        with:
+          python-version: "3.12"
+
+      - run: pip install skylos
+
+      - run: skylos . --danger --secrets --quality --gate
+```
+
+The SHA values above are examples. Pin actions to the full commit SHA you have
+reviewed.
+
+## Release And Deploy Jobs
+
+Release workflows deserve stricter review because they often have access to:
+
+- package publishing tokens
+- cloud OIDC federation
+- repository write permissions
+- production secrets
+- signed artifact or provenance steps
+
+Skylos flags release-like workflows that combine sensitive permissions with
+repo-controlled scripts or mutable state.
+
+Example:
+
+```yaml
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - run: ./scripts/build.sh
+      - run: ./scripts/publish.sh
+```
+
+The scanner reports this because local build and release scripts become part of
+the OIDC trust boundary. A safer design separates build/test work from the
+credential-minting publish step.
+
+## Suppressions
+
+Use suppressions only when the workflow risk is intentional and reviewed.
+
+Inline suppressions work on the same line or the line above the finding:
+
+```yaml
+# skylos: ignore[SKY-D292] internal action is pinned by organization policy
+- uses: actions/checkout@v4
+```
+
+For repo-wide policy, use the normal Skylos configuration and suppression
+workflow described in [Configuration](/configuration).
+
+## Limitations
+
+GitHub Actions scanning is static analysis. It does not execute workflows,
+resolve every dynamic expression, or audit remote action source code.
+
+It is strongest for review-time guardrails:
+
+- spotting dangerous workflow structure
+- making token and secret scope visible
+- catching mutable action/container references
+- highlighting risky release automation
+
+Use it alongside GitHub branch protection, environment protection rules, action
+pinning policy, and code-owner review for workflow changes.
+
+## Related Docs
+
+- [CI/CD Integration](/ci-cd)
+- [Security Analysis](/security-analysis)
+- [Rules Reference](/rules-reference)
+- [Quality Gate](/quality-gate)
