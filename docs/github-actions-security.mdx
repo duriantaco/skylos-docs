@@ -180,6 +180,22 @@ It is strongest for review-time guardrails:
 Use it alongside GitHub branch protection, environment protection rules, action
 pinning policy, and code-owner review for workflow changes.
 
+## Other CI Providers
+
+Skylos can run in Jenkins, GitLab CI, CircleCI, Buildkite, and other CI systems
+as a normal CLI gate:
+
+```bash
+skylos . --danger --secrets --quality --gate
+```
+
+The workflow-configuration scanner on this page is GitHub Actions-specific. It
+does not currently parse `Jenkinsfile`, `.gitlab-ci.yml`, CircleCI config, or
+Buildkite pipeline definitions for CI/CD misconfiguration rules.
+
+Use the non-GitHub CI examples in [CI/CD Integration](/ci-cd) to run Skylos
+against repository source code, secrets, and quality issues from those systems.
+
 ## Related Docs
 
 - [CI/CD Integration](/ci-cd)
