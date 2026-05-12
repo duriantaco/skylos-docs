@@ -106,6 +106,38 @@ Rule IDs are **unified across languages** — when multiple scanners detect the 
 |---------|------|----------|-------------|
 | `SKY-D260` | Prompt Injection Scanner | HIGH–CRITICAL | Multi-file scanner for hidden instruction payloads in `.py`, `.md`, `.yaml`, `.json`, `.toml`, `.env` |
 
+#### GitHub Actions / CI/CD Security
+
+These rules scan `.github/workflows/*.yml`, `.github/workflows/*.yaml`,
+`action.yml`, and `action.yaml` when `--danger` is enabled.
+
+| Rule ID | Name | Severity | Description |
+|---------|------|----------|-------------|
+| `SKY-D290` | Dangerous GitHub Actions Trigger | HIGH | `pull_request_target` or `workflow_run` can run privileged workflows from attacker-influenced events |
+| `SKY-D291` | Broad GitHub Token Permissions | MEDIUM-HIGH | Missing explicit permissions, `write-all`, or workflow-level write scopes |
+| `SKY-D292` | Unpinned Action Reference | HIGH | `uses:` action or reusable workflow is not pinned to a full commit SHA |
+| `SKY-D293` | Checkout Credentials Persisted | MEDIUM | `actions/checkout` does not set `persist-credentials: false` |
+| `SKY-D294` | GitHub Actions Template Injection | HIGH | Attacker-controlled GitHub context is expanded in `run`, code-like action inputs, or container/service options |
+| `SKY-D295` | Self-Hosted Or Dynamic Runner | MEDIUM | Job uses self-hosted runners, runner groups, or expression-derived runner labels |
+| `SKY-D296` | Mutable Container Image | MEDIUM-HIGH | Job containers, service containers, Docker actions, `docker pull`, or `docker run` use unpinned images |
+| `SKY-D297` | Reusable Workflow Secrets Inherit | MEDIUM | Reusable workflow receives all caller secrets via `secrets: inherit` |
+| `SKY-D298` | Overbroad Secrets Context | MEDIUM | Workflow expands `toJSON(secrets)` or indexes `secrets[...]` dynamically |
+| `SKY-D299` | Secret Without Environment Boundary | MEDIUM | Job uses repository secrets without an `environment` boundary |
+| `SKY-D300` | Unsafe GitHub Env/Path Write | HIGH | Untrusted or uncontrolled data is written to `$GITHUB_ENV` or `$GITHUB_PATH` |
+| `SKY-D301` | Hardcoded Container Credentials | HIGH | Job or service container declares hardcoded credentials |
+| `SKY-D302` | Risky GitHub App Token | HIGH | `actions/create-github-app-token` has broad scope, missing permission inputs, or disabled revocation |
+| `SKY-D303` | Unsound `contains()` Authorization | HIGH | `contains('literal', user_controlled_context)` can be bypassed |
+| `SKY-D304` | Spoofable Bot Actor Check | HIGH | Workflow trusts bot-like actor strings as an authorization boundary |
+| `SKY-D305` | Multiline `if` Truthiness Footgun | HIGH | Fenced `if: |` or `if: >` expression can evaluate as a truthy string |
+| `SKY-D306` | Insecure Commands Enabled | HIGH | `ACTIONS_ALLOW_UNSECURE_COMMANDS` re-enables legacy workflow commands |
+| `SKY-D307` | Anonymous Workflow Or Action | LOW | Workflow or local action definition has no `name` |
+| `SKY-D308` | Release Cache Poisoning Risk | MEDIUM | Release-like workflow restores mutable cache state before publishing artifacts |
+| `SKY-D309` | Broad Secret Environment Scope | MEDIUM-HIGH | Secret is exposed at workflow or job `env` scope instead of the specific step |
+| `SKY-D310` | OIDC Build Script Exposure | HIGH | Job grants `id-token: write` while invoking repo-controlled build or release scripts |
+| `SKY-D311` | Lax Artifact Upload Policy | LOW | `actions/upload-artifact` omits `if-no-files-found: error` |
+| `SKY-D312` | JavaScript Install Scripts In CI | MEDIUM | `npm`, `pnpm`, `yarn`, or `bun` install runs lifecycle scripts without `--ignore-scripts` |
+| `SKY-D313` | Missing Privileged Job Timeout | LOW | Privileged or release-like job has no `timeout-minutes` |
+
 ### Secret Rules (SKY-S)
 
 | Rule ID | Name | Severity | Languages | Description |
