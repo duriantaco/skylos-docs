@@ -54,6 +54,9 @@ Rule IDs are **unified across languages** — when multiple scanners detect the 
 | `SKY-D216` | SSRF | CRITICAL | Python, TS, Go, Java | Tainted URL passed to HTTP clients or request builders |
 | `SKY-D217` | SQL Injection (raw) | CRITICAL | Python | Tainted input in `sqlalchemy.text()`, `pandas.read_sql()`, Django `.raw()` |
 | `SKY-D235` | Remote Command Execution Sink | HIGH | Python | User-controlled values flow into command execution sinks |
+| `SKY-D324` | Symlink-Following File Write | HIGH | Python | Writes to attacker-controlled paths without symlink or containment guards |
+| `SKY-D325` | Symlink-Following File Read | MEDIUM | Python | Reads attacker-controlled paths without symlink, regular-file, or size guards |
+| `SKY-D326` | Unsafe Archive Extraction | HIGH | Python | Archive extraction without member validation for traversal paths or symlink entries |
 
 #### Web Security
 
@@ -701,6 +704,75 @@ stmt = text(f"SELECT * FROM users WHERE name = '{name}'")
 # Good
 stmt = text("SELECT * FROM users WHERE name = :name")
 result = conn.execute(stmt, {"name": name})
+```
+
+---
+
+### SKY-D324 · Symlink-Following File Write
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Python |
+| **What** | Writes to an attacker-controlled path without rejecting symlinks or keeping the resolved path inside a trusted root |
+| **Risk** | A repository-controlled symlink can cause reports, cache files, or generated output to overwrite another writable file |
+
+```python
+# Bad
+Path(output_path).write_text(result_json)
+
+# Good
+if output_path.exists() and output_path.is_symlink():
+    raise ValueError("refusing symlink output")
+fd = os.open(output_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
+```
+
+---
+
+### SKY-D325 · Symlink-Following File Read
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | Python |
+| **What** | Reads an attacker-controlled path without symlink, regular-file, containment, or size checks |
+| **Risk** | A repository-controlled symlink can expose outside JSON/config content or hang on special files such as `/dev/zero` |
+
+```python
+# Bad
+data = Path(sidecar_name).read_text(encoding="utf-8")
+
+# Good
+st = path.lstat()
+if path.is_symlink() or not stat.S_ISREG(st.st_mode):
+    raise ValueError("unsafe input file")
+if st.st_size > MAX_BYTES:
+    raise ValueError("input too large")
+```
+
+---
+
+### SKY-D326 · Unsafe Archive Extraction
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Python |
+| **What** | Extracts archive members without validating paths and link types first |
+| **Risk** | Archive entries can escape the destination directory or write through symlink/hardlink members |
+
+```python
+# Bad
+archive.extractall(dest)
+
+# Good
+for member in archive.getmembers():
+    member_path = Path(member.name)
+    if member.issym() or member.islnk() or member_path.is_absolute():
+        raise ValueError("unsafe archive member")
+    if ".." in member_path.parts:
+        raise ValueError("unsafe archive member")
+archive.extractall(dest)
 ```
 
 ---
