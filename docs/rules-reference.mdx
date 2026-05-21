@@ -223,6 +223,7 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-Q803` | Zone Warning | MEDIUM | Python | Module in Zone of Pain or Zone of Uselessness |
 | `SKY-Q804` | DIP Violation | MEDIUM/HIGH | Python | Stable module depends on unstable module |
 | `SKY-Q805` | Architecture Layer Policy Violation | MEDIUM/HIGH | Python | Module imports across a forbidden architectural layer boundary |
+| `SKY-Q806` | Opaque Identifier | LOW | Python | Long-lived vague variable hides direct RHS key/subscript meaning |
 
 ### Structure Rules (SKY-C)
 
@@ -2033,6 +2034,30 @@ from protocols import HelperProtocol
 | **Languages** | Python |
 | **What** | Module imports across a forbidden architectural layer boundary |
 | **Risk** | Layer violations make dependencies harder to reason about and enforce |
+
+---
+
+### SKY-Q806 · Opaque Identifier
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | Python |
+| **What** | A long-lived vague variable hides direct key or subscript evidence from the right-hand side |
+
+```python
+# Bad - the RHS already tells us this is an account ID
+x = request.args.get("account_id")
+if not x:
+    return {"status": "missing"}
+account = repository.fetch_account(x)
+return {"account_id": x, "name": account.name}
+
+# Good
+account_id = request.args.get("account_id")
+```
+
+This rule is intentionally conservative. It skips short-lived temps, counters, exception variables, file handles, test files, and coordinate-style names such as `x = point.get("x")`.
 
 ---
 
