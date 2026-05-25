@@ -1,0 +1,61 @@
+---
+title: "Java Support"
+description: "Java dead code, security, and quality analysis support in Skylos."
+---
+
+Skylos analyzes Java source with tree-sitter parsing and Java-specific security
+and quality passes.
+
+## File Coverage
+
+| Area | Support |
+|:---|:---|
+| Extensions | `.java` |
+| Dead code | Classes, interfaces, enums, constructors, methods, and imports |
+| Security | SQL injection, command injection, path traversal, SSRF, open redirect, unsafe deserialization, weak crypto, weak randomness, insecure cookies, and hardcoded secrets |
+| Quality | Cyclomatic complexity, nesting depth, method length, parameter count, and unreachable code |
+
+## Dead Code Detection
+
+Java analysis collects type and method definitions, imports, inheritance, method
+calls, constructor calls, annotations, and common framework references. Public
+or framework-managed entrypoints are treated more conservatively than private
+helpers.
+
+## Security Rules
+
+Java security checks include both direct dangerous-call patterns and structured
+flow analysis for request-controlled values reaching sensitive sinks.
+
+Examples of covered sinks include:
+
+- JDBC query execution and prepared statement construction
+- `Runtime.exec`, `ProcessBuilder`, and shell command construction
+- filesystem reads, writes, and archive extraction paths
+- outbound URL and HTTP request construction
+- servlet redirects and response writes
+- Java object deserialization
+- MD5, SHA1, insecure random, and weak security-token generation patterns
+- cookies missing security flags
+
+```bash
+skylos . --danger
+```
+
+## Quality Rules
+
+Java quality rules use the same core thresholds as Python unless overridden:
+
+```toml
+[tool.skylos.languages.java]
+complexity = 12
+```
+
+Supported Java quality findings include `SKY-Q301`, `SKY-Q302`, `SKY-C303`,
+`SKY-C304`, and `SKY-UC002`.
+
+## Limitations
+
+Skylos does not run the Java compiler, resolve every build-system-specific
+classpath edge case, or perform type checking. It is a source scanner focused on
+dead code, high-signal security patterns, and quality gates.

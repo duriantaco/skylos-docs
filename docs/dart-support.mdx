@@ -1,0 +1,46 @@
+---
+title: "Dart Support"
+description: "Dart dead code and selected security analysis support in Skylos."
+---
+
+Skylos analyzes Dart source with tree-sitter parsing for dead code and selected
+security checks. This includes Dart and Flutter codebases.
+
+## File Coverage
+
+| Area | Support |
+|:---|:---|
+| Extensions | `.dart` |
+| Dead code | Classes, enums, functions, methods, static/final declarations, imports, and exports |
+| Security | Selected process execution, HTTP request, and filesystem/path checks |
+| Quality | No dedicated Dart quality rules yet |
+
+## Dead Code Detection
+
+Dart analysis recognizes class definitions, enums, function signatures, method
+signatures, imports, exports, and static declarations. It also treats common
+Flutter and test entrypoints as runtime-managed code:
+
+- Flutter widget bases such as `StatelessWidget`, `StatefulWidget`, `State`, and `Widget`
+- lifecycle methods such as `build`, `createState`, `initState`, `dispose`, `didUpdateWidget`, and `didChangeDependencies`
+- test entrypoints such as `main`, `setUp`, `tearDown`, `setUpAll`, and `tearDownAll`
+- `_test.dart` files and files under `test/`
+
+## Security Scope
+
+Dart security checks track tainted names and common untrusted sources into
+selected sinks:
+
+- `Process.run`, `Process.runSync`, `Process.start`, and `Process.startDetached`
+- `http.*`, `Dio().*`, and `HttpClient().*` request calls
+- `File`, `Directory`, `rootBundle.loadString`, and `FileImage`
+
+```bash
+skylos . --danger
+```
+
+## Limitations
+
+Skylos does not run the Dart analyzer, Flutter build tooling, or Dart type
+checking. Use `dart analyze`, Flutter tests, and package-specific tooling
+alongside Skylos.

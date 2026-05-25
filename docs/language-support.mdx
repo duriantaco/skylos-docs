@@ -1,0 +1,75 @@
+---
+title: "Language Support"
+description: "Scanner scope for Python, TypeScript, JavaScript, Java, Go, PHP, Rust, Dart, and Shell."
+---
+
+Skylos scans mixed-language repositories in one pass. Source files are discovered
+by extension, parsed with the language-specific frontend, and normalized into
+the same finding model used by the CLI, CI gate, JSON output, SARIF output, MCP
+server, and Cloud upload.
+
+## Support Matrix
+
+| Language | Extensions | Dead Code | Security | Quality | Notes |
+|:---|:---|:---:|:---:|:---:|:---|
+| Python | `.py` | Yes | Yes | Yes | Strongest coverage, framework-aware analysis, optional runtime tracing, and AI repair |
+| TypeScript / JavaScript | `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs` | Yes | Yes | Yes | Tree-sitter parsing, package graph reachability, React and Next.js awareness |
+| Java | `.java` | Yes | Yes | Yes | Tree-sitter parsing, Java data-flow security checks, and method quality metrics |
+| Go | `.go` | Yes | Selected | Selected | Module-aware Go engine plus function quality metrics |
+| PHP | `.php` | Yes | Selected | No | PHP parser coverage with selected taint-style file and deserialization checks |
+| Rust | `.rs` | Yes | Selected | No | Rust parser coverage with selected command and filesystem checks |
+| Dart | `.dart` | Yes | Selected | No | Dart parser coverage with Flutter/test entrypoint handling and selected sink checks |
+| Shell | `.sh`, `.bash`, `.zsh`, `.ksh`, `.bats` | No | Selected | No | Static shell checks for command injection, SSRF, and path traversal |
+
+`Selected` means the scanner covers high-signal rules for that ecosystem, but
+the coverage is narrower than Python, TypeScript/JavaScript, and Java.
+
+## Coverage By Language
+
+| Language | What Skylos does today |
+|:---|:---|
+| Python | Deep dead-code analysis with framework awareness, runtime trace support, security rules, secrets, quality, technical debt, repository policy, and AI repair workflows |
+| TypeScript / JavaScript | Dead-code and package graph analysis, React/Next.js awareness, client-side secret exposure, browser/server security sinks, quality rules, and monorepo inventory |
+| Java | Parser-backed dead-code detection, dangerous-call security checks, taint-style sink checks, weak crypto detection, and method quality metrics |
+| Go | Module-aware scanning, Go-specific security rules, unified cross-language security IDs, and selected function quality checks |
+| PHP | Dead-code detection for PHP symbols plus selected filesystem/include and unsafe deserialization checks |
+| Rust | Dead-code coverage for Rust symbols plus selected command execution and filesystem path security checks |
+| Dart | Dead-code coverage for Dart and Flutter-style projects plus selected process, HTTP, and filesystem checks |
+| Shell | Static security checks for CI/deploy/release scripts, focused on command injection, SSRF, and path traversal |
+
+## How Scans Run
+
+```bash
+# Dead code across all supported source files
+skylos .
+
+# Security and quality rules where supported
+skylos . --danger --quality
+
+# Full local audit
+skylos . -a
+```
+
+Skylos does not require separate commands for each language. A repository with a
+Python API, a TypeScript frontend, a Go service, a Dart mobile client, and
+Shell deployment scripts can be scanned from the repository root.
+
+## Shared Behavior
+
+Across supported languages, Skylos tries to preserve the same workflow:
+
+- detect definitions and references for dead code analysis
+- report security findings with unified `SKY-D` rule IDs when rules describe the same weakness
+- honor global exclusions, confidence thresholds, inline ignores, and rule suppressions
+- include language counts and findings in JSON, SARIF, Cloud, and MCP output
+
+## Language Details
+
+- [Python](/python-support)
+- [TypeScript / JavaScript](/typescript-support)
+- [Java](/java-support)
+- [Go](/go-support)
+- [PHP](/php-support)
+- [Rust](/rust-support)
+- [Dart](/dart-support)
+- [Shell](/shell-support)

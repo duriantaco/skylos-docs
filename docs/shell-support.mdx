@@ -1,0 +1,74 @@
+---
+title: "Shell Support"
+description: "Shell script security analysis support in Skylos."
+---
+
+Skylos analyzes shell scripts with a static, non-executing scanner for selected
+security flows. It is designed for CI scripts, deploy scripts, release helpers,
+and automation folders where small shell snippets can become privileged attack
+paths.
+
+## File Coverage
+
+| Area | Support |
+|:---|:---|
+| Extensions | `.sh`, `.bash`, `.zsh`, `.ksh`, `.bats` |
+| Dead code | No dedicated shell dead-code analysis |
+| Security | Selected command injection, SSRF, and path traversal checks |
+| Quality | No dedicated shell quality rules yet |
+
+## Security Scope
+
+Shell security checks track positional arguments, `read` input, and assignments
+derived from them into high-risk sinks:
+
+- `eval`
+- dynamic `source` or `.`
+- `sh`, `bash`, `dash`, `zsh`, or `ksh` with `-c`
+- `curl` or `wget` destinations
+- filesystem commands such as `cat`, `cp`, `mv`, `rm`, `chmod`, `tar`, `unzip`, and redirection targets
+
+```bash
+skylos . --danger
+```
+
+## Examples
+
+```bash
+# Flagged: positional argument becomes a command string.
+cmd="$1"
+eval "$cmd"
+```
+
+```bash
+# Flagged: attacker-controlled command string reaches a shell interpreter.
+task="$1"
+sudo -u app bash -c "$task"
+```
+
+```bash
+# Flagged: read input controls the outbound destination.
+read -r url
+curl -fsSL "$url"
+```
+
+```bash
+# Not flagged for SSRF: the host is fixed and only the path segment is variable.
+artifact="$1"
+curl -fsSL "https://downloads.example.com/releases/$artifact"
+```
+
+```bash
+# Not flagged for path traversal: the untrusted path is reduced to a basename.
+backup_name="$(basename -- "$1")"
+cat "/srv/backups/$backup_name"
+```
+
+`basename` is treated as a path sanitizer only. It does not make a value safe
+for `eval`, `source`, or shell `-c`.
+
+## Limitations
+
+Skylos does not execute shell scripts, expand aliases, evaluate runtime
+conditionals, or emulate the target shell. Keep using ShellCheck, shell tests,
+and deployment-specific reviews alongside Skylos.

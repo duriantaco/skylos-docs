@@ -1,6 +1,5 @@
 import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
-import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'Skylos — Dead Code Detection, Vibe Coding Guardrails & SAST',
@@ -29,7 +28,7 @@ const config: Config = {
       tagName: 'meta',
       attributes: {
         name: 'keywords',
-        content: 'dead code detection, python static analysis, typescript static analysis, javascript static analysis, java static analysis, go static analysis, php static analysis, rust static analysis, SAST, unused code finder, security scanner, code quality, vulture alternative, django dead code, fastapi dead code, typescript dead code, MCP server, vibe coding, AI generated code, prompt injection detection, AI supply chain security, phantom function, hallucinated dependency, copilot code review',
+        content: 'dead code detection, python static analysis, typescript static analysis, javascript static analysis, java static analysis, go static analysis, php static analysis, rust static analysis, dart static analysis, shell script security, SAST, unused code finder, security scanner, code quality, vulture alternative, django dead code, fastapi dead code, typescript dead code, MCP server, vibe coding, AI generated code, prompt injection detection, AI supply chain security, phantom function, hallucinated dependency, copilot code review',
       },
     },
     {
@@ -44,7 +43,7 @@ const config: Config = {
         applicationCategory: 'DeveloperApplication',
         operatingSystem: 'Windows, macOS, Linux',
         offers: { '@type': 'Offer', price: '9', priceCurrency: 'USD' },
-        description: 'Dead code detection, vibe coding guardrails, prompt injection scanning, and SAST for Python, TypeScript, JavaScript, Java, Go, PHP, and Rust. Framework-aware analysis with AI-powered fixes.',
+        description: 'Dead code detection, vibe coding guardrails, prompt injection scanning, and SAST for Python, TypeScript, JavaScript, Java, Go, PHP, Rust, Dart, and Shell. Framework-aware analysis with AI-powered fixes.',
         url: 'https://github.com/duriantaco/skylos',
         downloadUrl: 'https://pypi.org/project/skylos/',
       }),
@@ -61,7 +60,7 @@ const config: Config = {
       '@easyops-cn/docusaurus-search-local',
       {
         hashed: true,
-        language: ['en'],
+        language: ['en', 'zh'],
         highlightSearchTermsOnTargetPage: true,
         explicitSearchResultPath: true,
         searchBarPosition: 'right',
@@ -96,7 +95,7 @@ const config: Config = {
         theme: {
           customCss: './src/css/custom.css',
         },
-      } satisfies Preset.Options,
+      },
     ],
   ],
 
@@ -146,6 +145,16 @@ const config: Config = {
         {
           to: '/cli-reference',
           label: 'CLI',
+          position: 'right',
+        },
+        {
+          to: '/language-support',
+          label: 'Languages',
+          position: 'right',
+        },
+        {
+          to: '/zh-cn/',
+          label: '🇨🇳 中文',
           position: 'right',
         },
         {
@@ -219,7 +228,7 @@ const config: Config = {
       darkTheme: prismThemes.dracula,
       additionalLanguages: ['bash', 'python', 'toml', 'yaml', 'json'],
     },
-  } satisfies Preset.ThemeConfig,
+  },
 };
 
 export default config;

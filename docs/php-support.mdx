@@ -1,0 +1,48 @@
+---
+title: "PHP Support"
+description: "PHP dead code and selected security analysis support in Skylos."
+---
+
+Skylos analyzes PHP source with tree-sitter parsing for dead code and selected
+security checks.
+
+## File Coverage
+
+| Area | Support |
+|:---|:---|
+| Extensions | `.php` |
+| Dead code | Classes, interfaces, traits, enums, functions, methods, constants, properties, imports, and includes |
+| Security | Selected user-input to filesystem/include sinks and unsafe deserialization |
+| Quality | No dedicated PHP quality rules yet |
+
+## Dead Code Detection
+
+PHP analysis understands namespaces, class-like declarations, functions,
+methods, constants, properties, `use` imports, and literal include paths.
+
+Skylos treats PHP magic methods and PHPUnit lifecycle methods as framework or
+runtime entrypoints:
+
+- `__construct`, `__destruct`, `__invoke`, `__get`, `__set`, `__call`, and related magic methods
+- `setUp`, `tearDown`, `setUpBeforeClass`, and `tearDownAfterClass`
+- `test*` methods in PHPUnit-style test files or classes extending `TestCase`
+
+## Security Scope
+
+PHP security checks track request-controlled values from superglobals such as
+`$_GET`, `$_POST`, `$_REQUEST`, `$_COOKIE`, `$_FILES`, and `filter_input()` into
+selected sinks:
+
+- `unserialize()`
+- file APIs such as `file_get_contents`, `file_put_contents`, `fopen`, `readfile`, `unlink`, `copy`, and `rename`
+- `include`, `include_once`, `require`, and `require_once`
+
+```bash
+skylos . --danger
+```
+
+## Limitations
+
+Skylos does not currently run PHP type checking, Composer autoload resolution,
+or dedicated PHP complexity rules. Use PHPStan, Psalm, or the PHP runtime test
+suite alongside Skylos when you need compiler-like validation.

@@ -1,0 +1,42 @@
+---
+title: "Go Support"
+description: "Go dead code, selected security checks, and quality analysis support in Skylos."
+---
+
+Skylos analyzes Go projects with a module-aware Go engine and tree-sitter-backed
+quality checks.
+
+## File Coverage
+
+| Area | Support |
+|:---|:---|
+| Extensions | `.go` |
+| Dead code | Functions, methods, exported symbols, references, and package-level symbols |
+| Security | Selected SQL injection, command injection, path traversal, SSRF, weak crypto, weak randomness, TLS, cookie, redirect, archive, resource, and unsafe package checks |
+| Quality | Function complexity, nesting depth, function length, and parameter count |
+
+## Module Awareness
+
+When a `.go` file is scanned, Skylos walks up to find the nearest `go.mod` and
+runs analysis at the module level. This lets dead code detection see references
+across files in the same module instead of treating each file in isolation.
+
+```bash
+skylos ./services/api --danger --quality
+```
+
+## Security Scope
+
+Go findings are normalized into Skylos rule IDs where there is a cross-language
+equivalent. For example, Go SQL injection maps to `SKY-D211`, command injection
+maps to `SKY-D212`, path traversal maps to `SKY-D215`, and SSRF maps to
+`SKY-D216`.
+
+Go-specific rules may still use `SKY-G` IDs when there is no cross-language
+equivalent.
+
+## Limitations
+
+Go security and quality support is narrower than Python, TypeScript/JavaScript,
+and Java. Skylos does not replace `go test`, `go vet`, or compiler-level type
+checking.

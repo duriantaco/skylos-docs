@@ -19,7 +19,7 @@ description: "Complete reference for all Skylos static analysis rules — securi
 | `SKY-UC` | Unreachable Code | Code that can never execute |
 | `SKY-E` | Empty File | Files with no meaningful code |
 
-Rule IDs are **unified across languages** — when multiple scanners detect the same vulnerability class, Skylos reports it with the same ID across Python, TypeScript/JavaScript, Java, Go, PHP, Rust, Dart, and other supported ecosystems.
+Rule IDs are **unified across languages** — when multiple scanners detect the same vulnerability class, Skylos reports it with the same ID across Python, TypeScript/JavaScript, Java, Go, PHP, Rust, Dart, Shell, and other supported ecosystems.
 
 ---
 
@@ -48,10 +48,10 @@ Rule IDs are **unified across languages** — when multiple scanners detect the 
 
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
-| `SKY-D211` | SQL Injection | CRITICAL | Python, TS, Go | Tainted/interpolated SQL in `execute` / template literals / `fmt.Sprintf` |
-| `SKY-D212` | Command Injection | CRITICAL | Python, TS/JS, Go, Rust | Tainted input to `os.system()`, `child_process.exec()`, `exec.Command`, or Rust `Command::new` / shell `-c` |
-| `SKY-D215` | Path Traversal | HIGH | Python, Go, PHP, Rust | Tainted input used in filesystem paths or include/file sinks |
-| `SKY-D216` | SSRF | CRITICAL | Python, TS, Go, Java | Tainted URL passed to HTTP clients or request builders |
+| `SKY-D211` | SQL Injection | CRITICAL | Python, TS, Java, Go | Tainted/interpolated SQL in `execute`, template literals, `PreparedStatement`, or `fmt.Sprintf` |
+| `SKY-D212` | Command Injection | CRITICAL | Python, TS/JS, Java, Go, Rust, Dart, Shell | Tainted input to `os.system()`, `child_process.exec()`, `Runtime.exec`, `exec.Command`, Rust `Command::new`, Dart `Process.*`, shell `eval`, `source`, or shell `-c` |
+| `SKY-D215` | Path Traversal | HIGH | Python, Java, Go, PHP, Rust, Dart, Shell | Tainted input used in filesystem paths, include/file sinks, shell file commands, or redirection targets |
+| `SKY-D216` | SSRF | CRITICAL | Python, TS, Java, Go, Dart, Shell | Tainted URL passed to HTTP clients, request builders, `curl`, or `wget` |
 | `SKY-D217` | SQL Injection (raw) | CRITICAL | Python | Tainted input in `sqlalchemy.text()`, `pandas.read_sql()`, Django `.raw()` |
 | `SKY-D235` | Remote Command Execution Sink | HIGH | Python | User-controlled values flow into command execution sinks |
 | `SKY-D324` | Symlink-Following File Write | HIGH | Python | Writes to attacker-controlled paths without symlink or containment guards |
@@ -168,7 +168,7 @@ analysis is enabled.
 | `SKY-S101` | Hardcoded Secret | CRITICAL | All | API keys, passwords, tokens, private keys in source code |
 | `SKY-S102` | High-Entropy Generic Secret | HIGH | All | Generic high-entropy token-like value near secret keywords |
 
-Scanned file types: `.py`, `.pyi`, `.pyw`, `.env`, `.yaml`, `.yml`, `.json`, `.toml`, `.ini`, `.cfg`, `.conf`, `.ts`, `.tsx`, `.js`, `.jsx`, `.go`, `.java`, `.php`, `.rs`
+Scanned file types include supported source and config files such as `.py`, `.pyi`, `.pyw`, `.env`, `.yaml`, `.yml`, `.json`, `.toml`, `.ini`, `.cfg`, `.conf`, `.ts`, `.tsx`, `.js`, `.jsx`, `.go`, `.java`, `.php`, `.rs`, `.dart`, `.cs`, `.sh`, `.bash`, `.zsh`, `.ksh`, and `.bats`.
 
 ### Go-Specific Rules (SKY-G)
 

@@ -1,0 +1,69 @@
+---
+title: "Python Support"
+description: "Python dead code, security, quality, framework awareness, runtime tracing, and AI repair support in Skylos."
+---
+
+Python has the broadest Skylos coverage. It supports static dead code analysis,
+security scanning, secrets detection, quality rules, framework-aware exclusions,
+optional runtime tracing, and AI-assisted repair.
+
+## File Coverage
+
+| Area | Support |
+|:---|:---|
+| Extensions | `.py` |
+| Dead code | Functions, classes, methods, imports, variables, parameters, and files |
+| Security | SQL injection, command injection, SSRF, XSS, path traversal, deserialization, webhook signature checks, secrets, and AI-code guardrails |
+| Quality | Complexity, nesting, function length, argument count, unreachable code, structural debt, and standards-backed rules |
+| Runtime tracing | Supported for Python code with `--trace` |
+| AI repair | Supported for Python fixes and audit workflows |
+
+## Framework Awareness
+
+Skylos recognizes common Python entrypoints and framework-managed code so they
+are less likely to be reported as dead code:
+
+- Django views, models, serializers, management commands, settings, and URL routes
+- Flask and FastAPI route handlers
+- Starlette handlers and middleware patterns
+- Pydantic models and validators
+- SQLAlchemy models
+- pytest and unittest tests, fixtures, and lifecycle hooks
+- Celery tasks and common async worker entrypoints
+
+## Security Scope
+
+Python security analysis combines dangerous-call detection with data-flow checks.
+It follows untrusted values through assignments, parameters, string construction,
+and framework handlers into sinks such as database execution, subprocess calls,
+HTTP clients, template rendering, filesystem access, and deserialization.
+
+```bash
+skylos . --danger
+```
+
+## Runtime Tracing
+
+For dynamic Python code, static analysis can be paired with runtime call tracing:
+
+```bash
+skylos . --trace
+```
+
+Tracing records real function usage while your tests or app run, then uses that
+evidence to reduce dead code false positives in dynamic dispatch-heavy code.
+
+## Configuration
+
+Python uses the global quality thresholds in `[tool.skylos]`:
+
+```toml
+[tool.skylos]
+complexity = 10
+nesting = 3
+max_args = 5
+max_lines = 50
+```
+
+See [Configuration](/configuration) for whitelists, inline ignores, and quality
+gate settings.

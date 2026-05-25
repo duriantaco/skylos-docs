@@ -47,6 +47,9 @@ whitelist = ["*Plugin", "*Handler"]
 complexity = 15
 nesting = 4
 
+[tool.skylos.languages.java]
+complexity = 12
+
 [tool.skylos.gate]
 # Quality gate settings
 fail_on_critical = true
@@ -189,9 +192,12 @@ You can override global settings for specific languages under `[tool.skylos.lang
 [tool.skylos.languages.typescript]
 complexity = 15
 nesting = 4
+
+[tool.skylos.languages.java]
+complexity = 12
 ```
 
-Currently supported languages for overrides: `typescript`.
+Currently supported language overrides: `typescript` and `java`.
 
 ## Configuration Resolution
 
