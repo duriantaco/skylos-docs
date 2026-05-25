@@ -105,11 +105,22 @@ const sidebars = {
       className: 'sb-sparkles' 
     },
 
-    { 
-      type: 'doc', 
-      id: 'typescript-support', 
-      label: 'Typescript', 
-      className: 'sb-ts' 
+    {
+      type: 'category',
+      label: 'Languages',
+      className: 'sb-folder',
+      collapsible: false,
+      items: [
+        { type: 'doc', id: 'language-support', label: 'Overview' },
+        { type: 'doc', id: 'python-support', label: 'Python' },
+        { type: 'doc', id: 'typescript-support', label: 'TypeScript / JavaScript' },
+        { type: 'doc', id: 'java-support', label: 'Java' },
+        { type: 'doc', id: 'go-support', label: 'Go' },
+        { type: 'doc', id: 'php-support', label: 'PHP' },
+        { type: 'doc', id: 'rust-support', label: 'Rust' },
+        { type: 'doc', id: 'dart-support', label: 'Dart' },
+        { type: 'doc', id: 'shell-support', label: 'Shell' },
+      ],
     },
 
     {

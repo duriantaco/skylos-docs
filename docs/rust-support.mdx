@@ -1,0 +1,45 @@
+---
+title: "Rust Support"
+description: "Rust dead code and selected security analysis support in Skylos."
+---
+
+Skylos analyzes Rust source with tree-sitter parsing for dead code and selected
+security checks.
+
+## File Coverage
+
+| Area | Support |
+|:---|:---|
+| Extensions | `.rs` |
+| Dead code | Modules, structs, enums, traits, type aliases, functions, methods, fields, and imports |
+| Security | Selected command injection and path traversal checks |
+| Quality | No dedicated Rust quality rules yet |
+
+## Dead Code Detection
+
+Rust analysis understands module paths, `use` imports, public items, `impl`
+blocks, trait methods, derived behavior, test functions, and common implicit
+methods such as `clone`, `default`, `drop`, `fmt`, `from`, `into`, `poll`, and
+`call`.
+
+Skylos treats `main`, test functions, and methods implied by common traits more
+conservatively than ordinary private helpers.
+
+## Security Scope
+
+Rust security checks focus on tainted path-like and command-like values:
+
+- `std::process::Command::new` with tainted executable names
+- shell command construction with `sh`, `bash`, `zsh`, `cmd`, or PowerShell and a tainted command string
+- filesystem calls such as `read`, `read_to_string`, `write`, `copy`, `remove_file`, `rename`, `open`, and `create`
+- path mutation calls such as `push`, `set_extension`, and `set_file_name`
+
+```bash
+skylos . --danger
+```
+
+## Limitations
+
+Skylos does not run `rustc`, Cargo resolution, borrow checking, or Rust type
+checking. Pair Skylos with `cargo check`, `cargo clippy`, and tests for full
+Rust validation.

@@ -1,0 +1,72 @@
+---
+title: "中文文档"
+description: "Skylos 中文文档入口。"
+---
+
+这是 Skylos 中文文档入口。当前中文内容先覆盖最常用的产品定位、安装、扫描和安全规则说明；完整 API、规则细节和配置项仍以英文文档为准。
+
+## Skylos 是什么？
+
+Skylos 是一个本地优先的静态分析和 PR 门控工具。它可以在本机或 CI 中扫描代码，不需要把源码上传到 SaaS 平台。
+
+Skylos 主要用于：
+
+- 查找死代码、未使用文件和框架误报
+- 检测安全问题，例如 SQL 注入、命令注入、SSRF、路径穿越、XSS、密钥泄露和 GitHub Actions 风险
+- 检查代码质量、复杂度、嵌套和技术债
+- 给 AI 生成代码和 PR 提供更稳定的回归检查
+
+## 快速开始
+
+```bash
+pip install skylos
+skylos .
+skylos . --danger --quality --secrets
+```
+
+常用文档：
+
+| 你要做什么 | 阅读 |
+|:---|:---|
+| 安装和第一次扫描 | [Installation](/installation) |
+| CLI 参数和输出模式 | [CLI Reference](/cli-reference) |
+| 安全扫描范围 | [Security Analysis](/security-analysis) |
+| 语言支持范围 | [Language Support](/language-support) |
+| Shell 脚本扫描 | [Shell Support](/shell-support) |
+| GitHub Actions 扫描 | [GitHub Actions Security](/github-actions-security) |
+| CI/CD 门控 | [CI/CD Integration](/ci-cd) |
+| MCP 接入 | [MCP Server](/mcp-server) |
+| 规则 ID | [Rules Reference](/rules-reference) |
+
+## 支持的语言
+
+| 语言 | 死代码 | 安全 | 质量 |
+|:---|:---:|:---:|:---:|
+| Python | 是 | 是 | 是 |
+| TypeScript / JavaScript | 是 | 是 | 是 |
+| Java | 是 | 是 | 是 |
+| Go | 是 | 部分 | 部分 |
+| PHP | 是 | 部分 | 否 |
+| Rust | 是 | 部分 | 否 |
+| Dart | 是 | 部分 | 否 |
+| Shell | 否 | 部分 | 否 |
+
+“部分”表示 Skylos 覆盖该生态中高信号的安全或质量规则，但范围比 Python、TypeScript/JavaScript 和 Java 更窄。
+
+## Shell 脚本扫描
+
+Skylos 会扫描 `.sh`、`.bash`、`.zsh`、`.ksh` 和 `.bats` 文件。Shell 支持重点覆盖 CI、部署和发布脚本中的高风险问题：
+
+- `eval`、动态 `source`、`sh -c` / `bash -c` 里的命令注入
+- `curl` / `wget` 使用用户控制 URL 导致的 SSRF
+- `cat`、`cp`、`mv`、`rm`、`tar`、`unzip` 等文件命令中的路径穿越
+
+```bash
+skylos . --danger
+```
+
+更多细节见 [Shell Support](/shell-support)。
+
+## 当前状态
+
+中文文档目前是一个精简入口页，用来帮助中文用户快速理解 Skylos 和进入关键英文页面。后续可以逐步扩展为完整中文文档树。

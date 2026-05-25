@@ -1,12 +1,14 @@
 # Skylos Documentation
 
-Documentation for Skylos - a static analysis tool for Python that finds dead code, security vulnerabilities, and code quality issues.
+Documentation for Skylos - a static analysis tool for Python, TypeScript, JavaScript, Java, Go, PHP, Rust, Dart, and Shell that finds dead code, security vulnerabilities, and code quality issues.
 
 ## Quick Links
 
 | Doc | Description |
 |-----|-------------|
 | [Introduction](introduction.mdx) | What is Skylos, core capabilities, supported languages |
+| [Language Support](docs/language-support.mdx) | Scanner scope across supported languages |
+| [中文文档](docs/zh-cn/index.mdx) | Chinese docs entry point |
 | [Installation](installation.mdx) | Setup and configuration |
 | [CLI Reference](cli-reference.mdx) | All command-line options |
 | [Why Skylos](why-skylos.mdx) | Comparison with other tools |
