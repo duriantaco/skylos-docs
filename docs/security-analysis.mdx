@@ -4,18 +4,24 @@ description: "Multi-language SAST with taint analysis. Detect SQL injection, com
 ---
 
 :::info
-  **Enable security scanning:** `skylos . --danger` for static taint, dangerous-pattern, and GitHub Actions workflow checks, or `skylos agent scan . --security` for the verifier-backed security taskflow.
+  **Enable security scanning:** `skylos . --danger` for static taint, dangerous-pattern, CI/CD, and edge deployment config checks, or `skylos agent scan . --security` for the verifier-backed security taskflow.
 :::
 
-## GitHub Actions Workflow Security
+## CI/CD And Edge Deployment Config Security
 
-When run from the repository root, `skylos . --danger` scans GitHub Actions
-workflow files and local action metadata in addition to source code.
+When run from the repository root, `skylos . --danger` scans security-relevant
+configuration in addition to source code.
 
 It reports CI/CD risks such as `pull_request_target`, broad token permissions,
-unpinned third-party actions, unsafe secret exposure, mutable Docker images,
-template injection, OIDC release jobs that invoke repo-controlled scripts, and
-missing timeouts on privileged jobs.
+unpinned third-party actions or GitLab includes, unsafe secret exposure, mutable
+Docker images, template injection, OIDC release jobs that invoke
+repo-controlled scripts, and missing timeouts on privileged jobs.
+
+It also reports edge deployment risks in Docker Compose and systemd units, such
+as privileged containers with device or GPU access, broad `/dev` or Docker
+socket mounts, host networking on device services, root systemd services,
+mutable `ExecStart` scripts, missing systemd sandboxing, and broad Linux
+capabilities.
 
 See [GitHub Actions Security](/github-actions-security) for workflow examples
 and the full rule scope.

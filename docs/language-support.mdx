@@ -1,6 +1,6 @@
 ---
 title: "Language Support"
-description: "Scanner scope for Python, TypeScript, JavaScript, Java, Go, PHP, Rust, Dart, and Shell."
+description: "Scanner scope for Python, TypeScript, JavaScript, Java, Go, PHP, Rust, Dart, Shell, and security-relevant deployment config."
 ---
 
 Skylos scans mixed-language repositories in one pass. Source files are discovered
@@ -20,6 +20,19 @@ server, and Cloud upload.
 | Rust | `.rs` | Yes | Selected | No | Rust parser coverage with selected command and filesystem checks |
 | Dart | `.dart` | Yes | Selected | No | Dart parser coverage with Flutter/test entrypoint handling and selected sink checks |
 | Shell | `.sh`, `.bash`, `.zsh`, `.ksh`, `.bats` | No | Selected | No | Static shell checks for command injection, SSRF, and path traversal |
+
+## Config And Deployment Support
+
+Skylos also scans security-relevant configuration and deployment files when
+security analysis is enabled. These checks are reported with the same finding
+model as source-code rules.
+
+| Surface | Files | Security Scope |
+|:---|:---|:---|
+| GitHub Actions | `.github/workflows/*.yml`, `.github/workflows/*.yaml`, `action.yml`, `action.yaml` | dangerous triggers, token permissions, unpinned actions, template injection, secrets, OIDC, cache, and artifact policy |
+| GitLab CI | `.gitlab-ci.yml` | mutable images, unpinned includes, literal secrets, untrusted eval, Docker-in-Docker, OIDC, cache, timeout, and runner-tag policy |
+| Edge Docker Compose | `compose*.yml`, `compose*.yaml`, `docker-compose*.yml`, `docker-compose*.yaml` | privileged containers, host device/control mounts, GPU/device runtime, and host networking |
+| Edge systemd | `*.service` | root edge services, mutable `ExecStart` paths, missing sandboxing, broad capabilities, and broad device access |
 
 `Selected` means the scanner covers high-signal rules for that ecosystem, but
 the coverage is narrower than Python, TypeScript/JavaScript, and Java.
