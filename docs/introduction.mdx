@@ -3,7 +3,7 @@ title: "What is Skylos?"
 description: "Architecture, supported languages, and core concepts."
 ---
 
-**Skylos** is a developer-security platform that runs entirely in your local environment or CI/CD pipeline. Unlike SaaS scanners that require code uploads, Skylos performs Static Application Security Testing (SAST) and runtime analysis on your infrastructure.
+**Skylos** is a developer-security platform that runs entirely in your local environment or CI/CD pipeline. Unlike SaaS scanners that require code uploads, Skylos performs Static Application Security Testing (SAST), deployment config checks, and runtime analysis on your infrastructure.
 
 ## Core Capabilities
 
@@ -11,7 +11,7 @@ Skylos is composed of four integrated engines:
 
 
   ### Scanner (SAST)
-    Analyzes AST (Abstract Syntax Tree) to find security flaws, dead code, and logic bugs without running the code.
+    Analyzes AST (Abstract Syntax Tree) and security-relevant config files to find security flaws, deployment risks, dead code, and logic bugs without running the code.
   
   ### Auto-Pilot
     A runtime agent that hooks into your Python environment to track real-world function usage and detect "Zombie Code."
@@ -41,13 +41,16 @@ Skylos currently supports the following languages and frameworks.
 | **Rust** | ✅ | ❌ | ❌ |
 | **Dart** | ✅ | ❌ | ❌ |
 | **Shell** | ✅ | ❌ | ❌ |
+| **Deployment Config** | ✅ | ❌ | ❌ |
 
 For per-language scanner scope, see [Language Support](/language-support).
 
 Java static analysis includes structured security-flow checks for servlet
 request data, Java HTTP clients, typed `RestTemplate` usage, and servlet
 redirects. Go security coverage includes selected HTTP, SQL, command, path,
-TLS, cookie, archive, and resource-leak checks.
+TLS, cookie, archive, and resource-leak checks. Deployment config coverage
+includes GitHub Actions, GitLab CI, Docker Compose edge runtime posture, and
+systemd edge service hardening.
 
 ### Frameworks
 

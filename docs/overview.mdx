@@ -1,6 +1,6 @@
 ---
 title: "What is Skylos?"
-description: "Open-source SAST, dead code detection, AI code security, and CI/CD PR gating for Python, TypeScript, JavaScript, Java, Go, PHP, Rust, Dart, and Shell repositories."
+description: "Open-source SAST, dead code detection, AI code security, deployment config checks, and CI/CD PR gating for Python, TypeScript, JavaScript, Java, Go, PHP, Rust, Dart, and Shell repositories."
 ---
 
 ## Ship Cleaner, Safer Code
@@ -13,7 +13,7 @@ Use it when you want to:
 
 - remove unused code without breaking framework entrypoints
 - catch exploitable flows before they reach `main`
-- detect hardcoded secrets and risky configuration
+- detect hardcoded secrets and risky CI/CD or edge-device configuration
 - enforce standards-backed coding practices for typing, framework routes, and repo policy
 - keep pull requests focused on new issues instead of legacy noise
 - review AI-assisted edits for missing controls, phantom helpers, and unfinished code
@@ -23,7 +23,7 @@ Use it when you want to:
 | Workflow | Command | What It Does |
 |:---|:---|:---|
 | Dead code scan | `skylos .` | finds unused functions, classes, imports, files, and entrypoints |
-| Full local audit | `skylos . -a` | adds security, secrets, quality, and dependency checks |
+| Full local audit | `skylos . -a` | adds security, secrets, config, quality, and dependency checks |
 | Changed-code review | `skylos . -a --diff origin/main` | focuses on lines touched by a PR |
 | CI gate | `skylos cicd init` | generates a GitHub Actions workflow |
 | AI app defense | `skylos defend .` | checks LLM integrations for missing guardrails |
@@ -72,6 +72,7 @@ LLM-assisted review, and remediation are optional.
 | Rust | Yes | Selected | No |
 | Dart | Yes | Selected | No |
 | Shell | No | Selected | No |
+| Deployment config | No | Selected | No |
 
 For detailed scanner scope, see [Language Support](/language-support) and
 [Rules Reference](/rules-reference).

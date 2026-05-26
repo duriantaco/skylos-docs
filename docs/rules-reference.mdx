@@ -161,6 +161,23 @@ analysis is enabled.
 | `SKY-D322` | GitLab CI Dynamic Runner Tag | MEDIUM | Runner tag uses variables or dynamic expressions |
 | `SKY-D323` | GitLab CI Ambiguous Secret Token | MEDIUM | Broad token-like variable name makes secret scope unclear |
 
+#### Edge Deployment Config Security
+
+These rules scan Docker Compose files and systemd service units when security
+analysis is enabled. They are intended for edge, Jetson, robotics, camera,
+sensor, and device-control repositories where repo-controlled deployment
+settings can turn ordinary app bugs into device compromise.
+
+| Rule ID | Name | Severity | Description |
+|---------|------|----------|-------------|
+| `SKY-D330` | Docker Compose Privileged Edge Container | HIGH | Service combines privileged mode with device, GPU, or edge runtime access |
+| `SKY-D331` | Docker Compose Host Device Exposure | HIGH | Service exposes host device or control paths such as `/dev`, `/run/udev`, or the Docker socket |
+| `SKY-D332` | Docker Compose Host Networking On Edge Service | MEDIUM | Edge/device service uses `network_mode: host` instead of binding only required ports |
+| `SKY-D333` | Systemd Edge Service Runs As Root | HIGH | Edge/device systemd service runs as root or omits a non-root `User=` |
+| `SKY-D334` | Systemd Root Service Executes Mutable Path | HIGH | Root systemd service executes a script from user-writable locations such as `/home` or `/tmp` |
+| `SKY-D335` | Systemd Edge Service Missing Sandboxing | MEDIUM | Edge/device service lacks common hardening such as `NoNewPrivileges`, `ProtectSystem`, or `PrivateTmp` |
+| `SKY-D336` | Systemd Broad Edge Service Privilege | HIGH | Service grants broad capabilities, broad device access, or starts a privileged container |
+
 ### Secret Rules (SKY-S)
 
 | Rule ID | Name | Severity | Languages | Description |
