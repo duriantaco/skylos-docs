@@ -111,6 +111,23 @@ Rule IDs are **unified across languages** — when multiple scanners detect the 
 |---------|------|----------|-------------|
 | `SKY-D260` | Prompt Injection Scanner | HIGH–CRITICAL | Multi-file scanner for hidden instruction payloads in `.py`, `.md`, `.yaml`, `.json`, `.toml`, `.env` |
 
+#### Agent And Build Command Safety
+
+These rules flag high-risk commands in shell scripts, static Python/TypeScript
+command strings, GitHub Actions `run:` blocks, GitLab CI `script:` blocks, and
+Dockerfile `RUN` instructions.
+
+| Rule ID | Name | Severity | Description |
+|---------|------|----------|-------------|
+| `SKY-D327` | Data Exfiltration Command | CRITICAL | Command uploads environment dumps, token command output, `.env*` files, or credential files to an external destination |
+| `SKY-D328` | Remote Script Piped To Shell | HIGH | `curl`/`wget` output is piped directly into `sh`, `bash`, or another shell/interpreter |
+| `SKY-D329` | Broad Destructive Command | HIGH | Destructive command targets broad filesystem or repository scope instead of a narrow workspace path |
+| `SKY-D337` | Package Registry Or Index Override | HIGH | Package manager command overrides the default registry or index, risking dependency confusion or spoofed packages |
+| `SKY-D338` | Sensitive Host Scope Access | CRITICAL | Command reads host credential stores or mounts broad host filesystem paths such as `/` |
+| `SKY-D339` | Persistent Environment Mutation | HIGH | Command mutates shell profiles, schedulers, global Git config, or package-manager config persistently |
+| `SKY-D340` | Unapproved Package Or Artifact Publish | HIGH | Package or artifact publish command appears outside an explicit release context |
+| `SKY-D341` | Untrusted Package-Managed Tool Execution | HIGH | Package-managed tool execution auto-installs or runs unpinned external code, such as `npx -y tool@latest` |
+
 #### GitHub Actions / CI/CD Security
 
 These rules scan `.github/workflows/*.yml`, `.github/workflows/*.yaml`,
