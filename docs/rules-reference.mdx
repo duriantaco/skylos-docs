@@ -114,8 +114,8 @@ Rule IDs are **unified across languages** — when multiple scanners detect the 
 #### Agent And Build Command Safety
 
 These rules flag high-risk commands in shell scripts, static Python/TypeScript
-command strings, GitHub Actions `run:` blocks, GitLab CI `script:` blocks, and
-Dockerfile `RUN` instructions.
+command strings, GitHub Actions `run:` blocks, GitLab CI `script:` blocks,
+Dockerfile `RUN` instructions, and selected Dockerfile build inputs.
 
 | Rule ID | Name | Severity | Description |
 |---------|------|----------|-------------|
@@ -127,6 +127,8 @@ Dockerfile `RUN` instructions.
 | `SKY-D339` | Persistent Environment Mutation | HIGH | Command mutates shell profiles, schedulers, global Git config, or package-manager config persistently |
 | `SKY-D340` | Unapproved Package Or Artifact Publish | HIGH | Package or artifact publish command appears outside an explicit release context |
 | `SKY-D341` | Untrusted Package-Managed Tool Execution | HIGH | Package-managed tool execution auto-installs or runs unpinned external code, such as `npx -y tool@latest` |
+| `SKY-D342` | Dockerfile Remote ADD Without Checksum | HIGH | Dockerfile `ADD` fetches a remote URL without `--checksum`, allowing the build to consume mutable or tampered artifacts |
+| `SKY-D343` | Dockerfile Literal Secret Build Value | HIGH | Dockerfile `ARG` or `ENV` sets a secret-looking name to a literal value that can be baked into image layers or build metadata |
 
 #### GitHub Actions / CI/CD Security
 
