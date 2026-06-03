@@ -1,6 +1,6 @@
 # Skylos Documentation
 
-Documentation for Skylos - a static analysis tool for Python, TypeScript, JavaScript, Java, Go, PHP, Rust, Dart, Shell, and deployment config that finds dead code, security vulnerabilities, and code quality issues.
+Documentation for Skylos - a static analysis tool for Python, TypeScript, JavaScript, Java, Go, PHP, Rust, Dart, Shell, and deployment config that finds dead code, security vulnerabilities, code quality issues, and AI-code mistakes.
 
 ## Quick Links
 
@@ -21,6 +21,7 @@ Documentation for Skylos - a static analysis tool for Python, TypeScript, JavaSc
 | [Dead Code Detection](dead-code-detection.mdx) | Find unused functions, imports, classes, variables |
 | [Smart Tracing](smart-tracing.mdx) | Runtime call tracing with `--trace` to catch dynamic dispatch |
 | [Security Analysis](security-analysis.mdx) | Taint analysis, CI/CD and edge config checks, webhook signature checks, secrets detection |
+| [Vibe Coding & AI Debt](docs/concepts/vibe-coding.mdx) | AI-generated code mistakes, including hallucinated helpers, disabled controls, and package/API hallucinations |
 | [Code Quality](code-quality.mdx) | Complexity, nesting, structure checks |
 | [Technical Debt](docs/technical-debt.mdx) | Structural debt hotspots, changed-view reviews, and debt baselines |
 | [Framework Awareness](framework-awareness.mdx) | Django, Flask, FastAPI, Pytest support |
