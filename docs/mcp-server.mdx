@@ -118,9 +118,13 @@ Get your API key from [skylos.dev/dashboard/settings](https://skylos.dev/dashboa
 | `security_scan` | **Free** | Runs locally |
 | `quality_check` | **Free** | Runs locally |
 | `secrets_scan` | **Free** | Runs locally |
+| `verify_change` | **Free** | Runs locally; returns narrow AI-code trust findings for changed code |
 | `remediate` | **10** | AI-powered fix generation |
 
-Analysis tools (`analyze`, `security_scan`, `quality_check`, `secrets_scan`) run entirely on your machine — they don't cost credits. Only the `remediate` tool, which uses LLM-powered fix generation, costs 10 credits per call.
+Analysis tools (`analyze`, `security_scan`, `quality_check`, `secrets_scan`,
+and `verify_change`) run entirely on your machine — they don't cost credits.
+Only the `remediate` tool, which uses LLM-powered fix generation, costs 10
+credits per call.
 
 **Enterprise plans** have unlimited credits — no per-call charges.
 
@@ -236,6 +240,31 @@ Detects hardcoded credentials and sensitive data.
 
 ---
 
+### `verify_change`
+
+Verifies a changed file or line range for AI-code trust findings. This is the
+MCP equivalent of `skylos verify`, intended for coding agents to call after an
+edit before showing the change to a human.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `path` | string | `"."` | File or project root to verify |
+| `file` | string | null | Target file when `path` is a project root |
+| `line_range` | string | null | Changed range such as `"40:75"` |
+| `confidence` | int | 60 | Confidence threshold |
+| `project_context` | bool | false | Scan the project root and filter to `file` |
+| `include_dependency_hallucinations` | bool | false | Include package metadata checks for hallucinated dependencies and versions |
+| `exclude_folders` | string | null | Comma-separated folders to exclude |
+
+**Example prompt**: "Verify the change I just made to `src/app.py` lines 40 to 75."
+
+**Returns**: Versioned JSON with `tool: "verify_change"`, `status`, target
+metadata, and only AI-code findings such as hallucinated references,
+incomplete generation, stale references, disabled controls, dependency
+hallucinations, and API signature hallucinations.
+
+---
+
 ### `remediate`
 
 End-to-end remediation: scan for issues, generate LLM-based fixes, validate each fix by running your test suite, and optionally apply them.
@@ -251,7 +280,7 @@ End-to-end remediation: scan for issues, generate LLM-based fixes, validate each
 
 **Example prompt**: "Fix the top 3 security issues in my project, but don't apply yet — show me the plan"
 
-**Returns**: Remediation plan with status for each finding (fixed, skipped, test_failed, not_resolved).
+**Returns**: Remediation plan with status for each finding (fixed, skipped, test_failed, not_resolved). Security remediation also re-scans after a fix and can include generated regression-test proof metadata, such as the rule family, source file, and candidate test file.
 
 :::caution
 Set `dry_run=false` only when you're ready to modify files. Fixes that break tests are automatically reverted.
@@ -262,6 +291,7 @@ Set `dry_run=false` only when you're ready to modify files. Fixes that break tes
 - Fixes that break tests are automatically reverted
 - Low-confidence fixes are skipped
 - After applying a fix, Skylos re-scans to confirm the finding is actually resolved
+- For supported security findings such as `SKY-D211`, Skylos can attach a targeted regression-test candidate after the fix is verified
 - Maximum fixes capped at `max_fixes` to prevent runaway changes
 
 :::note

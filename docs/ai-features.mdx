@@ -127,6 +127,43 @@ export SKYLOS_LLM_BASE_URL=http://localhost:11434/v1
 
 ## Commands
 
+### `skylos verify`
+
+Run a narrow, local verifier for code an agent or editor just changed:
+
+```bash
+skylos verify . --file src/app.py --range 40:75 --project-context
+```
+
+`skylos verify` is different from a full scan. It returns only AI-code trust
+findings in a stable JSON schema, including hallucinated references, unfinished
+generated code, stale references, disabled controls, dependency
+hallucinations, and API signature hallucinations.
+
+Agents and editors can also pass unsaved buffers through stdin:
+
+```bash
+printf '{"file":"src/app.py","code":"def handler(): pass\n","range":"1:1"}' \
+  | skylos verify . --stdin --no-fail
+```
+
+The JSON response uses `tool: "verify_change"` and includes `rule_id`,
+`vibe_category`, `ai_likelihood`, `range`, `message`, `suggested_fix`,
+`confidence`, `severity`, and `category` for each finding. Without `--no-fail`,
+the command exits `1` when the verifier returns a failing status.
+
+### MCP `verify_change`
+
+The MCP server exposes the same verifier as `verify_change`, so coding agents can
+call Skylos after each edit. The tool accepts `path`, optional `file`,
+`line_range`, `project_context`, `confidence`, and
+`include_dependency_hallucinations`, then returns the same versioned JSON schema
+as the CLI.
+
+Use `verify_change` when you want an agent to self-correct before a human review
+sees a hallucinated helper, stale reference, disabled control, or invented API
+call.
+
 ### `skylos agent scan`
 
 Run hybrid AI-powered analysis with full project context:
@@ -254,6 +291,20 @@ skylos agent remediate ./src/api.py --line 45 --message "SQL injection vulnerabi
 | `--provider` | Force provider |
 | `--base-url` | Custom endpoint |
 
+For supported security findings, remediation does more than apply a patch and
+run existing tests. After a fix, Skylos re-runs the relevant analysis to confirm
+the original finding is closed. For `SKY-D211` SQL injection findings, Skylos
+can also generate a targeted regression-test candidate and include proof
+metadata in the remediation summary.
+
+Regression proof metadata includes:
+
+- `rule_id`
+- `family`
+- `source_file`
+- `test_file`
+- `description`
+
 ### `skylos agent scan --changed`
 
 Scan only git-changed files:
@@ -296,6 +347,14 @@ For best results, use `skylos agent scan` and `skylos agent scan --security` ins
 - **Hallucinations:** Calls to functions that don't exist in your codebase
 - **Business logic flaws:** Authentication bypasses, broken access control
 - **Context-dependent issues:** Problems that require understanding intent
+
+### In-Loop Verifier Adds
+
+- **Machine-stable output:** a small JSON verdict shaped for agents, not a full human report
+- **Range filtering:** findings can be scoped to the lines an agent just edited
+- **Real API checks:** Python package calls can be checked against installed API surfaces
+- **Dependency version checks:** npm and Go manifest pins can be checked against registry metadata
+- **Local operation:** verifier findings come from Skylos analysis; LLM use is not required
 
 ### Confidence Scoring
 
@@ -385,7 +444,23 @@ provider = "openai"
 
 1. **Never blindly apply fixes** — always review the diff
 2. **Run tests after applying** — verify functionality
-3. **Fix incrementally** — one category at a time
+3. **Check remediation proof** — for security fixes, confirm the finding was re-scanned as closed
+4. **Fix incrementally** — one category at a time
+
+### For AI-Code Defect Benchmarks
+
+Skylos includes a checked-in benchmark harness for AI-code defect cases:
+
+```bash
+python scripts/ai_code_defect_benchmark.py
+python scripts/ai_code_defect_benchmark.py --json
+python scripts/ai_code_defect_benchmark.py --case dependency-version-hallucination
+```
+
+The benchmark exercises the verifier against curated AI-defect fixtures and
+reports score, recall, absence-guard results, and failures. Use it when changing
+AI-defect rules, verifier filtering, package hallucination detection, or
+signature validation.
 
 ### For CI/CD
 

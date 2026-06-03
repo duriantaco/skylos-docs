@@ -327,6 +327,49 @@ skylos . --danger --quality --gate
 
 ---
 
+## In-Loop Verification
+
+`skylos verify` is the agent-loop path for vibe coding defects. Instead of
+running a full project report after a feature is done, agents and editors can
+ask Skylos for a narrow verdict on the changed file or range:
+
+```bash
+skylos verify . --file src/app.py --range 40:75 --project-context
+```
+
+The verifier returns versioned JSON with only AI-code trust findings. Each
+finding includes `rule_id`, `vibe_category`, `ai_likelihood`, `range`,
+`message`, optional `suggested_fix`, `confidence`, `severity`, and `category`.
+
+The same schema is available through MCP as `verify_change`, which lets
+MCP-compatible coding agents verify a change after each edit. The VS Code
+extension also routes idle changed-function analysis through this verifier path.
+
+For unsaved editor buffers, pass a JSON manifest through stdin:
+
+```bash
+printf '{"file":"src/app.py","code":"def handler(): pass\n","range":"1:1"}' \
+  | skylos verify . --stdin --no-fail
+```
+
+## Local Defect Signals
+
+Skylos can record local structural signals when a developer accepts, dismisses,
+or trains on an AI-defect finding through the agent service. Signal capture is
+off by default and controlled by `[tool.skylos.contribution]`.
+
+```toml
+[tool.skylos.contribution]
+collect_local_signals = true
+contribute_public_corpus = false
+structural_signatures_only = true
+include_source = false
+```
+
+Local events are written to `.skylos/contribution/events.json`. They contain
+rule/category/severity metadata, file extension, line bucket, and hashes. Raw
+source is not captured.
+
 ## AI-Specific Detection Rules
 
 Skylos includes rules specifically designed to catch patterns common in AI-generated code:

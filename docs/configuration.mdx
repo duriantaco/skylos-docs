@@ -56,6 +56,13 @@ fail_on_critical = true
 max_security = 0
 max_quality = 10
 strict = false
+
+[tool.skylos.contribution]
+# Off by default. Stores structural accept/dismiss/learn signals locally only.
+collect_local_signals = false
+contribute_public_corpus = false
+structural_signatures_only = true
+include_source = false
 ```
 
 ## Configuration Options
@@ -75,6 +82,36 @@ strict = false
 |--------|------|---------|-------------|
 | `ignore` | list | `[]` | List of rule IDs to suppress (e.g., `["SKY-L002", "SKY-Q301"]`) |
 | `model` | string | `"gpt-4.1"` | LLM model for AI-powered features |
+
+### Contribution Signals
+
+The `[tool.skylos.contribution]` section controls AI-code defect signal capture.
+It is explicit, opt-in, and off by default.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `collect_local_signals` | bool | `false` | Record local structural accept/dismiss/learn events |
+| `contribute_public_corpus` | bool | `false` | Reserved for public corpus contribution; keep disabled unless you explicitly opt in |
+| `structural_signatures_only` | bool | `true` | Store rule/category/severity/file extension/line bucket/hashes instead of source text |
+| `include_source` | bool | `false` | Always sanitized to `false`; raw source is not captured |
+
+When local signal capture is enabled, Skylos stores bounded local events at:
+
+```text
+.skylos/contribution/events.json
+```
+
+Events are generated from agent-service accept, dismiss, and learn actions.
+They include structural hashes and message hashes, not raw code. The file is
+local project state and should normally be gitignored.
+
+```toml
+[tool.skylos.contribution]
+collect_local_signals = true
+contribute_public_corpus = false
+structural_signatures_only = true
+include_source = false
+```
 
 ### Gate Configuration
 

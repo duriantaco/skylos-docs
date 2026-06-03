@@ -58,6 +58,72 @@ Run static analysis on the specified path.
 skylos . --danger --quality
 ```
 
+### `skylos verify`
+
+Verify a changed file, range, or stdin code blob for AI-code trust findings. This
+is the narrow in-loop verifier designed for coding agents and editor hooks, so
+it returns only AI-specific findings instead of the full dead-code/security
+report.
+
+```bash
+# Verify one file
+skylos verify src/app.py
+
+# Verify only the edited range
+skylos verify src/app.py --range 40:75
+
+# Scan the project for context, then return findings for one file
+skylos verify . --file src/app.py --range 40:75 --project-context
+
+# Let an editor or agent send an unsaved buffer
+printf '{"file":"src/app.py","code":"def handler(): pass\n","range":"1:1"}' \
+  | skylos verify . --stdin --no-fail
+```
+
+The command prints versioned JSON with `tool: "verify_change"`, a `status`, the
+target file/range, and findings shaped for agent consumption:
+
+```json
+{
+  "schema_version": 1,
+  "tool": "verify_change",
+  "status": "fail",
+  "findings": [
+    {
+      "rule_id": "SKY-D224",
+      "vibe_category": "api_signature_hallucination",
+      "ai_likelihood": "high",
+      "range": {
+        "file": "src/app.py",
+        "start_line": 42,
+        "start_col": 0,
+        "end_line": 42,
+        "end_col": 0
+      },
+      "message": "Call uses an API shape that is not present in the installed package.",
+      "suggested_fix": "Update the call to match the installed package API surface.",
+      "confidence": 80,
+      "severity": "HIGH",
+      "category": "security"
+    }
+  ]
+}
+```
+
+| Flag | Description |
+|------|-------------|
+| `--file <path>` | Target file when the positional path is a project root |
+| `--range L1:L2` | Return findings that overlap a changed line range |
+| `--stdin` | Read a JSON manifest with `file`, `code`, and optional `range` |
+| `--project-context` | Scan the project path and filter to `--file` |
+| `--dependency-hallucinations` | Include package metadata checks for hallucinated dependencies and versions |
+| `--exclude-folder <folder>` | Add an excluded folder. Can be repeated |
+| `--confidence`, `-c` | Analyzer confidence threshold. Default: `60` |
+| `--no-fail` | Exit `0` even when verify findings are returned |
+| `--output`, `-o <file>` | Write JSON output to a file |
+
+Without `--no-fail`, `skylos verify` exits `1` when the JSON status is `fail`.
+
 ### `skylos debt <path>`
 
 Analyze technical debt hotspots for the specified path.
@@ -128,6 +194,23 @@ Clean scans print nothing and exit `0`. Scans with findings exit `1` unless
 | `--trace` | Run tests with call tracing to capture dynamic dispatch (visitor patterns, getattr, plugins) |
 | `--confidence`| Confidence threshold (0-100). Lower values include more uncertain findings. Default: `60` |
 
+## Reference Graph Cache
+
+Skylos has a persistent reference graph cache format at:
+
+```text
+.skylos/index/v1/reference_graph.json
+```
+
+The cache stores file signatures, definitions, references, imports, and reverse
+dependencies keyed by content hash. Index-aware verifier and agent paths can
+reuse unchanged graph entries and conservatively invalidate changed files plus
+their direct dependents.
+
+You should normally gitignore `.skylos/index/`. It is safe to delete; Skylos will
+rebuild cache payloads when an index-aware path writes them again. The cache does
+not index symlinks, non-regular files, or very large source files.
+
 ## Diff Filtering
 
 | Flag | Description |
@@ -174,8 +257,9 @@ Interactive mode requires the `inquirer` package.
 | Feature | Command | Description |
 |---------|---------|-------------|
 | **AI-Powered Analysis** | `skylos agent scan . --model gpt-4.1` | Hybrid static + LLM analysis with project context |
+| **In-Loop Verification** | `skylos verify . --file src/app.py --range 40:75` | Fast, machine-readable AI-code trust verdict for changed code |
 | **AI Security Scan** | `skylos agent scan . --security` | Security taskflow audit with repo map, file facts, and verifier-backed evidence |
-| **Automated Repair** | `skylos agent scan . --fix` | Let the LLM fix what it found |
+| **Automated Repair** | `skylos agent scan . --fix` | Let the LLM fix what it found, re-scan to confirm closure, and attach proof-test metadata when available |
 | **PR Review** | `skylos agent scan --changed` | Analyze only git-changed files |
 | **Local LLM** | `skylos agent scan . --base-url http://localhost:11434/v1 --model codellama` | Use Ollama/LM Studio (no API key needed) |
 

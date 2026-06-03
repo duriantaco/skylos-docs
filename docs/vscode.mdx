@@ -7,10 +7,10 @@ description: 'Real-time AI-powered code analysis as you type'
   **Prerequisites**:
   - VS Code version 1.87 or higher
   - Python 3.10+ (for Skylos CLI)
-  - OpenAI or Anthropic API key (for AI features)
+  - OpenAI or Anthropic API key only for LLM fix generation
 :::
 
-The Skylos VS Code extension brings real-time bug detection to your editor. It combines static analysis from the Skylos CLI with AI-powered code review that runs as you type.
+The Skylos VS Code extension brings real-time bug detection to your editor. It combines static analysis from the Skylos CLI with local in-loop verification for changed code and optional LLM-powered fixes.
 
 <img 
   src="/img/screenshot1.png" 
@@ -45,9 +45,9 @@ Verify the installation:
 skylos --version
 ```
 
-### 3. Add your API key
+### 3. Add your API key for fixes
 
-For AI features, add your OpenAI or Anthropic API key:
+The realtime verifier runs through the local `skylos verify` command. Add an OpenAI or Anthropic API key only if you want the extension to generate fixes:
 
 1. Open VS Code Settings (`Cmd + ,` on Mac, `Ctrl + ,` on Windows)
 2. Search for `skylos`
@@ -72,19 +72,25 @@ When you save a Python file, the Skylos CLI runs and detects:
 - Hardcoded secrets and API keys
 - Dangerous patterns (`eval`, `pickle`, `shell=True`)
 
-### Layer 2: AI Watcher (on idle)
+### Layer 2: Verify Watcher (on idle)
 
-When you stop typing for 2 seconds, the AI analyzes changed functions and detects:
-- Logic errors and bugs
-- Undefined variables
-- Type mismatches
-- Security vulnerabilities
+When you stop typing, the extension sends the unsaved buffer to `skylos verify`
+through stdin and scopes the result to the changed function range. The verifier
+returns machine-readable AI-code trust findings, including:
+
+- hallucinated references and missing helpers
+- unfinished generated code
+- stale references after refactors
+- disabled security controls
+- API and dependency hallucinations when those checks are enabled by the CLI path
 
 ## Features
 
 ### Real-time Analysis
 
-The AI watcher only analyzes functions that have changed, using content hashing to skip unchanged code. Results are cached for 60 seconds to avoid redundant API calls.
+The verify watcher only analyzes functions that have changed, using content
+hashing to skip unchanged code. Results are cached for 60 seconds, and the
+extension logs the exact local command in the Skylos output channel.
 
 ### CodeLens Buttons
 
@@ -258,7 +264,8 @@ This happens when running Skylos with Python 3.9 or earlier. The `|` type union 
 ## Privacy
 
 - **Skylos CLI** runs 100% locally — no network calls
-- **AI features** send only changed function code to OpenAI/Anthropic
+- **Realtime verify** uses `skylos verify` locally and does not send code to an LLM provider
+- **Fix with AI** sends only the code needed for the selected fix to OpenAI/Anthropic
 - Your API keys are stored in VS Code settings (local to your machine)
 - No telemetry or analytics are collected
 
