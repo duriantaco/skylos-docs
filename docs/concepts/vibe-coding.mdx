@@ -345,6 +345,8 @@ Skylos includes rules specifically designed to catch patterns common in AI-gener
 | `SKY-L017` | **Error info disclosure** — `return str(e)` | LLMs return raw exceptions for "debugging" instead of safe error messages | — |
 | `SKY-L020` | **Broad file permissions** — `os.chmod(f, 0o777)` | LLMs use maximally permissive modes to avoid permission errors | — |
 | `SKY-D222` | **Hallucinated dependencies** — importing packages that don't exist on PyPI | LLMs invent package names that sound right but aren't real | — |
+| `SKY-D224` | **API signature hallucinations** — real package, invented method or keyword | LLMs confidently call APIs that look plausible but are not in the installed package | `api_signature_hallucination` |
+| `SKY-D225` | **Dependency version hallucinations** — npm or Go versions that were never published | LLMs invent semver pins that make manifests look complete but fail in builds | `dependency_hallucination` |
 | `SKY-D260` | **Prompt injection** — hidden instructions in comments, YAML, Markdown | Hostile content targeting AI agents processing your codebase | — |
 
 ```bash
