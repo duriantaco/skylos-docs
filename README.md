@@ -11,6 +11,7 @@ Documentation for Skylos - a static analysis tool for Python, TypeScript, JavaSc
 | [中文文档](docs/zh-cn/index.mdx) | Chinese docs entry point |
 | [Installation](installation.mdx) | Setup and configuration |
 | [CLI Reference](cli-reference.mdx) | All command-line options |
+| [AI Features](docs/ai-features.mdx) | In-loop verification, AI remediation, local LLM setup |
 | [Why Skylos](why-skylos.mdx) | Comparison with other tools |
 
 ## Product Docs
@@ -22,6 +23,7 @@ Documentation for Skylos - a static analysis tool for Python, TypeScript, JavaSc
 | [Smart Tracing](smart-tracing.mdx) | Runtime call tracing with `--trace` to catch dynamic dispatch |
 | [Security Analysis](security-analysis.mdx) | Taint analysis, CI/CD and edge config checks, webhook signature checks, secrets detection |
 | [Vibe Coding & AI Debt](docs/concepts/vibe-coding.mdx) | AI-generated code mistakes, including hallucinated helpers, disabled controls, and package/API hallucinations |
+| [AI Features](docs/ai-features.mdx) | `skylos verify`, AI-code defect benchmarks, remediation proof tests, and LLM-assisted review |
 | [Code Quality](code-quality.mdx) | Complexity, nesting, structure checks |
 | [Technical Debt](docs/technical-debt.mdx) | Structural debt hotspots, changed-view reviews, and debt baselines |
 | [Framework Awareness](framework-awareness.mdx) | Django, Flask, FastAPI, Pytest support |
@@ -35,7 +37,8 @@ Documentation for Skylos - a static analysis tool for Python, TypeScript, JavaSc
 ### Fix
 | Doc | Description |
 |-----|-------------|
-| [AI Features](ai-features.mdx) | `--fix` and `--audit` with OpenAI/Anthropic |
+| [AI Features](docs/ai-features.mdx) | `skylos agent scan`, `skylos verify`, and verification-backed remediation |
+| [MCP Server](docs/mcp-server.mdx) | Agent-callable tools including `verify_change` for AI-code trust checks |
 
 ---
 
