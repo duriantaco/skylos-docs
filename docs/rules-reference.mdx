@@ -57,6 +57,7 @@ Rule IDs are **unified across languages** — when multiple scanners detect the 
 | `SKY-D261` | Untrusted Input To LLM Prompt | HIGH | Python | Request-controlled data reaches an LLM prompt or message without a clear instruction/data boundary |
 | `SKY-D262` | Unsafe LLM Output Handling | CRITICAL | Python | Model output flows into code execution, shell, SQL, or network sinks without validation |
 | `SKY-D263` | Sensitive Data Sent To LLM | HIGH | Python | Secrets, credential fields, or sensitive environment values flow into LLM or embedding API input |
+| `SKY-D264` | Excessive Agent Tool Privilege | HIGH | Python | Agent frameworks are granted shell, code execution, unrestricted HTTP, or broad file-management tools |
 | `SKY-D265` | Unsafe ML Model Deserialization | HIGH–CRITICAL | Python | Pickle-backed model/checkpoint loading such as `torch.load`, `joblib.load`, or `numpy.load(..., allow_pickle=True)` |
 | `SKY-D324` | Symlink-Following File Write | HIGH | Python | Writes to attacker-controlled paths without symlink or containment guards |
 | `SKY-D325` | Symlink-Following File Read | MEDIUM | Python | Reads attacker-controlled paths without symlink, regular-file, or size guards |
@@ -119,6 +120,7 @@ Rule IDs are **unified across languages** — when multiple scanners detect the 
 | `SKY-D261` | Untrusted Input To LLM Prompt | HIGH | Request-controlled data reaches an LLM prompt or message without a clear instruction/data boundary |
 | `SKY-D262` | Unsafe LLM Output Handling | CRITICAL | Model output flows into code execution, shell, SQL, or network sinks without validation |
 | `SKY-D263` | Sensitive Data Sent To LLM | HIGH | Secrets, credential fields, or sensitive environment values flow into LLM or embedding API input |
+| `SKY-D264` | Excessive Agent Tool Privilege | HIGH | Agent frameworks are granted shell, code execution, unrestricted HTTP, or broad file-management tools |
 | `SKY-D265` | Unsafe ML Model Deserialization | HIGH–CRITICAL | Pickle-backed model/checkpoint loading such as `torch.load`, `joblib.load`, or `numpy.load(..., allow_pickle=True)` |
 | `SKY-D266` | AI Config Instruction Injection | CRITICAL | Hidden, obfuscated, or instruction-override payloads in AI assistant rule/config files |
 
@@ -1399,6 +1401,40 @@ client.responses.create(model="gpt-4o-mini", input=f"Debug token {token}")
 # Good
 client.responses.create(model="gpt-4o-mini", input=redact(user_text))
 ```
+
+---
+
+### SKY-D264 · Excessive Agent Tool Privilege
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Python |
+| **What** | Agent frameworks are granted shell, code execution, unrestricted HTTP, or broad file-management tools |
+| **Vibe Category** | AI Application Security |
+
+Flags agent setups where frameworks such as LangChain or CrewAI receive
+dangerous tools, including shell execution, Python REPL, unrestricted request
+tools, broad file-management tools, or tool wrappers around functions such as
+`os.system`, `subprocess.run`, `eval`, or `exec`.
+
+```python
+# Bad
+from langchain.agents import initialize_agent
+from langchain_community.tools import ShellTool
+
+agent = initialize_agent([ShellTool()], llm)
+
+# Good
+agent = initialize_agent(
+    [safe_lookup_tool, scoped_read_only_tool],
+    llm,
+    max_iterations=5,
+)
+```
+
+Use narrowly scoped, allowlisted tools and require human approval for mutating
+or externally visible actions.
 
 ---
 
