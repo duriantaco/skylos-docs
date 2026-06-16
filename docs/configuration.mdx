@@ -42,6 +42,16 @@ names = [
 # Per-path whitelist rules
 whitelist = ["*Plugin", "*Handler"]
 
+[tool.skylos.dead_code]
+entrypoints = []
+
+[[tool.skylos.dead_code.entrypoints]]
+type = "method"
+name = ["create", "pre_hook", "post_hook"]
+parent = { name = "Main", base_classes = ["Application"] }
+path = "src/**"
+reason = "project framework lifecycle hook"
+
 [tool.skylos.languages.typescript]
 # Language-specific overrides
 complexity = 15
@@ -184,6 +194,44 @@ whitelist = ["*Plugin", "*Handler"]
 [tool.skylos.overrides."src/events/*"]
 whitelist = ["on_*", "*_listener"]
 ```
+
+## Dead-Code Entrypoints
+
+Use `[[tool.skylos.dead_code.entrypoints]]` when code is live because a
+project-specific framework, plugin loader, or decorator calls it implicitly.
+Entrypoint rules are more precise than broad whitelists because they can match
+definition type, name, path, decorator, base class, and parent class metadata.
+
+```toml
+[tool.skylos.dead_code]
+entrypoints = []
+
+[[tool.skylos.dead_code.entrypoints]]
+type = "class"
+name = "Main"
+path = "**/main.py"
+base_classes = ["Application"]
+reason = "framework application entrypoint"
+
+[[tool.skylos.dead_code.entrypoints]]
+type = "method"
+name = ["create", "pre_hook", "post_hook"]
+parent = { name = "Main", base_classes = ["Application"] }
+reason = "framework lifecycle method"
+
+[[tool.skylos.dead_code.entrypoints]]
+type = "function"
+decorators = ["runtime_hook"]
+path = "src/**"
+reason = "registered by runtime_hook"
+```
+
+Supported match fields are `type`, `name`, `full_name`, `module`, `path`,
+`decorator`, `decorators`, `base_class`, `base_classes`, and `parent`. The
+`parent` rule can match the parent class by `name`, `full_name`, `module`,
+`path`, `base_class`, or `base_classes`. Rules must include a symbol selector
+such as `name`, `decorators`, `base_classes`, or `parent`; `path`, `module`,
+and `type` only narrow the match.
 
 ### Inline Ignores
 

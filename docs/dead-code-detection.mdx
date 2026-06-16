@@ -1,6 +1,6 @@
 ---
 title: "Dead Code Detection"
-description: "Detect unused functions, imports, classes, and variables in Python, TypeScript, JavaScript, Java, Go, PHP, Rust, and Dart. Framework-aware dead code detection for Django, FastAPI, Flask, Spring, React, Next.js, Flutter, and Pydantic."
+description: "Detect unused functions, imports, classes, and variables in Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, and Dart. Framework-aware dead code detection for Django, FastAPI, Flask, Spring, React, Next.js, Flutter, and Pydantic."
 ---
 
 import Tabs from '@theme/Tabs';
@@ -198,6 +198,33 @@ def test_user_creation(db_session):
 ```
   </TabItem>
 </Tabs>
+
+---
+
+## Custom Entrypoints
+
+For proprietary frameworks, plugin loaders, and decorator registries, add
+project-specific entrypoint rules instead of broad whitelists:
+
+```toml
+[[tool.skylos.dead_code.entrypoints]]
+type = "method"
+name = ["create", "pre_hook", "post_hook"]
+parent = { name = "Main", base_classes = ["Application"] }
+reason = "project framework lifecycle hook"
+
+[[tool.skylos.dead_code.entrypoints]]
+type = "function"
+decorators = ["runtime_hook"]
+path = "src/**"
+reason = "registered by runtime_hook"
+```
+
+Skylos treats matching definitions as live while still reporting unrelated
+dead code in the same files. See [Configuration](/configuration) for every
+supported match field. Entrypoint rules must include a symbol selector such as
+`name`, `decorators`, `base_classes`, or `parent`; `path`, `module`, and
+`type` only narrow the match.
 
 ---
 
