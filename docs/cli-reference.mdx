@@ -252,6 +252,34 @@ skylos . --exclude-folder tests --exclude-folder migrations --include-folder ven
 
 Interactive mode requires the `inquirer` package.
 
+## Deterministic Cleanup
+
+Use `skylos clean` when you want a repeatable cleanup plan that can be reviewed
+before files are edited.
+
+```bash
+# Preview safe import/function cleanup edits without writing files
+skylos clean . --dry-run --types import,function --confidence 80
+
+# Apply the same kind of cleanup without prompting
+skylos clean . --apply --types imports --confidence 80
+
+# Comment out matches instead of removing them
+skylos clean . --apply --comment-out --types import,function --confidence 80
+```
+
+| Flag | Description |
+|------|-------------|
+| `--dry-run` | Print planned edits and write nothing |
+| `--apply` | Apply matching cleanup edits without prompting |
+| `--confidence <N>` | Minimum finding confidence; defaults to `80` in noninteractive mode |
+| `--types <list>` | Comma-separated cleanup types; currently `import` and `function` |
+| `--comment-out` | Comment out matches instead of deleting them |
+
+`skylos clean` still uses Skylos' CST codemods and path-containment checks.
+Automatic cleanup currently edits unused imports and unused functions only;
+classes, variables, and lower-confidence findings remain review items.
+
 ## AI-Powered Features
 
 | Feature | Command | Description |
@@ -445,6 +473,12 @@ skylos . --danger --secrets --quality --json -o report.json
 **Interactive cleanup:**
 ```bash
 skylos . -i --dry-run
+```
+
+**Deterministic cleanup preview and apply:**
+```bash
+skylos clean . --dry-run --types imports --confidence 80
+skylos clean . --apply --types imports --confidence 80
 ```
 
 **CI/CD gate that blocks on critical issues:**

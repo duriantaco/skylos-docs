@@ -273,13 +273,16 @@ Instead of binary "used/unused", Skylos scores confidence:
 
 ```bash
 # 1. See what would be removed
-skylos . --dry-run
+skylos clean . --dry-run --types import,function --confidence 80
 
-# 2. Interactive selection
+# 2. Apply safe import/function cleanup
+skylos clean . --apply --types imports --confidence 80
+
+# 3. Interactive selection for the rest
 skylos . -i
 
-# 3. Comment out instead of delete (safer)
-skylos . -i --comment-out
+# 4. Comment out instead of delete (safer)
+skylos clean . --apply --comment-out --types import,function --confidence 80
 ```
 
 ---
@@ -336,4 +339,3 @@ skylos . -i --comment-out
   ### [Vibe Coding & AI Debt](/concepts/vibe-coding)
     Why AI assistants create dead code
   
-

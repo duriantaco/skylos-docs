@@ -276,14 +276,39 @@ Start with findings you can trust:
 skylos . --confidence 80
 ```
 
-### 2. Review in interactive mode
+### 2. Preview deterministic cleanup
+
+For safe unused import/function cleanup, preview the exact edits first:
+
+```bash
+skylos clean . --dry-run --types import,function --confidence 80
+```
+
+### 3. Apply selected cleanup
+
+Apply the same deterministic cleanup without prompts:
+
+```bash
+skylos clean . --apply --types imports --confidence 80
+```
+
+Use comment-out mode when you want a reversible source marker:
+
+```bash
+skylos clean . --apply --comment-out --types import,function --confidence 80
+```
+
+`skylos clean` currently edits unused imports and unused functions only. It
+skips unsupported finding types and uses CST codemods rather than regex edits.
+
+### 4. Review in interactive mode
 
 Select what to remove:
 ```bash
 skylos . -i --dry-run
 ```
 
-### 3. Remove or comment out
+### 5. Remove or comment out interactively
 ```bash
 # Delete selected items
 skylos . -i
@@ -292,7 +317,7 @@ skylos . -i
 skylos . -i --comment-out
 ```
 
-### 4. Run tests
+### 6. Run tests
 
 Verify nothing broke:
 ```bash

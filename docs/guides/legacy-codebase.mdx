@@ -93,29 +93,35 @@ skylos . --confidence 90 | grep -A 100 "Unused Imports"
  3   deprecated_lib          utils/helpers.py:5
 ```
 
-### Step 2: Interactive Removal
+### Step 2: Preview Cleanup
 
+Use `skylos clean` to preview safe import cleanup without editing files:
 
 **skylos:**
 
 
-```bash . -i --dry-run
+```bash
+skylos clean . --dry-run --types imports --confidence 90
 ```
 
-Select only imports for now:
+The output is grouped by file and line:
 
 ```
-? Select unused imports to act on (space to select)
-❯ ◉ json (api/views.py:3)
-  ◉ Optional (models.py:1)
-  ◉ deprecated_lib (utils/helpers.py:5)
+Dry run: would remove 3 dead code items.
+
+api/views.py
+  L3 import json (95%)
+models.py
+  L1 import Optional (92%)
+utils/helpers.py
+  L5 import deprecated_lib (90%)
 ```
 
 ### Step 3: Apply Changes
 
 ```bash
-# Remove selected imports
-skylos . -i
+# Remove matching imports without prompting
+skylos clean . --apply --types imports --confidence 90
 ```
 
 ### Step 4: Verify
@@ -145,7 +151,8 @@ Functions are riskier than imports. Proceed carefully.
 **skylos:**
 
 
-```bash . --confidence 80 | grep -A 100 "Unreachable Functions"
+```bash
+skylos . --confidence 80 | grep -A 100 "Unreachable Functions"
 ```
 
 ```
@@ -179,7 +186,8 @@ grep -r "legacy_handler" *.yaml *.json *.toml
 **skylos:**
 
 
-```bash . -i --comment-out
+```bash
+skylos clean . --apply --comment-out --types function --confidence 80
 ```
 
 This adds markers instead of deleting:
@@ -242,7 +250,8 @@ Framework code needs special attention due to implicit calling.
 **skylos:**
 
 
-```bash . --confidence 50 | grep -A 50 "Unreachable"
+```bash
+skylos . --confidence 50 | grep -A 50 "Unreachable"
 ```
 
 You'll see more findings, but also more false positives.
@@ -300,7 +309,8 @@ While you're cleaning up, address quality issues too.
 **skylos:**
 
 
-```bash . --quality
+```bash
+skylos . --quality
 ```
 
 ```
@@ -436,8 +446,9 @@ jobs:
 **skylos:**
 
 
-```bash . --confidence 90
-    ```
+```bash
+skylos . --confidence 90
+```
     
     Focus on the highest-confidence items first.
   </details>
@@ -491,4 +502,3 @@ After completing this tutorial:
   ### [Quality Gate](/quality-gate)
     Configure gate policies
   
-
