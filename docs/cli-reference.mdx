@@ -21,14 +21,15 @@ skylos init
 
 Creates or appends a `[tool.skylos]` section to `pyproject.toml` with default settings.
 
-### `skylos run`
+### `skylos run` (deprecated)
 
-Start the local analysis server with a web UI.
+Start the deprecated local web dashboard.
 ```bash
-skylos run [--exclude-folder <folder>] [--include-folder <folder>] [--no-default-excludes]
+skylos run [--port <port>] [--exclude-folder <folder>] [--include-folder <folder>] [--no-default-excludes]
 ```
 
-Launches a Flask server at `http://localhost:5000` for interactive analysis. Requires `flask` and `flask-cors`.
+This command is deprecated and will be removed in a future major release. Use
+`skylos . -a` or `skylos suite .` for local analysis.
 
 ### `skylos whitelist`
 

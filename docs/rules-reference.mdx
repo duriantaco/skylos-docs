@@ -19,7 +19,7 @@ description: "Complete reference for all Skylos static analysis rules — securi
 | `SKY-UC` | Unreachable Code | Code that can never execute |
 | `SKY-E` | Empty File | Files with no meaningful code |
 
-Rule IDs are **unified across languages** — when multiple scanners detect the same vulnerability class, Skylos reports it with the same ID across Python, TypeScript/JavaScript, Java, Go, PHP, Rust, Dart, Shell, and other supported ecosystems.
+Rule IDs are **unified across languages** — when multiple scanners detect the same vulnerability class, Skylos reports it with the same ID across Python, TypeScript/JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, Shell, and other supported ecosystems.
 
 ---
 
@@ -48,10 +48,10 @@ Rule IDs are **unified across languages** — when multiple scanners detect the 
 
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
-| `SKY-D211` | SQL Injection | CRITICAL | Python, TS, Java, Go | Tainted/interpolated SQL in `execute`, template literals, `PreparedStatement`, or `fmt.Sprintf` |
-| `SKY-D212` | Command Injection | CRITICAL | Python, TS/JS, Java, Go, Rust, Dart, Shell | Tainted input to `os.system()`, `child_process.exec()`, `Runtime.exec`, `exec.Command`, Rust `Command::new`, Dart `Process.*`, shell `eval`, `source`, or shell `-c` |
-| `SKY-D215` | Path Traversal | HIGH | Python, Java, Go, PHP, Rust, Dart, Shell | Tainted input used in filesystem paths, include/file sinks, shell file commands, or redirection targets |
-| `SKY-D216` | SSRF | CRITICAL | Python, TS, Java, Go, Dart, Shell | Tainted URL passed to HTTP clients, request builders, `curl`, or `wget` |
+| `SKY-D211` | SQL Injection | CRITICAL | Python, TS, Java, Go, C# | Tainted/interpolated SQL in `execute`, template literals, `PreparedStatement`, `fmt.Sprintf`, or C# command text |
+| `SKY-D212` | Command Injection | CRITICAL | Python, TS/JS, Java, Go, Rust, Dart, C#, Shell | Tainted input to `os.system()`, `child_process.exec()`, `Runtime.exec`, `exec.Command`, Rust `Command::new`, Dart `Process.*`, C# `Process.Start`, shell `eval`, `source`, or shell `-c` |
+| `SKY-D215` | Path Traversal | HIGH | Python, Java, Go, PHP, Rust, Dart, C#, Shell | Tainted input used in filesystem paths, include/file sinks, shell file commands, or redirection targets |
+| `SKY-D216` | SSRF | CRITICAL | Python, TS, Java, Go, Dart, C#, Shell | Tainted URL passed to HTTP clients, request builders, `curl`, or `wget` |
 | `SKY-D217` | SQL Injection (raw) | CRITICAL | Python | Tainted input in `sqlalchemy.text()`, `pandas.read_sql()`, Django `.raw()` |
 | `SKY-D235` | Remote Command Execution Sink | HIGH | Python | User-controlled values flow into command execution sinks |
 | `SKY-D261` | Untrusted Input To LLM Prompt | HIGH | Python | Request-controlled data reaches an LLM prompt or message without a clear instruction/data boundary |
@@ -72,7 +72,7 @@ Rule IDs are **unified across languages** — when multiple scanners detect the 
 | `SKY-D226` | XSS | CRITICAL | Python, TS | `mark_safe()`, `innerHTML`, `outerHTML`, `document.write()`, `dangerouslySetInnerHTML` |
 | `SKY-D227` | XSS (Template) | HIGH | Python | Template uses `\|safe` filter or disables autoescape |
 | `SKY-D228` | XSS (HTML Build) | HIGH | Python | HTML string built with unescaped user input |
-| `SKY-D230` | Open Redirect | HIGH | Python, TS, Go, Java | User-controlled URL in `redirect()` / `res.redirect()` / `http.Redirect` / `sendRedirect` |
+| `SKY-D230` | Open Redirect | HIGH | Python, TS, Go, Java, C# | User-controlled URL in `redirect()` / `res.redirect()` / `http.Redirect` / `sendRedirect` / ASP.NET redirect sinks |
 | `SKY-D231` | CORS Misconfiguration | HIGH | Python | Wildcard origins, credential leaks, overly permissive headers |
 | `SKY-D232` | JWT Vulnerabilities | CRITICAL | Python | `algorithms=['none']`, `verify=False`, weak secrets |
 | `SKY-D234` | Mass Assignment | HIGH | Python | Django `Meta.fields = '__all__'` exposes all model fields |
@@ -144,6 +144,11 @@ Dockerfile `RUN` instructions, and selected Dockerfile build inputs.
 | `SKY-D341` | Untrusted Package-Managed Tool Execution | HIGH | Package-managed tool execution auto-installs or runs unpinned external code, such as `npx -y tool@latest` |
 | `SKY-D342` | Dockerfile Remote ADD Without Checksum | HIGH | Dockerfile `ADD` fetches a remote URL without `--checksum`, allowing the build to consume mutable or tampered artifacts |
 | `SKY-D343` | Dockerfile Literal Secret Build Value | HIGH | Dockerfile `ARG` or `ENV` sets a secret-looking name to a literal value that can be baked into image layers or build metadata |
+| `SKY-D344` | Trojan Source Bidirectional Unicode | HIGH | Python source contains bidirectional Unicode control characters that can visually hide or reorder executed code |
+| `SKY-D345` | Mutable Hugging Face Artifact Revision | HIGH | Hugging Face model, dataset, or artifact download uses a missing or mutable revision instead of an immutable commit SHA |
+| `SKY-D346` | Flask Debug Mode Enabled | HIGH | Flask application enables debug mode, exposing interactive debugger behavior in unsafe contexts |
+| `SKY-D347` | Unsafe Logging Config Listener | MEDIUM | `logging.config.listen()` starts a configuration listener that can accept unsafe logging configuration input |
+| `SKY-D348` | Insecure Temporary Filename | HIGH | `tempfile.mktemp()` creates a predictable filename without securely creating the file, allowing race-condition attacks |
 
 #### GitHub Actions / CI/CD Security
 

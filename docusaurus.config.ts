@@ -43,7 +43,7 @@ const config: Config = {
         applicationCategory: 'DeveloperApplication',
         operatingSystem: 'Windows, macOS, Linux',
         offers: { '@type': 'Offer', price: '9', priceCurrency: 'USD' },
-        description: 'Dead code detection, vibe coding guardrails, prompt injection scanning, and SAST for Python, TypeScript, JavaScript, Java, Go, PHP, Rust, Dart, and Shell. Framework-aware analysis with AI-powered fixes.',
+        description: 'Dead code detection, vibe coding guardrails, prompt injection scanning, and SAST for Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, and Shell. Framework-aware analysis with AI-powered fixes.',
         url: 'https://github.com/duriantaco/skylos',
         downloadUrl: 'https://pypi.org/project/skylos/',
       }),

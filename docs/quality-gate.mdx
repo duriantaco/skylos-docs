@@ -66,9 +66,10 @@ When a new issue appears, Skylos supports three resolution paths:
 
 ## The workflow (at a glance)
 
-When you wrap your deploy/test command with Skylos, Skylos becomes the "bouncer":
+Run Skylos as a gate before your deploy/test command. If the scan fails, the
+step exits non-zero and later CI steps do not run:
 ```bash
-skylos run . --gate -- ./deploy.sh
+skylos . --gate
 ```
 ```mermaid
 flowchart LR
@@ -103,9 +104,11 @@ pip install skylos
 skylos . --danger --secrets --quality
 ```
 
-If you're gating a deploy/test step, use the wrapper:
+If you're gating a deploy/test step, run Skylos first and only run deploy after
+the gate passes:
 ```bash
-skylos run . --gate -- ./deploy.sh
+skylos . --gate
+./deploy.sh
 ```
 
 ---
@@ -237,8 +240,11 @@ jobs:
       - name: Install Skylos
         run: pip install skylos
 
-      - name: Deploy with Quality Gate
-        run: skylos run . --gate -- ./deploy.sh
+      - name: Quality Gate
+        run: skylos . --gate
+
+      - name: Deploy
+        run: ./deploy.sh
 ```
 
 ### Pro workflow behavior
