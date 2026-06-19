@@ -1,6 +1,6 @@
 # Skylos Documentation
 
-Documentation for Skylos - a static analysis tool for Python, TypeScript, JavaScript, Java, Go, PHP, Rust, Dart, Shell, and deployment config that finds dead code, security vulnerabilities, code quality issues, and AI-code mistakes.
+Documentation for Skylos - a static analysis tool for Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, Shell, and deployment config that finds dead code, security vulnerabilities, code quality issues, and AI-code mistakes.
 
 ## Quick Links
 

@@ -1,6 +1,6 @@
 ---
 title: "Language Support"
-description: "Scanner scope for Python, TypeScript, JavaScript, Java, Go, PHP, Rust, Dart, Shell, and security-relevant deployment config."
+description: "Scanner scope for Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, Shell, and security-relevant deployment config."
 ---
 
 Skylos scans mixed-language repositories in one pass. Source files are discovered
@@ -16,9 +16,11 @@ server, and Cloud upload.
 | TypeScript / JavaScript | `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs` | Yes | Yes | Yes | Tree-sitter parsing, package graph reachability, React and Next.js awareness |
 | Java | `.java` | Yes | Yes | Yes | Tree-sitter parsing, Java data-flow security checks, and method quality metrics |
 | Go | `.go` | Yes | Selected | Selected | Module-aware Go engine plus function quality metrics |
+| Kotlin | `.kt`, `.kts` | Yes | Secrets | No | Thin scanner for Kotlin symbols, imports, annotations, and secret scanning |
 | PHP | `.php` | Yes | Selected | No | PHP parser coverage with selected taint-style file and deserialization checks |
 | Rust | `.rs` | Yes | Selected | No | Rust parser coverage with selected command and filesystem checks |
 | Dart | `.dart` | Yes | Selected | No | Dart parser coverage with Flutter/test entrypoint handling and selected sink checks |
+| C# | `.cs` | Yes | Selected | No | C# symbol coverage plus selected ASP.NET, process, SQL, HTTP, redirect, and file sinks |
 | Shell | `.sh`, `.bash`, `.zsh`, `.ksh`, `.bats` | No | Selected | No | Static shell checks for command injection, SSRF, and path traversal |
 
 ## Config And Deployment Support
@@ -37,6 +39,9 @@ model as source-code rules.
 
 `Selected` means the scanner covers high-signal rules for that ecosystem, but
 the coverage is narrower than Python, TypeScript/JavaScript, and Java.
+`Secrets` means Skylos scans source files for hardcoded credentials through the
+shared secrets engine, but does not yet provide dedicated language-specific
+security sink rules for that ecosystem.
 
 ## Coverage By Language
 
@@ -46,9 +51,11 @@ the coverage is narrower than Python, TypeScript/JavaScript, and Java.
 | TypeScript / JavaScript | Dead-code and package graph analysis, React/Next.js awareness, client-side secret exposure, browser/server security sinks, quality rules, and monorepo inventory |
 | Java | Parser-backed dead-code detection, dangerous-call security checks, taint-style sink checks, weak crypto detection, and method quality metrics |
 | Go | Module-aware scanning, Go-specific security rules, unified cross-language security IDs, and selected function quality checks |
+| Kotlin | Thin dead-code coverage for Kotlin functions, methods, classes, objects, interfaces, imports, annotation refs, `.kt` / `.kts` files, and shared secret scanning |
 | PHP | Dead-code detection for PHP symbols plus selected filesystem/include and unsafe deserialization checks |
 | Rust | Dead-code coverage for Rust symbols plus selected command execution and filesystem path security checks |
 | Dart | Dead-code coverage for Dart and Flutter-style projects plus selected process, HTTP, and filesystem checks |
+| C# | Dead-code coverage for C# classes and methods plus selected process, SQL, HTTP, redirect, and filesystem security checks |
 | Shell | Static security checks for CI/deploy/release scripts, focused on command injection, SSRF, and path traversal |
 
 ## How Scans Run
@@ -65,8 +72,9 @@ skylos . -a
 ```
 
 Skylos does not require separate commands for each language. A repository with a
-Python API, a TypeScript frontend, a Go service, a Dart mobile client, and
-Shell deployment scripts can be scanned from the repository root.
+Python API, a TypeScript frontend, a Go service, a Kotlin Android client, a
+Dart mobile client, a C# service, and Shell deployment scripts can be scanned from the
+repository root.
 
 ## Shared Behavior
 
@@ -83,7 +91,9 @@ Across supported languages, Skylos tries to preserve the same workflow:
 - [TypeScript / JavaScript](/typescript-support)
 - [Java](/java-support)
 - [Go](/go-support)
+- [Kotlin](/kotlin-support)
 - [PHP](/php-support)
 - [Rust](/rust-support)
 - [Dart](/dart-support)
+- [C#](/csharp-support)
 - [Shell](/shell-support)

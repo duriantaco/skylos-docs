@@ -1,0 +1,49 @@
+---
+title: "C# Support"
+description: "C# dead code and selected security analysis support in Skylos."
+---
+
+Skylos analyzes C# source with lightweight symbol extraction for dead code and
+selected security checks. It is designed to make `.cs` files visible in the
+normal Skylos workflow without requiring MSBuild, Roslyn, or the .NET SDK.
+
+## File Coverage
+
+| Area | Support |
+|:---|:---|
+| Extensions | `.cs` |
+| Dead code | Classes, methods, and direct references |
+| Security | Selected ASP.NET/request input to process, SQL, HTTP, redirect, and filesystem sinks |
+| Quality | No dedicated C# quality rules yet |
+
+## Dead Code Detection
+
+C# analysis recognizes class and method declarations, imports, and direct method
+references. Findings are normalized into the same report shape as other
+languages, so C# files appear in CLI, JSON, SARIF, MCP, and Cloud output.
+
+```bash
+skylos .
+```
+
+## Security Scope
+
+C# security checks track request-like or user-controlled values into selected
+high-risk sinks:
+
+- process execution such as `Process.Start` and `ProcessStartInfo`
+- SQL command construction such as `SqlCommand`, `DbCommand`, and raw SQL APIs
+- HTTP requests such as `HttpClient.GetAsync`, `SendAsync`, and `WebRequest`
+- filesystem APIs under `File` and `Directory`
+- ASP.NET redirect sinks
+
+```bash
+skylos . --danger
+```
+
+## Limitations
+
+C# support is intentionally lightweight today. Skylos does not run MSBuild,
+Roslyn analyzers, NuGet restore, or .NET type resolution. Use `dotnet build`,
+`dotnet test`, Roslyn analyzers, and project-specific security checks alongside
+Skylos when you need compiler-level validation.

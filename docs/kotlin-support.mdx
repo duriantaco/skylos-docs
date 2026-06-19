@@ -1,0 +1,62 @@
+---
+title: "Kotlin Support"
+description: "Kotlin dead code and secret scanning support in Skylos."
+---
+
+Skylos provides a thin Kotlin scanner for dead-code detection and shared secret
+scanning. It is designed to make Kotlin files visible to the normal Skylos
+workflow without requiring Gradle, the Kotlin compiler, or Android build tools.
+
+## File Coverage
+
+| Area | Support |
+|:---|:---|
+| Extensions | `.kt`, `.kts` |
+| Dead code | Classes, objects, interfaces, enum classes, functions, methods, imports, calls, constructor-style refs, and annotations |
+| Security | Shared secret scanning for hardcoded credentials |
+| Quality | No dedicated Kotlin quality rules yet |
+
+## Dead Code Detection
+
+Kotlin analysis recognizes common declarations and references used by the
+dead-code engine:
+
+- top-level functions
+- class, object, interface, and enum class declarations
+- member functions
+- imports and aliased imports
+- direct calls and constructor-style calls
+- annotation references
+
+Skylos treats common framework-managed Kotlin entrypoints as live, including:
+
+- `main`
+- JUnit-style `@Test`
+- Kotlin/Java override hooks such as `@Override`
+- Compose `@Composable`
+- selected Spring-style annotations such as `@Controller`, `@RestController`,
+  `@GetMapping`, `@PostMapping`, and `@Bean`
+- common Android lifecycle methods such as `onCreate`, `onStart`, `onResume`,
+  `onPause`, `onStop`, `onDestroy`, `onCreateView`, and `onViewCreated`
+
+```bash
+skylos .
+```
+
+## Secret Scanning
+
+Kotlin files participate in Skylos secret scanning. Hardcoded provider tokens
+and generic high-entropy credentials in `.kt` and `.kts` files are reported
+through the same secrets engine used for other source languages.
+
+```bash
+skylos . -a
+```
+
+## Limitations
+
+Kotlin support is intentionally thin today. Skylos does not run Gradle, the
+Kotlin compiler, Android build tooling, or Kotlin type resolution. It also does
+not yet provide Kotlin-specific command, SQL, SSRF, filesystem, or quality
+rules. Use Kotlin compiler checks, Android lint, Detekt, and project tests
+alongside Skylos.
