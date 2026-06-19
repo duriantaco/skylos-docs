@@ -132,6 +132,67 @@ Recommended advisory bundle:
 
 Use a hard gate later, after findings are diff-aware, baseline-aware, or low enough to enforce.
 
+## Pull Request Review Comments
+
+Skylos can post inline GitHub pull request review comments for findings on
+changed lines. Use this when you want reviewers to see Skylos findings directly
+on the PR diff instead of only in the Actions log or job summary.
+
+The generated workflow from `skylos cicd init` includes this review step. If you
+use the Skylos GitHub Action directly, set its `mode` input to `review`. If you
+write your own workflow, grant `pull-requests: write`, expose `GH_TOKEN`, and run
+`skylos cicd review` after creating a JSON report.
+
+```yaml
+name: Skylos PR Review
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  skylos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install skylos
+
+      - name: Run Skylos on changed code
+        run: |
+          pr_base_ref="origin/${GITHUB_BASE_REF:-main}"
+          skylos . --danger --quality --secrets --diff "$pr_base_ref" --json -o skylos-results.json
+
+      - name: Post GitHub annotations
+        if: always()
+        run: skylos cicd annotate --input skylos-results.json
+
+      - name: Post PR review comments
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pr_base_ref="origin/${GITHUB_BASE_REF:-main}"
+          skylos cicd review --input skylos-results.json --diff-base "$pr_base_ref" --max-comments 25
+```
+
+`skylos cicd review` auto-detects the PR number and repository in GitHub
+Actions. Outside CI, pass them explicitly:
+
+```bash
+skylos cicd review --input skylos-results.json --pr 42 --repo owner/repo
+```
+
+Use `--summary-only` when you want a single PR summary comment without inline
+comments. Use `--max-comments` to cap review noise on large diffs.
+
 ## Pulling Policy in CI
 
 If you want the CI runner to use the latest dashboard-managed thresholds and suppressions locally before the scan, add:
