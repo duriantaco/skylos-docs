@@ -1,0 +1,231 @@
+---
+title: "Competitor Comparison"
+description: "A source-backed comparison of Skylos against GitHub CodeQL, SonarQube, Semgrep, Vulture, Snyk Code, and Ruff."
+---
+
+Last checked: June 22, 2026.
+
+This page only uses capabilities confirmed in the official or primary sources
+linked in [Evidence](#evidence). If a cited source does not clearly document a
+capability, the table says **Not claimed in cited docs** instead of treating it
+as proven absent.
+
+This is not a claim that a tool cannot be extended with plugins, custom rules,
+or another product in the same vendor platform. It is a conservative comparison
+of what the cited docs explicitly support.
+
+## Skylos At A Glance
+
+The cited Skylos docs confirm this combination in one CLI:
+
+| Capability | Skylos source-backed scope |
+|:---|:---|
+| Multi-language dead code | Python, TypeScript/JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, and C# source scanning with shared finding output. [S1] |
+| Framework-aware dead code | Django, Flask, FastAPI, Pydantic, Celery, pytest, and related implicit-entrypoint handling for Python. [S2] |
+| Security SAST | Taint/data-flow and dangerous-pattern rules for SQL injection, command injection, SSRF, XSS, path traversal, unsafe deserialization, LLM-output sinks, and more. [S3] [S4] |
+| Secrets | Hardcoded credential detection for AWS, GitHub, Slack, Stripe, and generic secret-looking values. [S5] |
+| Dependency/SCA checks | `--sca` reports known dependency vulnerabilities with package, CVE/advisory ID, reachability, and fixed version. [S6] |
+| CI/CD security | GitHub Actions workflow and action metadata scanning for risky triggers, token scope, unpinned actions, template injection, secrets, OIDC, cache, and artifact policy. [S7] |
+| Quality gate | Local and cloud quality-gate workflows for blocking new issues without requiring all legacy findings to be fixed first. [S8] |
+| AI-code defense | LLM integration discovery and defense checks for prompt boundaries, unsafe output handling, model pinning, logging, cost controls, and OWASP LLM mapping. [S9] |
+| Agent-to-merge workflow | Agents or developers write code; Skylos can scan changed lines, comment evidence in GitHub review workflows, and block new issues through a quality gate. [S8] [S12] |
+| Local-first workflow | Core static analysis runs locally; cloud upload, dashboard policy, and LLM-assisted workflows are optional. [S10] |
+
+No competitor row below is used unless there is a direct source for it.
+
+## Why This Comparison Matters
+
+AI coding is already a merge-risk problem, not just an editor-productivity
+problem. Sonar's 2026 State of Code Developer Survey reports that developers
+say 42% of their committed or contributed code is currently AI-generated or
+significantly AI-assisted, rising to 65% by 2027. The same report says 96% of
+developers do not fully trust AI-generated code to be functionally correct, and
+only 48% always check AI-assisted code before committing. [I1]
+
+That makes the practical product shape simple:
+
+```text
+Agent writes code
+-> scanner comments proof
+-> gate blocks bad merges
+```
+
+Skylos is built closest to that workflow: local analysis first, GitHub review
+comments when teams want PR evidence, and quality gates for blocking new issues
+instead of forcing teams to clean every legacy finding before adoption. [S8] [S12]
+
+## Feature Matrix
+
+Legend:
+
+- **Yes** means the cited docs confirm the capability.
+- **Limited** means the cited docs confirm a narrower or product-specific form.
+- **Separate** means it exists in the vendor platform, but not as the same scanner.
+- **Not claimed in cited docs** means the reviewed official source did not clearly claim it.
+
+| Capability | Skylos | GitHub CodeQL / GitHub code scanning | SonarQube | Semgrep | Vulture | Snyk Code | Ruff |
+|:---|:---|:---|:---|:---|:---|:---|:---|
+| Primary scope | Local-first static analysis CLI for dead code, security, secrets, dependencies, quality, CI config, and AI-code defense. | Code scanning for security vulnerabilities and coding errors; CodeQL is GitHub's code analysis engine. [G1] | Automated code review and static analysis across many languages. [Q1] | SAST, SCA, and secrets detection through CE and the AppSec Platform. [M1] | Python dead-code finder. [V1] | Developer-first SAST; Snyk platform also has open-source dependency scanning. [Y1] [Y2] | Python linter and formatter. [R1] |
+| Dead or unused code | Yes: multi-language dead code plus confidence and framework-aware handling. [S1] [S2] | Not claimed in cited docs. | Limited: unused-code rules are documented, such as JavaScript unused local variables/functions. [Q2] | Not claimed in cited docs as a dead-code removal workflow. | Yes: Python unused code and unreachable code with confidence scores. [V1] | Limited: Snyk Code says its engine can find coding issues including dead code. [Y1] | Limited: unused imports and unused variables. [R2] [R3] |
+| Framework-aware dead code | Yes: documented framework entrypoint handling. [S2] | Not claimed in cited docs. | Not claimed in cited docs. | Not claimed in cited docs. | Limited: `--ignore-decorators` and whitelists can suppress framework false positives. [V1] | Not claimed in cited docs. | Not claimed in cited docs. |
+| Security SAST | Yes: taint/data-flow and dangerous-pattern rules. [S3] [S4] | Yes: code scanning with CodeQL finds security vulnerabilities and errors. [G1] | Yes: rules include vulnerabilities and security hotspots. [Q3] | Yes: Semgrep Code is SAST for first-party code. [M2] | Not claimed in cited docs. | Yes: Snyk Code is SAST and documents data-flow analysis. [Y1] | Not claimed in cited docs. |
+| Dependency/SCA/CVE | Yes: `--sca` dependency vulnerability output with reachability and fix version. [S6] | Separate: Dependabot alerts are GitHub's dependency vulnerability feature. [G4] | Yes, through SonarQube Advanced Security SCA add-on. [Q4] | Yes: Semgrep Supply Chain detects vulnerable open-source dependencies. [M3] | Not claimed in cited docs. | Yes: `snyk test` checks open-source packages and dependencies. [Y2] | Not claimed in cited docs. |
+| Secrets | Yes: built-in secret scanning. [S5] | Separate: GitHub secret scanning is a platform feature separate from CodeQL. [G3] | Yes: Secrets is a documented SonarQube language/scope area. [Q5] | Yes: Semgrep describes secrets detection as one of its scan tools. [M1] | Not claimed in cited docs. | Limited: hardcoded secret rules run during Snyk Code SAST, but Snyk says standalone secret scanning is via third-party tools. [Y1] | Not claimed in cited docs. |
+| GitHub Actions workflow security | Yes: scans workflows and local action metadata. [S7] | Yes: CodeQL's supported-language table includes GitHub Actions workflow and action metadata files. [G2] | Yes: supported-language table includes GitHub Actions. [Q1] | Limited: Semgrep SARIF docs show GitHub Actions security rule output, but this page does not treat that as full workflow-security coverage. [M5] | Not claimed in cited docs. | Not claimed in cited docs. | Not claimed in cited docs. |
+| Custom rules | Yes: YAML rules and paid-plan Python rules. [S11] | Yes: custom CodeQL queries and packs. [G5] | Yes: rule management and quality profiles are documented. [Q3] | Yes: custom YAML rules are first-class. [M4] | Limited: config, whitelists, ignore names, and ignore decorators. [V1] | Not claimed in cited docs. | Limited: linter configuration and rule selection, not custom security rules in cited docs. [R1] |
+| SARIF | Yes: Skylos docs describe SARIF output as part of shared finding output. [S1] | Yes: GitHub code scanning accepts SARIF uploads and CodeQL can upload results. [G6] | Limited: SonarQube imports SARIF as external issues. [Q6] | Yes: JSON and SARIF output fields are documented. [M5] | Not claimed in cited docs. | Not claimed in cited docs. | Not claimed in cited docs. |
+| Local workflow | Yes: core analysis runs locally without an API key. [S10] | Limited: CodeQL CLI is documented, while GitHub code scanning, Dependabot, and secret scanning are platform features. [G1] [G4] | Limited: scanner runs locally but reports to SonarQube Server/Cloud. [Q7] | Yes for local scans; platform features require Semgrep AppSec Platform. [M1] | Yes: local CLI. [V1] | Limited: CLI exists; no-upload requires Snyk Code Local Engine. [Y1] | Yes: local CLI tooling. [R1] |
+| AI-code controls | Yes: LLM integration discovery and defense checks. [S9] | Limited: cited GitHub sources here cover code scanning, Dependabot, and secret scanning, not LLM-integration defense. | Yes: AI Code Assurance is documented for projects containing AI-generated code. [Q8] | Yes: AI-powered detection, Multimodal, and Guardian are documented. [M2] [M6] | Not claimed in cited docs. | Not claimed in cited docs. | Not claimed in cited docs. |
+
+## Practical Takeaways
+
+### If you are using GitHub CodeQL
+
+Keep it for deep security analysis in GitHub. Skylos adds a local-first pass that
+also checks dead code, secrets, SCA, quality gates, AI-code patterns, and
+GitHub Actions workflow risk in the same CLI. CodeQL's cited language support is
+strong for C/C++, C#, Go, Java/Kotlin, JavaScript/TypeScript, Python, Ruby,
+Rust, Swift, and GitHub Actions. Skylos' cited language support adds
+dead-code-oriented coverage for PHP, Dart, C#, Shell security, deployment
+configuration, and the Skylos-specific AI-code rules. [S1] [G2]
+
+### If you are using SonarQube
+
+SonarQube is the broadest platform comparison here: it has many languages,
+quality gates, security rules, secrets, AI Code Assurance, and SCA through
+Advanced Security. Skylos is smaller and more local-first, with a narrower
+focus on running one CLI for dead code, security, secrets, SCA, quality,
+CI/CD workflow risk, and AI-code guardrails before a PR is merged.
+
+### If you are using Semgrep
+
+Semgrep is strong for custom security rules, SAST, SCA, secrets, CI workflows,
+and AI-assisted security review. Skylos' cited advantage is not "more Semgrep";
+it is the combined local workflow for framework-aware dead code, security,
+dependency reachability, quality, GitHub Actions risk, and LLM integration
+defense without configuring separate tools for each category.
+
+### If you are using Vulture
+
+Vulture is focused and useful for Python dead code. Its own README documents
+the core tradeoff: Python's dynamic nature can make static analyzers miss dead
+code, and code called implicitly can be reported as unused. Skylos is designed
+for that exact false-positive problem with framework and confidence handling,
+then adds non-dead-code checks Vulture does not claim in its cited README.
+
+### If you are using Snyk Code
+
+Snyk Code is a SAST product with data-flow analysis, CI/IDE workflows, and
+documented coding issue detection including dead code. Skylos' cited difference
+is the single local CLI surface that combines dead-code cleanup, SAST, secrets,
+SCA, CI workflow analysis, quality gates, and AI-code checks.
+
+### If you are using Ruff
+
+Ruff is fast Python linting and formatting. It can catch unused imports and
+unused variables, but the cited Ruff docs do not position it as a SAST, SCA,
+secrets, CI workflow security, or AI-code defense tool. Skylos can sit beside
+Ruff when you want dead-code reachability, security, and governance checks
+beyond linting.
+
+## Evidence
+
+### Skylos Sources
+
+- [S1] [Language Support](/language-support) - multi-language scanner scope,
+  config surfaces, JSON/SARIF/shared finding model, and language-by-language
+  coverage.
+- [S2] [Framework Awareness](/framework-awareness) - documented Python framework
+  entrypoint handling and confidence behavior.
+- [S3] [Security Analysis](/security-analysis) - data-flow security scanner,
+  taint analysis, and vulnerability categories.
+- [S4] [Rules Reference](/rules-reference) - rule categories and cross-language
+  rule IDs for security, secrets, quality, dead code, and AI/LLM-specific risks.
+- [S5] [Security Analysis: Secret Detection](/security-analysis#secret-detection)
+  - supported credential examples and CLI enablement.
+- [S6] [Understanding Output: Dependency Vulnerabilities](/guides/understanding-output#dependency-vulnerabilities---sca)
+  - SCA output columns, reachability, and fix versions.
+- [S7] [GitHub Actions Security](/github-actions-security) - workflow and action
+  metadata scanning scope.
+- [S8] [Quality Gate](/quality-gate) - local and cloud gate behavior.
+- [S9] [AI Defense](/ai-defense) - LLM integration discovery, defense checks,
+  and OWASP LLM mapping.
+- [S10] [What is Skylos?](/overview) - local-first positioning and core
+  workflows.
+- [S11] [Custom Rules](/custom-rules) - YAML rules, Python rules, and plan
+  differences.
+- [S12] [CI/CD Integration](/ci-cd) - changed-code scans, GitHub annotations,
+  PR review comments, and generated workflow helpers.
+
+### Industry Sources
+
+- [I1] [Sonar: State of Code Developer Survey report 2026](https://www.sonarsource.com/state-of-code-developer-survey-report.pdf)
+  - survey of 1,149 developers, AI-assisted/generated code share, trust gap,
+  verification rates, and verification bottleneck findings.
+
+### Competitor Sources
+
+- [G1] [GitHub Docs: Code scanning](https://docs.github.com/en/code-security/concepts/code-scanning/code-scanning)
+  - GitHub code scanning scope, CodeQL role, third-party tool/SARIF integration,
+  and GitHub Actions usage.
+- [G2] [CodeQL Docs: Supported languages and frameworks](https://codeql.github.com/docs/codeql-overview/supported-languages-and-frameworks/)
+  - CodeQL language, compiler, extension, framework, and GitHub Actions support.
+- [G3] [GitHub Docs: Secret scanning](https://docs.github.com/en/code-security/concepts/secret-security/secret-scanning)
+  - GitHub secret scanning platform feature.
+- [G4] [GitHub Docs: Dependabot alerts](https://docs.github.com/en/code-security/concepts/supply-chain-security/dependabot-alerts)
+  - dependency vulnerability alerting.
+- [G5] [GitHub Docs: CodeQL query suites](https://docs.github.com/en/code-security/concepts/code-scanning/codeql/codeql-query-suites)
+  and [custom queries](https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/customize-analysis/write-custom-queries)
+  - built-in query suites and custom CodeQL queries.
+- [G6] [GitHub Docs: Upload a SARIF file](https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/integrate-with-existing-tools/upload-sarif-file)
+  - SARIF upload workflow and requirements.
+
+- [Q1] [SonarQube Server: Supported languages](https://docs.sonarsource.com/sonarqube-server/analyzing-source-code/languages/overview)
+  - language and IaC support table, including GitHub Actions and Secrets.
+- [Q2] [Sonar rule S1481](https://rules.sonarsource.com/javascript/rspec-1481/)
+  - JavaScript unused local variables/functions should be removed.
+- [Q3] [SonarQube Server: Managing rules](https://docs.sonarsource.com/sonarqube-server/quality-standards-administration/managing-rules/rules)
+  - rule types and rule management.
+- [Q4] [SonarQube Server: Advanced Security SCA](https://docs.sonarsource.com/sonarqube-server/advanced-security/analyzing-projects-for-dependencies)
+  - dependency analysis, vulnerabilities, and license risk.
+- [Q5] [SonarQube Server: Secrets](https://docs.sonarsource.com/sonarqube-server/analyzing-source-code/languages/secrets)
+  - secrets detection scope.
+- [Q6] [SonarQube Server: SARIF reports](https://docs.sonarsource.com/sonarqube-server/analyzing-source-code/importing-external-issues/importing-issues-from-sarif-reports/)
+  - SARIF import behavior.
+- [Q7] [SonarScanner CLI](https://docs.sonarsource.com/sonarqube-server/analyzing-source-code/scanners/sonarscanner)
+  - scanner setup.
+- [Q8] [SonarQube Server: AI Code Assurance](https://docs.sonarsource.com/sonarqube-server/ai-capabilities/ai-code-assurance)
+  - AI-generated code assurance.
+
+- [M1] [Semgrep: Introduction](https://docs.semgrep.dev/introduction)
+  - Semgrep SAST, SCA, secrets, CE/Pro scope, local scans, CI/CD, and managed
+  scans.
+- [M2] [Semgrep Code overview](https://docs.semgrep.dev/semgrep-code/overview)
+  - SAST, custom rules, cross-function/cross-file analysis, and AI-powered
+  detection.
+- [M3] [Semgrep Supply Chain overview](https://docs.semgrep.dev/semgrep-supply-chain/overview)
+  - dependency vulnerability detection, reachability caveats, malware, license,
+  and SBOM capabilities.
+- [M4] [Semgrep: Write rules](https://docs.semgrep.dev/writing-rules/overview)
+  - custom YAML rule authoring.
+- [M5] [Semgrep JSON and SARIF fields](https://docs.semgrep.dev/semgrep-appsec-platform/json-and-sarif)
+  - JSON/SARIF output fields and example GitHub Actions rule metadata.
+- [M6] [Semgrep Guardian](https://docs.semgrep.dev/guardian)
+  - AI coding-agent security plugin, MCP/hooks, and generated-code scanning.
+
+- [V1] [Vulture README](https://github.com/jendrikseipp/vulture)
+  - Python dead-code detection, confidence values, false-positive caveats,
+  whitelists, ignores, pre-commit, and GitHub Action.
+
+- [Y1] [Snyk Code](https://docs.snyk.io/scan-with-snyk/snyk-code)
+  - SAST, data flow, coding issues including dead code, hardcoded secret note,
+  integrations, and local no-upload engine option.
+- [Y2] [Snyk CLI: `snyk test`](https://docs.snyk.io/developer-tools/snyk-cli/commands/test)
+  - dependency/package vulnerability testing.
+
+- [R1] [Ruff docs](https://docs.astral.sh/ruff/)
+  - Python linter and formatter scope.
+- [R2] [Ruff F401 unused import](https://docs.astral.sh/ruff/rules/unused-import/)
+  - unused import rule.
+- [R3] [Ruff F841 unused variable](https://docs.astral.sh/ruff/rules/unused-variable/)
+  - unused variable rule.
