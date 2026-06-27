@@ -340,6 +340,8 @@ skylos verify . --file src/app.py --range 40:75 --project-context
 The verifier returns versioned JSON with only AI-code trust findings. Each
 finding includes `rule_id`, `vibe_category`, `ai_likelihood`, `range`,
 `message`, optional `suggested_fix`, `confidence`, `severity`, and `category`.
+Strict hallucination findings use `category: "ai_defect"` and full scans group
+them under the `ai_defects` output bucket.
 
 The same schema is available through MCP as `verify_change`, which lets
 MCP-compatible coding agents verify a change after each edit. The VS Code
@@ -372,7 +374,10 @@ source is not captured.
 
 ## AI-Specific Detection Rules
 
-Skylos includes rules specifically designed to catch patterns common in AI-generated code:
+Skylos includes rules specifically designed to catch patterns common in AI-generated code.
+Strict hallucination checks (`SKY-L012`, `SKY-L023`, `SKY-D222`, `SKY-D224`,
+and `SKY-D225`) report under the `ai_defects` output bucket; broader AI-prone
+quality and security rules keep their existing buckets.
 
 | Rule | What It Catches | Why AI Does This | Vibe Category |
 |------|----------------|-------------------|---------------|
@@ -387,14 +392,14 @@ Skylos includes rules specifically designed to catch patterns common in AI-gener
 | `SKY-L011` | **Disabled security controls** — `verify=False` | LLMs disable TLS/CSRF to make examples "just work" | — |
 | `SKY-L017` | **Error info disclosure** — `return str(e)` | LLMs return raw exceptions for "debugging" instead of safe error messages | — |
 | `SKY-L020` | **Broad file permissions** — `os.chmod(f, 0o777)` | LLMs use maximally permissive modes to avoid permission errors | — |
-| `SKY-D222` | **Hallucinated dependencies** — importing packages that don't exist on PyPI | LLMs invent package names that sound right but aren't real | — |
+| `SKY-D222` | **Hallucinated dependencies** — importing packages that don't exist on PyPI | LLMs invent package names that sound right but aren't real | `dependency_hallucination` |
 | `SKY-D224` | **API signature hallucinations** — real package, invented method or keyword | LLMs confidently call APIs that look plausible but are not in the installed package | `api_signature_hallucination` |
 | `SKY-D225` | **Dependency version hallucinations** — npm or Go versions that were never published | LLMs invent semver pins that make manifests look complete but fail in builds | `dependency_hallucination` |
 | `SKY-D260` | **Prompt injection** — hidden instructions in comments, YAML, Markdown | Hostile content targeting AI agents processing your codebase | — |
 
 ```bash
 # Scan for AI-generated code issues
-skylos . --danger --quality --table
+skylos . -a --table
 ```
 
 ---
