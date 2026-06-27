@@ -48,6 +48,32 @@ When you run Skylos, results are printed as tables grouped by category. This gui
 
 ---
 
+## AI Defects
+
+In JSON output, strict hallucination checks are grouped under `ai_defects`:
+
+```json
+{
+  "ai_defects": [
+    {
+      "rule_id": "SKY-D224",
+      "category": "ai_defect",
+      "defect_type": "api_signature_hallucination",
+      "message": "Installed API does not accept keyword argument 'imaginary_timeout'."
+    }
+  ],
+  "analysis_summary": {
+    "ai_defects_count": 1
+  }
+}
+```
+
+This bucket currently includes `SKY-L012`, `SKY-L023`, `SKY-D222`, `SKY-D224`,
+and `SKY-D225`. `SKY-D223` remains a security/supply-chain finding because an
+undeclared but real dependency is not a hallucination.
+
+---
+
 ## Secrets (`--secrets`)
 
 ```

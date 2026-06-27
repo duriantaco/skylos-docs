@@ -144,6 +144,12 @@ const sidebars = {
       label: 'Case Studies',
       className: 'sb-chart',
     },
+    {
+      type: 'doc',
+      id: 'competitors',
+      label: 'Competitors',
+      className: 'sb-shield',
+    },
   ],
 };
 

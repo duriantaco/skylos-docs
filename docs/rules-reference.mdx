@@ -1,6 +1,6 @@
 ---
 title: "Rules Reference"
-description: "Complete reference for all Skylos static analysis rules — security vulnerabilities, vibe coding guardrails, prompt injection detection, code quality, and dead code."
+description: "Complete reference for all Skylos static analysis rules — security vulnerabilities, AI defects, vibe coding guardrails, prompt injection detection, code quality, and dead code."
 ---
 
 ## Rule Categories
@@ -20,6 +20,10 @@ description: "Complete reference for all Skylos static analysis rules — securi
 | `SKY-E` | Empty File | Files with no meaningful code |
 
 Rule IDs are **unified across languages** — when multiple scanners detect the same vulnerability class, Skylos reports it with the same ID across Python, TypeScript/JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, Shell, and other supported ecosystems.
+
+Some rules keep their historical `SKY-L` or `SKY-D` IDs but report under the
+`ai_defects` output bucket because they prove AI-code hallucination failure
+modes: `SKY-L012`, `SKY-L023`, `SKY-D222`, `SKY-D224`, and `SKY-D225`.
 
 ---
 
@@ -98,10 +102,20 @@ Rule IDs are **unified across languages** — when multiple scanners detect the 
 
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
-| `SKY-D222` | Hallucinated Dependency | CRITICAL | Python | Imported package does not exist on PyPI |
 | `SKY-D223` | Undeclared Dependency | MEDIUM | Python | Import not declared in requirements.txt / pyproject.toml / setup.py |
-| `SKY-D224` | API Signature Hallucination | HIGH | Python | Call site uses a real installed package API that does not exist or does not accept the supplied keyword |
-| `SKY-D225` | Dependency Version Hallucination | HIGH | npm, Go | Manifest pins a package version that does not exist in the package registry |
+
+#### AI Defects
+
+Strict hallucination checks report under the `ai_defects` output bucket, even
+when they retain historical `SKY-L` or `SKY-D` rule IDs.
+
+| Rule ID | Name | Severity | Languages | Description |
+|---------|------|----------|-----------|-------------|
+| `SKY-L012` | Phantom Function Call | CRITICAL | Python | Call to a security helper that is never defined or imported |
+| `SKY-L023` | Phantom Decorator | CRITICAL | Python | Security decorator that is never defined or imported |
+| `SKY-D222` | Hallucinated Dependency | CRITICAL | Python | Imported package does not exist on PyPI |
+| `SKY-D224` | API Signature Hallucination | HIGH | Python | Real installed package called with an invented API or keyword |
+| `SKY-D225` | Dependency Version Hallucination | HIGH | Python, npm, Go | Manifest pins a package version that does not exist in the registry |
 
 #### MCP Server Security
 
@@ -329,14 +343,12 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-L009` | Debug Leftover | LOW–HIGH | `print()`, `breakpoint()`, `pdb.set_trace()` left in code |
 | `SKY-L010` | Security TODO Marker | MEDIUM | `# TODO: add auth`, `# FIXME: validate input` left in code (CWE-546) |
 | `SKY-L011` | Disabled Security Control | MEDIUM–HIGH | `verify=False`, `@csrf_exempt`, `DEBUG=True` (CWE-295) |
-| `SKY-L012` | Phantom Function Call | CRITICAL | Call to `sanitize_input()` that is never defined or imported (CWE-476) |
 | `SKY-L013` | Insecure Randomness | HIGH | `random.*` used for tokens, passwords, session IDs (CWE-330) |
 | `SKY-L014` | Hardcoded Credential | HIGH | `password="admin123"`, DSN with embedded creds (CWE-798) |
 | `SKY-L017` | Error Information Disclosure | MEDIUM | `str(e)` / `traceback.format_exc()` leaked in HTTP response (CWE-209) |
 | `SKY-L016` | Undefined Config | MEDIUM | `os.getenv("ENABLE_X")` feature flag never defined in project |
 | `SKY-L020` | Overly Broad File Permissions | HIGH | `os.chmod(path, 0o777)` or sensitive files with lax perms (CWE-732) |
 | `SKY-L021` | Security Regression | MEDIUM | Newly introduced code weakens an existing security control |
-| `SKY-L023` | Phantom Decorator | CRITICAL | `@require_auth`, `@rate_limit` never defined or imported (CWE-476) |
 | `SKY-L024` | Stale Mock | HIGH | `mock.patch("mod.func")` targets function that no longer exists |
 | `SKY-L026` | Unfinished Generation | MEDIUM | Function body is only `pass`, `...`, or `raise NotImplementedError` |
 | `SKY-L027` | Duplicate String Literal | LOW/MEDIUM | Same string repeated 3+ times — extract to a constant. Configurable via `duplicate_strings` in `[tool.skylos]` |
@@ -842,6 +854,7 @@ archive.extractall(dest)
 | **Languages** | Python |
 | **What** | Imported package does not exist on PyPI |
 | **Risk** | Supply chain attack — an attacker can register the missing name and inject malicious code |
+| **Output Bucket** | `ai_defects` |
 
 ```python
 # Bad — "fakelib" doesn't exist on PyPI
@@ -871,6 +884,7 @@ Skylos checks every third-party import against PyPI and flags packages that retu
 | **Languages** | Python |
 | **What** | A call uses a real installed package but invents a missing method, function, or keyword argument |
 | **Risk** | AI-generated code looks plausible but fails at runtime, often after review because the package name is real |
+| **Output Bucket** | `ai_defects` |
 
 ```python
 # Bad — the package exists, but the API call does not match the installed surface
@@ -888,9 +902,10 @@ Skylos validates a small allowlist of common packages against the installed pack
 | | |
 |---|---|
 | **Severity** | HIGH |
-| **Languages** | npm, Go |
+| **Languages** | Python, npm, Go |
 | **What** | A dependency manifest pins a package version that does not exist in npm or the Go module proxy |
 | **Risk** | Builds fail or a future package/version claim becomes an attractive supply-chain target |
+| **Output Bucket** | `ai_defects` |
 
 ```json
 {
@@ -2666,6 +2681,7 @@ Excluded: test files.
 | **Languages** | Python |
 | **CWE** | CWE-476 |
 | **What** | Call to a security function that is never defined or imported — common in AI-generated code |
+| **Output Bucket** | `ai_defects` |
 
 ```python
 # Bad — sanitize_input() doesn't exist anywhere
@@ -2842,6 +2858,7 @@ Only flags env var names matching feature flag prefixes: `ENABLE_`, `DISABLE_`, 
 | **What** | Security decorators that are never defined or imported — the function runs unprotected |
 | **Vibe Category** | `hallucinated_reference` |
 | **AI Likelihood** | high |
+| **Output Bucket** | `ai_defects` |
 
 ```python
 # Bad — decorator doesn't exist, function runs without protection

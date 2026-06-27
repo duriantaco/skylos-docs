@@ -1,6 +1,6 @@
 # Skylos Documentation
 
-Documentation for Skylos - a static analysis tool for Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, Shell, and deployment config that finds dead code, security vulnerabilities, code quality issues, and AI-code mistakes.
+Documentation for Skylos - a static analysis tool for Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, Shell, and deployment config that finds dead code, security vulnerabilities, code quality issues, and evidence-backed AI-code defects.
 
 ## Quick Links
 
@@ -22,7 +22,7 @@ Documentation for Skylos - a static analysis tool for Python, TypeScript, JavaSc
 | [Dead Code Detection](dead-code-detection.mdx) | Find unused functions, imports, classes, variables |
 | [Smart Tracing](smart-tracing.mdx) | Runtime call tracing with `--trace` to catch dynamic dispatch |
 | [Security Analysis](security-analysis.mdx) | Taint analysis, CI/CD and edge config checks, webhook signature checks, secrets detection |
-| [Vibe Coding & AI Debt](docs/concepts/vibe-coding.mdx) | AI-generated code mistakes, including hallucinated helpers, disabled controls, and package/API hallucinations |
+| [Vibe Coding & AI Debt](docs/concepts/vibe-coding.mdx) | AI-generated code defects, including hallucinated helpers, disabled controls, and package/API hallucinations |
 | [AI Features](docs/ai-features.mdx) | `skylos verify`, AI-code defect benchmarks, remediation proof tests, and LLM-assisted review |
 | [Code Quality](code-quality.mdx) | Complexity, nesting, structure checks |
 | [Technical Debt](docs/technical-debt.mdx) | Structural debt hotspots, changed-view reviews, and debt baselines |
@@ -51,6 +51,7 @@ Skylos is **fully functional offline and free**. Pro/Enterprise adds team govern
 | Dead code detection | ✅ | ✅ |
 | Security scanning (`--danger`) | ✅ | ✅ |
 | Quality checks (`--quality`) | ✅ | ✅ |
+| AI-defect checks (`ai_defects`) | ✅ | ✅ |
 | Smart tracing (`--trace`) | ✅ | ✅ |
 | AI fix/audit (BYOK) | ✅ | ✅ |
 | **Quality Gate** | CLI exit codes | + Wait/poll for dashboard approval |

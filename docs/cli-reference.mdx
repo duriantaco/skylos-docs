@@ -64,7 +64,8 @@ skylos . --danger --quality
 Verify a changed file, range, or stdin code blob for AI-code trust findings. This
 is the narrow in-loop verifier designed for coding agents and editor hooks, so
 it returns only AI-specific findings instead of the full dead-code/security
-report.
+report. In full scan JSON, strict hallucination checks are grouped under
+`ai_defects` rather than `quality` or `danger`.
 
 ```bash
 # Verify one file
@@ -105,7 +106,7 @@ target file/range, and findings shaped for agent consumption:
       "suggested_fix": "Update the call to match the installed package API surface.",
       "confidence": 80,
       "severity": "HIGH",
-      "category": "security"
+      "category": "ai_defect"
     }
   ]
 }

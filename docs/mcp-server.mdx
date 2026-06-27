@@ -261,7 +261,8 @@ edit before showing the change to a human.
 **Returns**: Versioned JSON with `tool: "verify_change"`, `status`, target
 metadata, and only AI-code findings such as hallucinated references,
 incomplete generation, stale references, disabled controls, dependency
-hallucinations, and API signature hallucinations.
+hallucinations, and API signature hallucinations. Strict hallucination findings
+use `category: "ai_defect"`.
 
 ---
 
