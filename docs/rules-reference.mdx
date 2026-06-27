@@ -18,12 +18,14 @@ description: "Complete reference for all Skylos static analysis rules — securi
 | `SKY-U` | Dead Code | Unused code that should be removed |
 | `SKY-UC` | Unreachable Code | Code that can never execute |
 | `SKY-E` | Empty File | Files with no meaningful code |
+| `SKY-A` | AI Defect | Evidence-backed AI-code failure modes |
 
 Rule IDs are **unified across languages** — when multiple scanners detect the same vulnerability class, Skylos reports it with the same ID across Python, TypeScript/JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, Shell, and other supported ecosystems.
 
 Some rules keep their historical `SKY-L` or `SKY-D` IDs but report under the
 `ai_defects` output bucket because they prove AI-code hallucination failure
-modes: `SKY-L012`, `SKY-L023`, `SKY-D222`, `SKY-D224`, and `SKY-D225`.
+modes: `SKY-L012`, `SKY-L023`, `SKY-D222`, `SKY-D224`, and `SKY-D225`. New
+AI-defect rules use the `SKY-A` prefix.
 
 ---
 
@@ -106,11 +108,12 @@ modes: `SKY-L012`, `SKY-L023`, `SKY-D222`, `SKY-D224`, and `SKY-D225`.
 
 #### AI Defects
 
-Strict hallucination checks report under the `ai_defects` output bucket, even
-when they retain historical `SKY-L` or `SKY-D` rule IDs.
+AI-defect checks report under the `ai_defects` output bucket. Some retain
+historical `SKY-L` or `SKY-D` rule IDs; newer checks use `SKY-A`.
 
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
+| `SKY-A101` | Test Assertion Weakening | MEDIUM-HIGH | Diff-aware tests | Specific or exception assertion replaced with a broad truthiness/null check, skip, or xfail |
 | `SKY-L012` | Phantom Function Call | CRITICAL | Python | Call to a security helper that is never defined or imported |
 | `SKY-L023` | Phantom Decorator | CRITICAL | Python | Security decorator that is never defined or imported |
 | `SKY-D222` | Hallucinated Dependency | CRITICAL | Python | Imported package does not exist on PyPI |
@@ -843,6 +846,31 @@ for member in archive.getmembers():
         raise ValueError("unsafe archive member")
 archive.extractall(dest)
 ```
+
+---
+
+### SKY-A101 · Test Assertion Weakening
+
+| | |
+|---|---|
+| **Severity** | MEDIUM-HIGH |
+| **Languages** | Python, JavaScript/TypeScript tests |
+| **What** | A diff replaces a specific assertion with a broad truthiness/null check, removes an exception assertion, or disables a test with skip/xfail |
+| **Risk** | AI-generated fixes can make tests pass by weakening the test instead of preserving the behavior contract |
+| **Output Bucket** | `ai_defects` |
+
+```diff
+ def test_invoice_status():
+     result = calculate_invoice(order)
+-    assert result.status == "paid"
+-    assert result.amount == 100
++    assert result is not None
+```
+
+Skylos reads the unified diff for changed test files and reports the evidence:
+the removed assertion, the added weaker assertion, and the weakening type. It is
+diff-aware by design, so existing weak tests are not reported unless the PR
+weakens them.
 
 ---
 

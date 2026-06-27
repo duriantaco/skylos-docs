@@ -60,7 +60,7 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install skylos
-      - run: skylos . --danger --quality --upload
+      - run: skylos . --danger --quality --ai-defects --upload
 ```
 
 How OIDC works:
@@ -101,7 +101,7 @@ jobs:
       - name: Run Skylos
         env:
           SKYLOS_TOKEN: ${{ secrets.SKYLOS_TOKEN }}
-        run: skylos . --danger --quality --upload
+        run: skylos . --danger --quality --ai-defects --upload
 ```
 
 Use `SKYLOS_TOKEN` for:
@@ -123,7 +123,7 @@ Recommended advisory bundle:
 
 ```yaml
 - name: Skylos advisory scan
-  run: skylos . --danger --secrets --quality --diff-base origin/main --diff origin/main --json -o skylos-results.json
+  run: skylos . --danger --secrets --quality --ai-defects --diff-base origin/main --diff origin/main --json -o skylos-results.json
 
 - name: Advisory quality summary
   if: always()
@@ -168,7 +168,7 @@ jobs:
       - name: Run Skylos on changed code
         run: |
           pr_base_ref="origin/${GITHUB_BASE_REF:-main}"
-          skylos . --danger --quality --secrets --diff "$pr_base_ref" --json -o skylos-results.json
+          skylos . --danger --quality --secrets --ai-defects --diff "$pr_base_ref" --json -o skylos-results.json
 
       - name: Post GitHub annotations
         if: always()
@@ -256,7 +256,7 @@ skylos:
   image: python:3.11
   script:
     - pip install skylos
-    - skylos . --danger --quality --upload
+    - skylos . --danger --quality --ai-defects --upload
   variables:
     SKYLOS_TOKEN: $SKYLOS_TOKEN
 ```
@@ -266,7 +266,7 @@ skylos:
 ```yaml
 - run:
     name: Skylos Scan
-    command: skylos . --danger --quality --upload
+    command: skylos . --danger --quality --ai-defects --upload
     environment:
       SKYLOS_TOKEN: $SKYLOS_TOKEN
 ```
@@ -280,7 +280,7 @@ stage('Skylos Scan') {
   }
   steps {
     sh 'pip install skylos'
-    sh 'skylos . --danger --quality --upload'
+    sh 'skylos . --danger --quality --ai-defects --upload'
   }
 }
 ```

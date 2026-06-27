@@ -255,12 +255,26 @@ SKY-Q301: Function 'sum_numbers' has complexity 6 (threshold: 10)
 SKY-Q304: Function 'parse_config' has 5 parameters (threshold: 5)
 ```
 
-### 4. Quality Gate
+### 4. AI Defect Checks
+
+Catch evidence-backed AI-code failure modes:
+
+```bash
+skylos . --ai-defects
+```
+
+```
+SKY-L012: Phantom security helper call
+SKY-D224: Real package called with invented API
+SKY-A101: Test assertion weakened in this diff
+```
+
+### 5. Quality Gate
 
 Prevent AI debt from shipping:
 
 ```bash
-skylos . --danger --quality --gate
+skylos . --danger --quality --ai-defects --gate
 ```
 
 **Block PRs** that introduce vulnerabilities or dead code.
@@ -275,7 +289,7 @@ skylos . --danger --quality --gate
 
     ```bash
     # Pre-commit hook
-    skylos . --danger --quality || exit 1
+    skylos . --danger --quality --ai-defects || exit 1
     ```
     
     Catches AI-introduced issues immediately.
@@ -320,7 +334,7 @@ skylos . --danger --quality --gate
     Don't let AI debt accumulate:
     
     ```yaml
-    - run: skylos . --danger --quality --gate
+    - run: skylos . --danger --quality --ai-defects --gate
     ```
   </details>
 
@@ -340,8 +354,8 @@ skylos verify . --file src/app.py --range 40:75 --project-context
 The verifier returns versioned JSON with only AI-code trust findings. Each
 finding includes `rule_id`, `vibe_category`, `ai_likelihood`, `range`,
 `message`, optional `suggested_fix`, `confidence`, `severity`, and `category`.
-Strict hallucination findings use `category: "ai_defect"` and full scans group
-them under the `ai_defects` output bucket.
+AI-defect findings use `category: "ai_defect"` and full scans group them under
+the `ai_defects` output bucket.
 
 The same schema is available through MCP as `verify_change`, which lets
 MCP-compatible coding agents verify a change after each edit. The VS Code
@@ -375,12 +389,13 @@ source is not captured.
 ## AI-Specific Detection Rules
 
 Skylos includes rules specifically designed to catch patterns common in AI-generated code.
-Strict hallucination checks (`SKY-L012`, `SKY-L023`, `SKY-D222`, `SKY-D224`,
+AI-defect checks (`SKY-A101`, `SKY-L012`, `SKY-L023`, `SKY-D222`, `SKY-D224`,
 and `SKY-D225`) report under the `ai_defects` output bucket; broader AI-prone
 quality and security rules keep their existing buckets.
 
 | Rule | What It Catches | Why AI Does This | Vibe Category |
 |------|----------------|-------------------|---------------|
+| `SKY-A101` | **Assertion weakening** — exact assertions replaced with truthiness/null checks, skips, or removed exception assertions | LLMs sometimes make tests pass by weakening the test instead of preserving behavior | `assertion_weakening` |
 | `SKY-L012` | **Phantom function calls** — `sanitize_input()` that doesn't exist | LLMs hallucinate security functions that were never defined or imported | `hallucinated_reference` |
 | `SKY-L023` | **Phantom decorators** — `@require_auth` that doesn't exist | LLMs hallucinate security decorators, leaving functions unprotected | `hallucinated_reference` |
 | `SKY-L026` | **Unfinished generation** — function body is only `pass` or `...` | LLMs generate stubs and move on, leaving empty functions in production | `incomplete_generation` |
@@ -399,7 +414,7 @@ quality and security rules keep their existing buckets.
 
 ```bash
 # Scan for AI-generated code issues
-skylos . -a --table
+skylos . --ai-defects
 ```
 
 ---

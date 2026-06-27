@@ -138,9 +138,9 @@ skylos verify . --file src/app.py --range 40:75 --project-context
 `skylos verify` is different from a full scan. It returns only AI-code trust
 findings in a stable JSON schema, including hallucinated references, unfinished
 generated code, stale references, disabled controls, dependency
-hallucinations, and API signature hallucinations. Full scan JSON reports the
-strict hallucination rules under `ai_defects` rather than `quality` or
-`danger`.
+hallucinations, API signature hallucinations, and weakened assertions. Full
+scan JSON reports the strict AI-defect rules under `ai_defects` rather than
+`quality` or `danger`.
 
 Agents and editors can also pass unsaved buffers through stdin:
 
@@ -461,8 +461,8 @@ python scripts/ai_code_defect_benchmark.py --case dependency-version-hallucinati
 
 The benchmark exercises the verifier against curated AI-defect fixtures and
 reports score, recall, absence-guard results, and failures. Use it when changing
-AI-defect rules, verifier filtering, package hallucination detection, or
-signature validation.
+AI-defect rules, verifier filtering, package hallucination detection,
+signature validation, or assertion-weakening detection.
 
 ### For CI/CD
 

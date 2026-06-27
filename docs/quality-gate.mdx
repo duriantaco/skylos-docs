@@ -101,7 +101,7 @@ pip install skylos
 
 ### 2) Run locally (recommended before every push)
 ```bash
-skylos . --danger --secrets --quality
+skylos . --danger --secrets --quality --ai-defects
 ```
 
 If you're gating a deploy/test step, run Skylos first and only run deploy after
@@ -141,7 +141,7 @@ Action required:
 3. Fix the code
 4. Re-run:
 ```bash
-skylos . --danger --secrets --quality
+skylos . --danger --secrets --quality --ai-defects
 ```
 
 5. Gate passes when there are **0 new unsuppressed** findings

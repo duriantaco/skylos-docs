@@ -50,7 +50,7 @@ You do not need the cloud to use Skylos.
 
 ```bash
 skylos .
-skylos . --danger --quality --secrets
+skylos . --danger --quality --secrets --ai-defects
 skylos . --gate
 ```
 
@@ -125,7 +125,7 @@ skylos . --upload
 Common variants:
 
 ```bash
-skylos . --danger --quality --upload
+skylos . --danger --quality --ai-defects --upload
 skylos defend . --upload
 ```
 
@@ -276,7 +276,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install skylos
-      - run: skylos . --danger --quality --upload
+      - run: skylos . --danger --quality --ai-defects --upload
 ```
 
 ### Token-based CI
@@ -287,7 +287,7 @@ Use this for GitHub without OIDC, GitLab, CircleCI, Jenkins, or any other CI.
 - name: Run Skylos
   env:
     SKYLOS_TOKEN: ${{ secrets.SKYLOS_TOKEN }}
-  run: skylos . --danger --quality --upload
+  run: skylos . --danger --quality --ai-defects --upload
 ```
 
 ### Sync pull in CI

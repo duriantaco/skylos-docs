@@ -48,9 +48,9 @@ When you run Skylos, results are printed as tables grouped by category. This gui
 
 ---
 
-## AI Defects
+## AI Defects (`--ai-defects`)
 
-In JSON output, strict hallucination checks are grouped under `ai_defects`:
+In JSON output, AI-defect checks are grouped under `ai_defects`:
 
 ```json
 {
@@ -68,9 +68,9 @@ In JSON output, strict hallucination checks are grouped under `ai_defects`:
 }
 ```
 
-This bucket currently includes `SKY-L012`, `SKY-L023`, `SKY-D222`, `SKY-D224`,
-and `SKY-D225`. `SKY-D223` remains a security/supply-chain finding because an
-undeclared but real dependency is not a hallucination.
+This bucket currently includes `SKY-A101`, `SKY-L012`, `SKY-L023`, `SKY-D222`,
+`SKY-D224`, and `SKY-D225`. `SKY-D223` remains a security/supply-chain finding
+because an undeclared but real dependency is not a hallucination.
 
 ---
 

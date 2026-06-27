@@ -51,7 +51,7 @@ Skylos is **fully functional offline and free**. Pro/Enterprise adds team govern
 | Dead code detection | ✅ | ✅ |
 | Security scanning (`--danger`) | ✅ | ✅ |
 | Quality checks (`--quality`) | ✅ | ✅ |
-| AI-defect checks (`ai_defects`) | ✅ | ✅ |
+| AI-defect checks (`--ai-defects`, `ai_defects`) | ✅ | ✅ |
 | Smart tracing (`--trace`) | ✅ | ✅ |
 | AI fix/audit (BYOK) | ✅ | ✅ |
 | **Quality Gate** | CLI exit codes | + Wait/poll for dashboard approval |
