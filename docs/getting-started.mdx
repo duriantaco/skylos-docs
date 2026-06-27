@@ -127,6 +127,7 @@ The CLI outputs findings as tables, grouped by category. Each table includes a l
 - **Security** (`--danger`): Vulnerabilities like SQL injection and command injection. Shows **Issue**, **Severity**, and the **Symbol** (function) where it occurs.
 - **Secrets** (`--secrets`): Hardcoded credentials. Shows the **Provider** (e.g. AWS, Stripe) and a masked **Preview**.
 - **Quality** (`--quality`): Complexity, nesting, duplicate literals, and structural issues. Shows the measured value vs. the configured threshold (e.g. `Complexity: 18 (max 10)`).
+- **AI Defects** (`--ai-defects`): Evidence-backed AI-code failure modes such as phantom references, hallucinated APIs, impossible dependency versions, and weakened assertions.
 - **SCA** (`--sca`): Known vulnerabilities in your dependencies. Shows the **Package**, **Reachability**, and the **Fix** version.
 
 ### Reducing False Positives

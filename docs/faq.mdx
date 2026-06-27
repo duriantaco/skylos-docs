@@ -74,7 +74,7 @@ skylos agent scan .
 ```bash
 skylos .                              # Dead code only
 skylos . -a                           # Main local audit
-skylos . --danger --quality --gate    # With quality gate
+skylos . --danger --quality --ai-defects --gate    # With quality gate
 ```
 
 ### How do I scan a single file?
@@ -253,7 +253,7 @@ In interactive terminals, you'll be prompted to bypass unless `strict = true`. I
 ### How do I set up the gate in CI?
 ```yaml
 - name: Quality Gate
-  run: skylos . --danger --quality --gate
+  run: skylos . --danger --quality --ai-defects --gate
 ```
 
 See [CI/CD Integration](/ci-cd) for full examples.

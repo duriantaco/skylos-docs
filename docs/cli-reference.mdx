@@ -56,7 +56,7 @@ Patterns are saved to `[tool.skylos.whitelist]` in `pyproject.toml`.
 
 Run static analysis on the specified path.
 ```bash
-skylos . --danger --quality
+skylos . --danger --quality --ai-defects
 ```
 
 ### `skylos verify`
@@ -64,8 +64,8 @@ skylos . --danger --quality
 Verify a changed file, range, or stdin code blob for AI-code trust findings. This
 is the narrow in-loop verifier designed for coding agents and editor hooks, so
 it returns only AI-specific findings instead of the full dead-code/security
-report. In full scan JSON, strict hallucination checks are grouped under
-`ai_defects` rather than `quality` or `danger`.
+report. In full scan JSON, AI-defect checks are grouped under `ai_defects`
+rather than `quality` or `danger`.
 
 ```bash
 # Verify one file
@@ -193,6 +193,7 @@ Clean scans print nothing and exit `0`. Scans with findings exit `1` unless
 | `--danger` | Enable security vulnerability scanning |
 | `--secrets` | Enable API key and secret detection |
 | `--quality` | Enable code quality checks (complexity, nesting, etc.) |
+| `--ai-defects` | Enable evidence-backed AI defect checks such as phantom references, hallucinated APIs, impossible dependency versions, and weakened test assertions |
 | `--trace` | Run tests with call tracing to capture dynamic dispatch (visitor patterns, getattr, plugins) |
 | `--confidence`| Confidence threshold (0-100). Lower values include more uncertain findings. Default: `60` |
 
@@ -223,10 +224,10 @@ not index symlinks, non-regular files, or very large source files.
 **Example:**
 ```bash
 # Only show findings in lines your PR touched
-skylos . --diff origin/main --danger --quality
+skylos . --diff origin/main --danger --quality --ai-defects
 
 # Auto-detect base ref (uses GITHUB_BASE_REF or defaults to origin/main)
-skylos . --diff --danger --secrets --quality
+skylos . --diff --danger --secrets --quality --ai-defects
 ```
 
 ## Folder Exclusion
@@ -469,7 +470,7 @@ skylos .
 
 **Full analysis with JSON output:**
 ```bash
-skylos . --danger --secrets --quality --json -o report.json
+skylos . --danger --secrets --quality --ai-defects --json -o report.json
 ```
 
 **Interactive cleanup:**
@@ -485,7 +486,7 @@ skylos clean . --apply --types imports --confidence 80
 
 **CI/CD gate that blocks on critical issues:**
 ```bash
-skylos . --danger --quality --gate
+skylos . --danger --quality --ai-defects --gate
 ```
 
 **AI-powered audit of changed files:**
