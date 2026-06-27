@@ -424,7 +424,7 @@ For existing repos, start with advisory checks so teams see the signal without f
 - `mypy skylos` or your chosen mypy/pyright target
 - TypeScript compile/build scripts
 - `cargo fmt --check` and `cargo clippy` for Rust crates
-- `skylos . --danger --secrets --quality --diff-base origin/main --diff origin/main`
+- `skylos . --danger --secrets --quality --ai-defects --diff-base origin/main --diff origin/main`
 
 Use the hard gate only after the findings are diff-aware, baseline-aware, or low enough to enforce.
 

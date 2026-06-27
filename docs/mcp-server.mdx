@@ -28,7 +28,8 @@ Skylos is a hybrid static analysis tool for Python, TypeScript, JavaScript, Java
 | **Secrets** | Hardcoded API keys (AWS, Stripe, OpenAI, GitHub, Slack, etc.) | SKY-S101 |
 | **Quality** | Cyclomatic complexity, deep nesting, async blocking, god classes | SKY-Q301–Q501 |
 | **Logic Bugs** | Mutable defaults, bare except, dangerous comparisons, inconsistent returns | SKY-L001–L006 |
-| **Supply Chain** | Hallucinated dependencies, undeclared imports, real packages called with invented APIs, and npm/Go versions that do not exist | SKY-D222–D225 |
+| **AI Defects** | Hallucinated dependencies, real packages called with invented APIs, npm/Go versions that do not exist, and weakened assertions | SKY-A101, SKY-D222, SKY-D224, SKY-D225 |
+| **Supply Chain** | Undeclared but real third-party imports | SKY-D223 |
 | **Remediation** | Auto-fix issues via LLM, validate with tests, revert if broken | — |
 
 For the full rules reference, see [Rules Reference](/rules-reference).
@@ -188,7 +189,7 @@ Runs the full security scanner — taint analysis, dangerous function detection,
 
 **Example prompt**: "Scan src/ for security vulnerabilities"
 
-**Returns**: All danger findings (SKY-D rules) with file, line, severity, and description.
+**Returns**: Security danger findings with file, line, severity, and description. AI-defect checks such as hallucinated dependencies and invented package APIs are reported through `verify_change` and the `ai_defects` output bucket, not the danger bucket.
 
 **What it detects**:
 - SQL injection (taint tracking from request params to `cursor.execute()`)
