@@ -142,6 +142,9 @@ hallucinations, API signature hallucinations, and weakened assertions. Full
 scan JSON reports the strict AI-defect rules under `ai_defects` rather than
 `quality` or `danger`.
 
+For the full static-scan AI-defect method, category contract, and current rule
+list, see [AI Defect Verification](./ai-defects).
+
 Agents and editors can also pass unsaved buffers through stdin:
 
 ```bash
@@ -462,7 +465,8 @@ python scripts/ai_code_defect_benchmark.py --case dependency-version-hallucinati
 The benchmark exercises the verifier against curated AI-defect fixtures and
 reports score, recall, absence-guard results, and failures. Use it when changing
 AI-defect rules, verifier filtering, package hallucination detection,
-signature validation, or assertion-weakening detection.
+signature validation, assertion-weakening detection, and diff-aware PR
+verification rules.
 
 ### For CI/CD
 

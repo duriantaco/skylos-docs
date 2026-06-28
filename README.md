@@ -23,6 +23,7 @@ Documentation for Skylos - a static analysis tool for Python, TypeScript, JavaSc
 | [Smart Tracing](smart-tracing.mdx) | Runtime call tracing with `--trace` to catch dynamic dispatch |
 | [Security Analysis](security-analysis.mdx) | Taint analysis, CI/CD and edge config checks, webhook signature checks, secrets detection |
 | [Vibe Coding & AI Debt](docs/concepts/vibe-coding.mdx) | AI-generated code defects, including hallucinated helpers, disabled controls, and package/API hallucinations |
+| [AI Defect Verification](docs/ai-defects.mdx) | Method, rule grouping, output contract, and blocking posture for `--ai-defects` |
 | [AI Features](docs/ai-features.mdx) | `skylos verify`, AI-code defect benchmarks, remediation proof tests, and LLM-assisted review |
 | [Code Quality](code-quality.mdx) | Complexity, nesting, structure checks |
 | [Technical Debt](docs/technical-debt.mdx) | Structural debt hotspots, changed-view reviews, and debt baselines |
