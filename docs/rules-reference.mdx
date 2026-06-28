@@ -116,6 +116,7 @@ historical `SKY-L` or `SKY-D` rule IDs; newer checks use `SKY-A`.
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
 | `SKY-A101` | Test Assertion Weakening | MEDIUM-HIGH | Diff-aware tests | Specific or exception assertion replaced with a broad truthiness/null check, skip, or xfail |
+| `SKY-A102` | High-Risk Change Without Tests | LOW | Diff-aware PR signal | Auth, billing, validation, or similar high-risk code changed with no test file changed |
 | `SKY-L012` | Phantom Function Call | CRITICAL | Python | Call to a security helper that is never defined or imported |
 | `SKY-L023` | Phantom Decorator | CRITICAL | Python | Security decorator that is never defined or imported |
 | `SKY-D222` | Hallucinated Dependency | CRITICAL | Python | Imported package does not exist on PyPI |
@@ -876,6 +877,22 @@ Skylos reads the unified diff for changed test files and reports the evidence:
 the removed assertion, the added weaker assertion, and the weakening type. It is
 diff-aware by design, so existing weak tests are not reported unless the PR
 weakens them.
+
+---
+
+### SKY-A102 · High-Risk Change Without Tests
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | Diff-aware PR signal |
+| **What** | Auth, billing, validation, tenant, webhook, or similar high-risk source changed and no test file changed |
+| **Risk** | This is a review signal: behavior-sensitive code changed without test evidence in the same PR |
+| **Output Bucket** | `ai_defects` |
+
+Skylos only reports this when there are changed files and no test files changed
+at all. It does not claim the change is wrong; it asks the reviewer to look for
+missing test evidence or an explicit explanation.
 
 ---
 
