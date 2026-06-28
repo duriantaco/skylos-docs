@@ -58,7 +58,7 @@ bucket when their catalog category is `ai_defect`.
 
 | Rule ID | Category | Why the prefix may differ |
 |---------|----------|---------------------------|
-| `SKY-A101` to `SKY-A104` | `ai_defect` | New AI-defect-only rules |
+| `SKY-A101`, `SKY-A102` | `ai_defect` | New AI-defect-only rules |
 | `SKY-L012`, `SKY-L023` | `ai_defect` | Historical logic-rule IDs kept for compatibility |
 | `SKY-D222`, `SKY-D224`, `SKY-D225` | `ai_defect` | Historical dependency/API IDs kept for compatibility |
 
@@ -71,7 +71,7 @@ Every AI-defect rule should answer a narrow question with evidence:
 | Symbol/API existence | Import graph, installed package metadata, stubs, and known package APIs | Real package called with an invented method or keyword |
 | Dependency reality | Registry package/version responses and parsed manifests | `fastapi-security-ultra==4.2.9` does not exist |
 | Repo symbol reachability | Definitions, imports, decorators, and fallback AST checks | `@require_admin` is used but never defined or imported |
-| Diff evidence | Unified git diff for changed files | Assertion weakened, CI permission added, CLI flag removed |
+| Diff evidence | Unified git diff for changed files | Assertion weakened in a test |
 | Test-impact signal | Changed file set from git or PR context | Auth/billing code changed with no test file changed |
 
 The rule must be explainable from the evidence. Skylos should not block a PR
@@ -83,8 +83,6 @@ because an LLM says a change is suspicious.
 |------|----------|------------------|---------------|------------------|
 | `SKY-A101` | MEDIUM-HIGH | Test assertion weakening, exception assertion removal, skip/xfail added | Diff | Usually block or require explicit review |
 | `SKY-A102` | LOW | High-risk source changed with no test file changed | Changed-file set | Warn only |
-| `SKY-A103` | HIGH | GitHub Actions write permissions or privileged triggers added | Diff | Usually block |
-| `SKY-A104` | MEDIUM | Public CLI flag removed from argparse, Click, or Typer surface | Diff | Warn unless compatibility policy says block |
 | `SKY-L012` | CRITICAL | Phantom function/security helper call | Repo symbol analysis | Block |
 | `SKY-L023` | CRITICAL | Phantom security decorator | Repo symbol analysis | Block |
 | `SKY-D222` | CRITICAL | Imported package does not exist | Package registry reality check | Block |
@@ -112,17 +110,9 @@ Examples:
 +assert result is not None
 ```
 
-```yaml
-permissions: write-all
-```
-
-```diff
--parser.add_argument("--quality", action="store_true")
-```
-
 The diff model reduces noise: moved unchanged lines are ignored, existing broad
-CI permissions are not re-reported unless the PR newly adds them, and weak tests
-are not reported unless the PR weakens them.
+tests are not reported unless the PR weakens them, and high-risk source changes
+only warn when the changed-file set has no accompanying test file.
 
 ## What Belongs Elsewhere
 
