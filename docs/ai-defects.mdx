@@ -1,0 +1,142 @@
+---
+title: "AI Defect Verification"
+description: "How Skylos verifies evidence-backed failure modes in AI-written code"
+---
+
+Skylos does not try to decide whether code "looks AI-generated" or whether an
+LLM thinks a change is bad. The AI-defect engine checks specific failure modes
+that leave concrete evidence in source code, dependency metadata, installed
+APIs, or a git diff.
+
+Use it when reviewing agent-authored PRs, editor-generated changes, or
+high-volume AI-assisted code:
+
+```bash
+skylos . --ai-defects
+skylos . --diff origin/main --ai-defects --format json
+```
+
+## Output Contract
+
+The full-scan contract is intentionally separate from quality and security:
+
+| Surface | Value |
+|---------|-------|
+| CLI flag | `--ai-defects` |
+| Policy key | `ai_defects_enabled` |
+| JSON bucket | `ai_defects` |
+| Finding category | `ai_defect` |
+| Generated workflow aliases | `ai-defects`, `ai_defects` |
+
+This means `skylos . --quality` does not include AI-defect findings. Use
+`--ai-defects` directly, or use `-a` / `--all` to enable every static category.
+
+```json
+{
+  "ai_defects": [
+    {
+      "rule_id": "SKY-D224",
+      "category": "ai_defect",
+      "defect_type": "api_signature_hallucination",
+      "message": "Installed API does not accept keyword argument 'imaginary_timeout'."
+    }
+  ],
+  "analysis_summary": {
+    "ai_defects_count": 1
+  }
+}
+```
+
+## Category, Not Prefix
+
+AI-defect grouping is category-based, not prefix-based.
+
+New AI-defect-only rules use the `SKY-A` prefix. Some older rules keep their
+historical `SKY-L` or `SKY-D` IDs so existing suppressions, baselines, CI
+policies, and links do not break. They still report under the `ai_defects`
+bucket when their catalog category is `ai_defect`.
+
+| Rule ID | Category | Why the prefix may differ |
+|---------|----------|---------------------------|
+| `SKY-A101` to `SKY-A104` | `ai_defect` | New AI-defect-only rules |
+| `SKY-L012`, `SKY-L023` | `ai_defect` | Historical logic-rule IDs kept for compatibility |
+| `SKY-D222`, `SKY-D224`, `SKY-D225` | `ai_defect` | Historical dependency/API IDs kept for compatibility |
+
+## Method
+
+Every AI-defect rule should answer a narrow question with evidence:
+
+| Method | Evidence Skylos Uses | Example |
+|--------|----------------------|---------|
+| Symbol/API existence | Import graph, installed package metadata, stubs, and known package APIs | Real package called with an invented method or keyword |
+| Dependency reality | Registry package/version responses and parsed manifests | `fastapi-security-ultra==4.2.9` does not exist |
+| Repo symbol reachability | Definitions, imports, decorators, and fallback AST checks | `@require_admin` is used but never defined or imported |
+| Diff evidence | Unified git diff for changed files | Assertion weakened, CI permission added, CLI flag removed |
+| Test-impact signal | Changed file set from git or PR context | Auth/billing code changed with no test file changed |
+
+The rule must be explainable from the evidence. Skylos should not block a PR
+because an LLM says a change is suspicious.
+
+## Current AI-Defect Rules
+
+| Rule | Severity | What It Verifies | Evidence Type | Blocking Posture |
+|------|----------|------------------|---------------|------------------|
+| `SKY-A101` | MEDIUM-HIGH | Test assertion weakening, exception assertion removal, skip/xfail added | Diff | Usually block or require explicit review |
+| `SKY-A102` | LOW | High-risk source changed with no test file changed | Changed-file set | Warn only |
+| `SKY-A103` | HIGH | GitHub Actions write permissions or privileged triggers added | Diff | Usually block |
+| `SKY-A104` | MEDIUM | Public CLI flag removed from argparse, Click, or Typer surface | Diff | Warn unless compatibility policy says block |
+| `SKY-L012` | CRITICAL | Phantom function/security helper call | Repo symbol analysis | Block |
+| `SKY-L023` | CRITICAL | Phantom security decorator | Repo symbol analysis | Block |
+| `SKY-D222` | CRITICAL | Imported package does not exist | Package registry reality check | Block |
+| `SKY-D224` | HIGH | Installed package called with invented API or keyword | Installed package/API introspection | Block |
+| `SKY-D225` | HIGH | Manifest pins a package version that does not exist | Package registry reality check | Block |
+
+`SKY-D223` stays in security/SCA, not AI-defects, because an undeclared but real
+dependency is a supply-chain/deployment issue rather than a hallucinated package.
+
+## Diff-Aware PR Checks
+
+Diff-aware AI-defect rules run only when Skylos has changed-file context:
+
+```bash
+skylos . --diff origin/main --ai-defects
+```
+
+or when it can infer local git changes. These rules compare the current diff
+instead of scanning the whole repo for pre-existing style issues.
+
+Examples:
+
+```diff
+-assert result.status == "paid"
++assert result is not None
+```
+
+```yaml
+permissions: write-all
+```
+
+```diff
+-parser.add_argument("--quality", action="store_true")
+```
+
+The diff model reduces noise: moved unchanged lines are ignored, existing broad
+CI permissions are not re-reported unless the PR newly adds them, and weak tests
+are not reported unless the PR weakens them.
+
+## What Belongs Elsewhere
+
+Not every AI-prone problem belongs in `ai_defects`.
+
+| Problem | Bucket | Reason |
+|---------|--------|--------|
+| SQL injection, XSS, SSRF, command injection | `danger` / security | Security impact is the primary classification |
+| Async blocking, lock inversion, thread shared state mutation | `quality` | Reliability/maintainability issue, not AI-specific evidence |
+| Undeclared but real dependency | security/SCA | Deployment and supply-chain risk, not a fake dependency |
+| Generic complex AI-looking code | quality or review signal | Not enough evidence to call an AI defect |
+| LLM-only opinion | None by itself | Not evidence-backed |
+
+The useful product boundary is:
+
+> Evidence-backed PR verification for AI-written code, not generic AI-code
+> judgment.

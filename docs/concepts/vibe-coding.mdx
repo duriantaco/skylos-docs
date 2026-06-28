@@ -388,14 +388,20 @@ source is not captured.
 
 ## AI-Specific Detection Rules
 
-Skylos includes rules specifically designed to catch patterns common in AI-generated code.
-AI-defect checks (`SKY-A101`, `SKY-L012`, `SKY-L023`, `SKY-D222`, `SKY-D224`,
-and `SKY-D225`) report under the `ai_defects` output bucket; broader AI-prone
-quality and security rules keep their existing buckets.
+Skylos includes rules specifically designed to catch evidence-backed failure
+modes common in AI-generated code. AI-defect checks (`SKY-A101` to `SKY-A104`,
+`SKY-L012`, `SKY-L023`, `SKY-D222`, `SKY-D224`, and `SKY-D225`) report under
+the `ai_defects` output bucket; broader AI-prone quality and security rules
+keep their existing buckets. See [AI Defect Verification](../ai-defects) for
+the exact grouping method and why some AI-defect rules keep historical `SKY-L`
+or `SKY-D` IDs.
 
 | Rule | What It Catches | Why AI Does This | Vibe Category |
 |------|----------------|-------------------|---------------|
 | `SKY-A101` | **Assertion weakening** — exact assertions replaced with truthiness/null checks, skips, or removed exception assertions | LLMs sometimes make tests pass by weakening the test instead of preserving behavior | `assertion_weakening` |
+| `SKY-A102` | **High-risk change without tests** — auth, billing, validation, tenant, webhook, or similar code changed with no test file changed | AI-generated PRs can touch behavior-sensitive code without adding reviewable test evidence | `test_impact_gap` |
+| `SKY-A103` | **CI permission expansion** — GitHub Actions write permissions or privileged triggers added in a diff | Agents can over-broaden CI privileges while trying to make workflows pass | `ci_permission_expansion` |
+| `SKY-A104` | **Public CLI surface drift** — argparse, Click, or Typer flags removed in a diff | Refactors can silently break scripts, docs, and CI jobs that depend on stable flags | `public_api_surface_drift` |
 | `SKY-L012` | **Phantom function calls** — `sanitize_input()` that doesn't exist | LLMs hallucinate security functions that were never defined or imported | `hallucinated_reference` |
 | `SKY-L023` | **Phantom decorators** — `@require_auth` that doesn't exist | LLMs hallucinate security decorators, leaving functions unprotected | `hallucinated_reference` |
 | `SKY-L026` | **Unfinished generation** — function body is only `pass` or `...` | LLMs generate stubs and move on, leaving empty functions in production | `incomplete_generation` |
