@@ -120,8 +120,6 @@ and output contract.
 |---------|------|----------|-----------|-------------|
 | `SKY-A101` | Test Assertion Weakening | MEDIUM-HIGH | Diff-aware tests | Specific or exception assertion replaced with a broad truthiness/null check, skip, or xfail |
 | `SKY-A102` | High-Risk Change Without Tests | LOW | Diff-aware PR signal | Auth, billing, validation, or similar high-risk code changed with no test file changed |
-| `SKY-A103` | CI Permission Expansion | HIGH | GitHub Actions | Workflow diff adds write permissions or privileged triggers |
-| `SKY-A104` | Public CLI Surface Drift | MEDIUM | Diff-aware CLI | Public CLI flag removed from argparse, Click, or Typer surface |
 | `SKY-L012` | Phantom Function Call | CRITICAL | Python | Call to a security helper that is never defined or imported |
 | `SKY-L023` | Phantom Decorator | CRITICAL | Python | Security decorator that is never defined or imported |
 | `SKY-D222` | Hallucinated Dependency | CRITICAL | Python | Imported package does not exist on PyPI |
@@ -898,48 +896,6 @@ weakens them.
 Skylos only reports this when there are changed files and no test files changed
 at all. It does not claim the change is wrong; it asks the reviewer to look for
 missing test evidence or an explicit explanation.
-
----
-
-### SKY-A103 · CI Permission Expansion
-
-| | |
-|---|---|
-| **Severity** | HIGH |
-| **Languages** | GitHub Actions |
-| **What** | A workflow diff adds `permissions: write-all`, a write-scoped GitHub token permission, `pull_request_target`, or `workflow_run` |
-| **Risk** | AI-authored CI changes can accidentally expand token privileges or run privileged workflows against untrusted code |
-| **Output Bucket** | `ai_defects` |
-
-```yaml
-permissions: write-all
-```
-
-Skylos reports this from the diff only. It ignores unchanged moved lines, so an
-existing broad permission is not re-reported unless the PR newly adds or changes
-the privileged surface.
-
----
-
-### SKY-A104 · Public CLI Surface Drift
-
-| | |
-|---|---|
-| **Severity** | MEDIUM |
-| **Languages** | Diff-aware CLI |
-| **What** | A public CLI flag is removed from argparse, Click, or Typer code without the same flag being re-added in the diff |
-| **Risk** | AI-generated refactors can silently break scripts, CI jobs, docs, and users that depend on stable command-line flags |
-| **Output Bucket** | `ai_defects` |
-
-```diff
--parser.add_argument("--quality", action="store_true")
-```
-
-Skylos treats this as a compatibility review signal. It does not say the removal
-is wrong; it asks the reviewer to confirm the breaking change, keep an alias, or
-document the migration.
-
----
 
 ### SKY-D222 · Hallucinated Dependency
 
