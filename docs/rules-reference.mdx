@@ -11,7 +11,7 @@ description: "Complete reference for all Skylos static analysis rules — securi
 | `SKY-S` | Secrets | Hardcoded credentials and sensitive data |
 | `SKY-SC` | Smart Contracts | Blockchain and contract-specific security issues |
 | `SKY-G` | Go-Specific Security | Go-only vulnerabilities with no cross-language equivalent |
-| `SKY-Q` | Quality & Architecture | Complexity, nesting, coupling, cohesion, and architecture metrics |
+| `SKY-Q` | Quality & Architecture | Complexity, nesting, concurrency, coupling, cohesion, and architecture metrics |
 | `SKY-C` | Structure | Function size and parameter count |
 | `SKY-L` | Logic | Common bug patterns |
 | `SKY-P` | Performance | Performance anti-patterns |
@@ -22,10 +22,12 @@ description: "Complete reference for all Skylos static analysis rules — securi
 
 Rule IDs are **unified across languages** — when multiple scanners detect the same vulnerability class, Skylos reports it with the same ID across Python, TypeScript/JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, Shell, and other supported ecosystems.
 
-Some rules keep their historical `SKY-L` or `SKY-D` IDs but report under the
-`ai_defects` output bucket because they prove AI-code hallucination failure
-modes: `SKY-L012`, `SKY-L023`, `SKY-D222`, `SKY-D224`, and `SKY-D225`. New
-AI-defect rules use the `SKY-A` prefix.
+AI-defect grouping is based on finding category, not only the rule-ID prefix.
+The CLI flag is `--ai-defects`, JSON reports use the top-level `ai_defects`
+bucket, and individual findings use category `ai_defect`. Some hallucination
+rules keep historical `SKY-L` or `SKY-D` IDs for compatibility with existing
+suppressions, baselines, CI policies, and docs links; new AI-defect-only rules
+use the `SKY-A` prefix.
 
 ---
 
@@ -281,6 +283,8 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-Q305` | Duplicate Branch Logic | MEDIUM | Python, TS | Duplicate branch condition or semantically duplicate branch body |
 | `SKY-Q306` | Cognitive Complexity | MEDIUM | Python | Function control flow is hard to follow |
 | `SKY-Q401` | Async Blocking | MEDIUM | Python | — |
+| `SKY-Q403` | Inconsistent Lock Acquisition Order | HIGH | Python | Nested locks are acquired in reversed orders that can deadlock |
+| `SKY-Q404` | Thread Shared State Mutation | MEDIUM | Python | Thread target mutates module state without an obvious lock |
 | `SKY-Q501` | God Class | MEDIUM | Python | 20 methods / 15 attributes |
 | `SKY-Q502` | Class Too Large | MEDIUM | Python | Class has too many methods or attributes for maintainable ownership |
 | `SKY-Q701` | Coupling Between Objects (CBO) | MEDIUM/HIGH | Python | Ce > 4 |
@@ -369,6 +373,7 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-P401` | Memory Load | MEDIUM | `file.read()` / `file.readlines()` loads entire file into RAM |
 | `SKY-P402` | Pandas Memory Risk | LOW | `read_csv()` without `chunksize` for large files |
 | `SKY-P403` | Nested Loop | LOW | O(N^2) nested loop detected |
+| `SKY-P404` | Unbounded Eager ORM Query | MEDIUM | SQLAlchemy-style ORM `.all()` query has no limit, pagination, or streaming boundary |
 
 ### Dead Code Rules (SKY-U)
 
@@ -2247,6 +2252,65 @@ async def fetch_data():
 
 ---
 
+### SKY-Q403 · Inconsistent Lock Acquisition Order
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Python |
+| **What** | Two code paths acquire the same locks in reversed nested order |
+| **Risk** | The program can deadlock when each thread holds one lock and waits for the other |
+
+```python
+# Bad
+def update_user():
+    with user_lock:
+        with account_lock:
+            save_user()
+
+def update_account():
+    with account_lock:
+        with user_lock:
+            save_account()
+
+# Good
+def update_account():
+    with user_lock:
+        with account_lock:
+            save_account()
+```
+
+---
+
+### SKY-Q404 · Thread Shared State Mutation
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | Python |
+| **What** | A `threading.Thread` target mutates module-level state without an obvious lock |
+| **Risk** | Concurrent updates can lose writes or corrupt shared in-memory state |
+
+```python
+# Bad
+events = []
+
+def worker():
+    events.append("done")
+
+threading.Thread(target=worker).start()
+
+# Good
+events = []
+events_lock = threading.Lock()
+
+def worker():
+    with events_lock:
+        events.append("done")
+```
+
+---
+
 ### SKY-Q501 · God Class
 
 | | |
@@ -3136,6 +3200,27 @@ for chunk in pd.read_csv("huge.csv", chunksize=10000):
 | **Severity** | LOW |
 | **Languages** | All |
 | **What** | Nested for loop detected — O(N^2) complexity |
+
+---
+
+### SKY-P404 · Unbounded Eager ORM Query
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | Python |
+| **What** | SQLAlchemy-style ORM `.all()` query has no `limit`, `paginate`, or similar boundary |
+| **Risk** | Production requests can load an entire table into memory |
+
+```python
+# Bad
+def list_users():
+    return User.query.all()
+
+# Good
+def list_users():
+    return User.query.limit(100).all()
+```
 
 ---
 
