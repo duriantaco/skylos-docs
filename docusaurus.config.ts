@@ -153,11 +153,6 @@ const config: Config = {
           position: 'right',
         },
         {
-          to: '/zh-cn/',
-          label: '🇨🇳 中文',
-          position: 'right',
-        },
-        {
           href: 'https://discord.gg/Ftn9t9tErf',
           label: 'Discord',
           position: 'right',
