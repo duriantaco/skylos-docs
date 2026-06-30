@@ -389,7 +389,7 @@ source is not captured.
 ## AI-Specific Detection Rules
 
 Skylos includes rules specifically designed to catch evidence-backed failure
-modes common in AI-generated code. AI-defect checks (`SKY-A101` to `SKY-A104`,
+modes common in AI-generated code. AI-defect checks (`SKY-A101` to `SKY-A105`,
 `SKY-L012`, `SKY-L023`, `SKY-D222`, `SKY-D224`, and `SKY-D225`) report under
 the `ai_defects` output bucket; broader AI-prone quality and security rules
 keep their existing buckets. See [AI Defect Verification](../ai-defects) for
@@ -402,6 +402,7 @@ or `SKY-D` IDs.
 | `SKY-A102` | **High-risk change without tests** — auth, billing, validation, tenant, webhook, or similar code changed with no test file changed | AI-generated PRs can touch behavior-sensitive code without adding reviewable test evidence | `test_impact_gap` |
 | `SKY-A103` | **CI permission expansion** — GitHub Actions diff adds write permissions or privileged workflow triggers | AI-generated CI edits can accidentally broaden repository token privileges | `ci_permission_expansion` |
 | `SKY-A104` | **Public CLI surface drift** — public CLI flag removed from argparse, Click, or Typer code | AI-generated refactors can break documented commands or automation without noticing compatibility impact | `public_api_surface_drift` |
+| `SKY-A105` | **Contract route guard missing** — a route lacks a decorator required by `.skylos/ai-contract.yml` | LLMs add endpoints without applying repo-specific auth or tenant guardrails | `missing_contract_guardrail` |
 | `SKY-L012` | **Phantom function calls** — `sanitize_input()` that doesn't exist | LLMs hallucinate security functions that were never defined or imported | `hallucinated_reference` |
 | `SKY-L023` | **Phantom decorators** — `@require_auth` that doesn't exist | LLMs hallucinate security decorators, leaving functions unprotected | `hallucinated_reference` |
 | `SKY-L026` | **Unfinished generation** — function body is only `pass` or `...` | LLMs generate stubs and move on, leaving empty functions in production | `incomplete_generation` |

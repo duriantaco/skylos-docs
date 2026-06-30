@@ -58,7 +58,7 @@ bucket when their catalog category is `ai_defect`.
 
 | Rule ID | Category | Why the prefix may differ |
 |---------|----------|---------------------------|
-| `SKY-A101` to `SKY-A104` | `ai_defect` | New AI-defect-only rules |
+| `SKY-A101` to `SKY-A105` | `ai_defect` | New AI-defect-only rules |
 | `SKY-L012`, `SKY-L023` | `ai_defect` | Historical logic-rule IDs kept for compatibility |
 | `SKY-D222`, `SKY-D224`, `SKY-D225` | `ai_defect` | Historical dependency/API IDs kept for compatibility |
 
@@ -73,6 +73,7 @@ Every AI-defect rule should answer a narrow question with evidence:
 | Repo symbol reachability | Definitions, imports, decorators, and fallback AST checks | `@require_admin` is used but never defined or imported |
 | Diff evidence | Unified git diff for changed files | Assertion weakened, CI permission added, or CLI flag removed |
 | Test-impact signal | Changed file set from git or PR context | Auth/billing code changed with no test file changed |
+| Contract guardrails | Local `.skylos/ai-contract.yml` clauses and scoped source files | Route handler missing a required auth decorator |
 
 The rule must be explainable from the evidence. Skylos should not block a PR
 because an LLM says a change is suspicious.
@@ -85,6 +86,7 @@ because an LLM says a change is suspicious.
 | `SKY-A102` | LOW | High-risk source changed with no test file changed | Changed-file set | Warn only |
 | `SKY-A103` | HIGH | GitHub Actions workflow adds write permissions or privileged triggers | Diff | Usually block or require explicit review |
 | `SKY-A104` | MEDIUM | Public CLI flag removed from argparse, Click, or Typer surface | Diff | Warn or require compatibility review |
+| `SKY-A105` | HIGH | Route handler missing a contract-required guard decorator | Contract + route AST | Block |
 | `SKY-L012` | CRITICAL | Phantom function/security helper call | Repo symbol analysis | Block |
 | `SKY-L023` | CRITICAL | Phantom security decorator | Repo symbol analysis | Block |
 | `SKY-D222` | CRITICAL | Imported package does not exist | Package registry reality check | Block |
@@ -93,6 +95,11 @@ because an LLM says a change is suspicious.
 
 `SKY-D223` stays in security/SCA, not AI-defects, because an undeclared but real
 dependency is a supply-chain/deployment issue rather than a hallucinated package.
+
+Contract-backed findings can include `contract_id`, `contract_clause`,
+`contract_path`, and `contract_reason` so reviewers can see which repo-specific
+truth was enforced. See [AI Hallucination Contracts](./ai-contracts) for the
+contract format and `skylos verify --contract` workflow.
 
 ## Diff-Aware PR Checks
 

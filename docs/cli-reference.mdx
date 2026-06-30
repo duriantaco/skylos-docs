@@ -61,7 +61,9 @@ skylos . --danger --quality --ai-defects
 
 ### `skylos verify`
 
-Verify a changed file, range, or stdin code blob for AI-code trust findings. This
+Verify a changed file, range, or stdin code blob for AI-code trust findings. Add
+`--contract .skylos/ai-contract.yml` to enforce repo-specific generated-code
+truth such as required route decorators or approved phantom-symbol checks. This
 is the narrow in-loop verifier designed for coding agents and editor hooks, so
 it returns only AI-specific findings instead of the full dead-code/security
 report. In full scan JSON, AI-defect checks are grouped under `ai_defects`
@@ -288,6 +290,7 @@ classes, variables, and lower-confidence findings remain review items.
 | Feature | Command | Description |
 |---------|---------|-------------|
 | **AI-Powered Analysis** | `skylos agent scan . --model gpt-4.1` | Hybrid static + LLM analysis with project context |
+| **AI Contract Setup** | `skylos contract init` | Create `.skylos/ai-contract.yml` for repo-specific generated-code guardrails |
 | **In-Loop Verification** | `skylos verify . --file src/app.py --range 40:75` | Fast, machine-readable AI-code trust verdict for changed code |
 | **AI Security Scan** | `skylos agent scan . --security` | Security taskflow audit with repo map, file facts, and verifier-backed evidence |
 | **Automated Repair** | `skylos agent scan . --fix` | Let the LLM fix what it found, re-scan to confirm closure, and attach proof-test metadata when available |

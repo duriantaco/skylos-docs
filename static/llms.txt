@@ -44,6 +44,7 @@ Skylos is a Vulture alternative with 95% recall and 3x fewer false positives. Bu
 ## Optional
 
 - [AI Features](https://docs.skylos.dev/ai-features): LLM-powered auto-fix and audit
+- [AI Hallucination Contracts](https://docs.skylos.dev/ai-contracts): Repo-specific generated-code contracts for `skylos verify --contract`
 - [Quality Gate](https://docs.skylos.dev/quality-gate): Threshold-based merge blocking
 - [Language Support](https://docs.skylos.dev/language-support): Scanner scope for Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, and Shell
 - [TypeScript / JavaScript Support](https://docs.skylos.dev/typescript-support): TypeScript, JavaScript, and monorepo analysis
