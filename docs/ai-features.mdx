@@ -135,6 +135,15 @@ Run a narrow, local verifier for code an agent or editor just changed:
 skylos verify . --file src/app.py --range 40:75 --project-context
 ```
 
+When a repository has local generated-code truth, create an AI hallucination
+contract and apply it during verification:
+
+```bash
+skylos contract init
+skylos verify . --contract .skylos/ai-contract.yml
+skylos verify . --file apps/api/routes.py --project-context --contract .skylos/ai-contract.yml
+```
+
 `skylos verify` is different from a full scan. It returns only AI-code trust
 findings in a stable JSON schema, including hallucinated references, unfinished
 generated code, stale references, disabled controls, dependency
@@ -143,7 +152,8 @@ scan JSON reports the strict AI-defect rules under `ai_defects` rather than
 `quality` or `danger`.
 
 For the full static-scan AI-defect method, category contract, and current rule
-list, see [AI Defect Verification](./ai-defects).
+list, see [AI Defect Verification](./ai-defects). For repo-specific verifier
+contracts, see [AI Hallucination Contracts](./ai-contracts).
 
 Agents and editors can also pass unsaved buffers through stdin:
 
@@ -154,14 +164,16 @@ printf '{"file":"src/app.py","code":"def handler(): pass\n","range":"1:1"}' \
 
 The JSON response uses `tool: "verify_change"` and includes `rule_id`,
 `vibe_category`, `ai_likelihood`, `range`, `message`, `suggested_fix`,
-`confidence`, `severity`, and `category` for each finding. Without `--no-fail`,
-the command exits `1` when the verifier returns a failing status.
+`confidence`, `severity`, and `category` for each finding. Contract-backed
+findings may also include `contract_id`, `contract_clause`, `contract_path`,
+and `contract_reason`. Without `--no-fail`, the command exits `1` when the
+verifier returns a failing status.
 
 ### MCP `verify_change`
 
 The MCP server exposes the same verifier as `verify_change`, so coding agents can
 call Skylos after each edit. The tool accepts `path`, optional `file`,
-`line_range`, `project_context`, `confidence`, and
+`line_range`, `project_context`, `confidence`, `contract_path`, and
 `include_dependency_hallucinations`, then returns the same versioned JSON schema
 as the CLI.
 

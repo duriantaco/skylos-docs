@@ -1,0 +1,115 @@
+---
+title: "AI Hallucination Contracts"
+description: "Repo-specific generated-code contracts for Skylos verify"
+---
+
+AI hallucination contracts are local YAML files that tell `skylos verify` what
+repo-specific truth should be enforced for generated code. They are useful when
+an agent can invent helpers, package versions, installed APIs, or route
+guardrails that look plausible but are not true for your codebase.
+
+Contracts are intentionally narrower than a general rule language. Version 1
+compiles declarative clauses into existing Skylos AI-defect checks and adds
+contract evidence to verifier findings.
+
+## Quickstart
+
+Create and validate a starter contract:
+
+```bash
+skylos contract init
+skylos contract validate .skylos/ai-contract.yml
+```
+
+Run `skylos verify` with the contract:
+
+```bash
+skylos verify . --contract .skylos/ai-contract.yml
+skylos verify . --file apps/api/routes.py --project-context --contract .skylos/ai-contract.yml
+```
+
+MCP clients can pass the same file through `verify_change` with
+`contract_path`.
+
+## Contract Shape
+
+```yaml
+version: 1
+id: enterprise-generated-code
+
+ai:
+  phantom_symbols:
+    names:
+      - verify_enterprise_auth
+    decorators:
+      - tenant_admin_required
+
+  dependencies:
+    reject_nonexistent_packages: true
+    reject_impossible_versions: true
+
+  api_surface:
+    reject_unknown_members: true
+    reject_unknown_kwargs: true
+
+security:
+  routes:
+    paths:
+      - "apps/api/**"
+    require_any_decorator:
+      - login_required
+      - tenant_admin_required
+
+tests:
+  high_risk_changes_require_tests: true
+```
+
+## What Contracts Enforce
+
+| Contract clause | Example finding | Rule |
+|-----------------|-----------------|------|
+| `ai.phantom_symbols.names` | Contract-listed helper is called but never defined or imported | `SKY-L012` |
+| `ai.phantom_symbols.decorators` | Contract-listed decorator is used but never defined or imported | `SKY-L023` |
+| `ai.dependencies.reject_nonexistent_packages` | Imported package does not exist in the registry | `SKY-D222` |
+| `ai.dependencies.reject_impossible_versions` | Manifest pins a package version that does not exist | `SKY-D225` |
+| `ai.api_surface.reject_unknown_members` | Installed package is called with an invented member | `SKY-D224` |
+| `ai.api_surface.reject_unknown_kwargs` | Installed API receives an unsupported keyword argument | `SKY-D224` |
+| `security.routes.require_any_decorator` | Route handler is missing a required guard decorator | `SKY-A105` |
+| `tests.high_risk_changes_require_tests` | High-risk changed code has no related test change | `SKY-A102` |
+
+## Evidence Fields
+
+Contract-backed verifier findings can include these fields:
+
+| Field | Meaning |
+|-------|---------|
+| `contract_id` | Optional `id` from the contract file |
+| `contract_clause` | Contract clause that explains the finding |
+| `contract_path` | Contract file used for the run |
+| `contract_reason` | Human-readable reason for the clause match |
+
+Example:
+
+```json
+{
+  "rule_id": "SKY-A105",
+  "vibe_category": "missing_contract_guardrail",
+  "contract_clause": "security.routes.require_any_decorator",
+  "contract_reason": "Contract requires route handlers to use one of: @login_required."
+}
+```
+
+## When To Use Contracts
+
+Use contracts for repo-specific generated-code truth that a general scanner
+cannot infer reliably:
+
+- endpoints under `apps/api/**` must use one of your real auth decorators
+- generated code must not rely on fake enterprise helper names
+- dependency and installed-API hallucinations should be checked during editor or
+  agent loops
+- high-risk AI-authored changes should show test evidence before review
+
+Contracts complement [AI Defect Verification](./ai-defects), [MCP
+`verify_change`](./mcp-server#verify_change), and full scan `--ai-defects`.
+They do not replace security, quality, SCA, or custom rules.

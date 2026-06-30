@@ -122,6 +122,7 @@ and output contract.
 | `SKY-A102` | High-Risk Change Without Tests | LOW | Diff-aware PR signal | Auth, billing, validation, or similar high-risk code changed with no test file changed |
 | `SKY-A103` | CI Permission Expansion | HIGH | GitHub Actions diff | Workflow diff adds write permissions or privileged workflow triggers |
 | `SKY-A104` | Public CLI Surface Drift | MEDIUM | Diff-aware CLI | Public CLI flag removed from argparse, Click, or Typer surface |
+| `SKY-A105` | Contract Route Guard Missing | HIGH | Python contract verify | Route handler is missing a guard decorator required by an AI hallucination contract |
 | `SKY-L012` | Phantom Function Call | CRITICAL | Python | Call to a security helper that is never defined or imported |
 | `SKY-L023` | Phantom Decorator | CRITICAL | Python | Security decorator that is never defined or imported |
 | `SKY-D222` | Hallucinated Dependency | CRITICAL | Python | Imported package does not exist on PyPI |
@@ -943,6 +944,40 @@ unless the PR newly adds them.
 This is a compatibility review signal rather than proof the change is wrong.
 Restore the flag, keep a compatibility alias, or document the breaking change
 when the removal is intentional.
+
+---
+
+### SKY-A105 · Contract Route Guard Missing
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Python contract verify |
+| **What** | A route handler under a contract-scoped path is missing one of the guard decorators required by `.skylos/ai-contract.yml` |
+| **Risk** | Agent-authored routes can look complete while skipping repo-specific auth, tenant, or policy guardrails |
+| **Output Bucket** | `ai_defects` |
+
+```yaml
+security:
+  routes:
+    paths:
+      - "apps/api/**"
+    require_any_decorator:
+      - login_required
+```
+
+```python
+@app.route("/admin")
+def admin_dashboard(request):
+    return {"status": "ok"}
+```
+
+Run this through `skylos verify --contract` to enforce repository-specific route
+truth during editor, agent, or PR loops. Contract-backed findings include
+`contract_clause`, `contract_path`, and `contract_reason` metadata so reviewers
+can see exactly which local policy was violated.
+
+---
 
 ### SKY-D222 · Hallucinated Dependency
 
