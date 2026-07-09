@@ -253,7 +253,7 @@ edit before showing the change to a human.
 | `line_range` | string | null | Changed range such as `"40:75"` |
 | `confidence` | int | 60 | Confidence threshold |
 | `project_context` | bool | false | Scan the project root and filter to `file` |
-| `include_dependency_hallucinations` | bool | false | Include package metadata checks for hallucinated dependencies and versions |
+| `include_dependency_hallucinations` | bool | true | Include package metadata checks for hallucinated dependencies and versions |
 | `contract_path` | string | null | Path to an AI hallucination contract used by `skylos verify --contract` |
 | `exclude_folders` | string | null | Comma-separated folders to exclude |
 
@@ -266,6 +266,12 @@ hallucinations, API signature hallucinations, weakened assertions, and
 contract-required route guardrails. AI-defect findings use `category: "ai_defect"`.
 Contract-backed findings can include `contract_id`, `contract_clause`,
 `contract_path`, and `contract_reason`.
+
+Dependency checks are diff-aware: if a raw diff adds both a Python import and
+the matching PyPI declaration in `requirements*.txt` or `pyproject.toml`, the
+import is treated as declared. For `package.json`, registry checks only inspect
+entries inside dependency sections such as `dependencies`, `devDependencies`,
+`peerDependencies`, and `optionalDependencies`.
 
 ---
 
