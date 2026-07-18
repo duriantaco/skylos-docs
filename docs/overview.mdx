@@ -26,7 +26,8 @@ Use it when you want to:
 | Full local audit | `skylos . -a` | adds security, secrets, config, quality, and dependency checks |
 | Changed-code review | `skylos . -a --diff origin/main` | focuses on lines touched by a PR |
 | CI gate | `skylos cicd init` | generates a GitHub Actions workflow |
-| AI app defense | `skylos defend .` | checks LLM integrations for missing guardrails |
+| Pre-deployment agent verification | `skylos defend . --format md` | verifies AI-agent guardrails, gates CI, and emits attested evidence |
+| Runtime agent behavior test | `skylos agent test --allow-contract-endpoint` | checks responses, tool selection, refusals, and source IDs against a contract |
 | Agent review | `skylos agent scan .` | optional LLM-assisted review and fix suggestions |
 
 ## How Skylos Is Different
@@ -86,4 +87,6 @@ For detailed scanner scope, see [Language Support](/language-support) and
 - [Dead Code Detection](/dead-code-detection)
 - [Security Analysis](/security-analysis)
 - [CI/CD Integration](/ci-cd)
+- [Agent Verification](/agent-verification)
+- [Agent Behavior Testing](/agent-behavior-testing)
 - [AI Defense](/ai-defense)

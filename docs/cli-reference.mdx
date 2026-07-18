@@ -292,6 +292,11 @@ classes, variables, and lower-confidence findings remain review items.
 | **AI-Powered Analysis** | `skylos agent scan . --model gpt-4.1` | Hybrid static + LLM analysis with project context |
 | **AI Contract Setup** | `skylos contract init` | Create `.skylos/ai-contract.yml` for repo-specific generated-code guardrails |
 | **In-Loop Verification** | `skylos verify . --file src/app.py --range 40:75` | Fast, machine-readable AI-code trust verdict for changed code |
+| **Agent Behavior Contract** | `skylos agent init` | Create `.skylos/agent-test.yml` for runtime response, tool, refusal, and source assertions |
+| **Agent Behavior Test** | `skylos agent test --allow-contract-endpoint` | Explicitly allow and test the contract's loopback endpoint |
+| **Offline Agent Behavior Test** | `skylos agent test --observations agent-observations.json` | Deterministically evaluate captured typed observations without a network call |
+| **Authenticated Remote Agent Test** | `skylos agent test --endpoint https://agent.example/v1/chat/completions --allow-remote --auth-env AGENT_TOKEN` | Select the remote destination and bearer-token environment variable from the trusted CLI invocation |
+| **Bounded Agent Test** | `skylos agent test --max-scenarios 25 --max-seconds 300 --max-tokens 1024` | Enforce scenario/time budgets and request an endpoint response-token cap |
 | **AI Security Scan** | `skylos agent scan . --security` | Security taskflow audit with repo map, file facts, and verifier-backed evidence |
 | **Automated Repair** | `skylos agent scan . --fix` | Let the LLM fix what it found, re-scan to confirm closure, and attach proof-test metadata when available |
 | **PR Review** | `skylos agent scan --changed` | Analyze only git-changed files |

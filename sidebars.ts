@@ -54,6 +54,8 @@ const sidebars = {
         { type: 'doc', id: 'dead-code-detection', label: 'Dead Code' },
         { type: 'doc', id: 'smart-tracing', label: 'Smart Tracing' },
         { type: 'doc', id: 'security-analysis', label: 'Security' },
+        { type: 'doc', id: 'agent-verification', label: 'Agent Verification' },
+        { type: 'doc', id: 'agent-behavior-testing', label: 'Agent Behavior Testing' },
         { type: 'doc', id: 'ai-defense', label: 'AI Defense' },
         { type: 'doc', id: 'ai-defects', label: 'AI Defects' },
         { type: 'doc', id: 'ai-contracts', label: 'AI Contracts' },

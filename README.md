@@ -25,6 +25,8 @@ Documentation for Skylos - a static analysis tool for Python, TypeScript, JavaSc
 | [Vibe Coding & AI Debt](docs/concepts/vibe-coding.mdx) | AI-generated code defects, including hallucinated helpers, disabled controls, and package/API hallucinations |
 | [AI Defect Verification](docs/ai-defects.mdx) | Method, rule grouping, output contract, and blocking posture for `--ai-defects` |
 | [AI Hallucination Contracts](docs/ai-contracts.mdx) | Repo-specific generated-code contracts for `skylos verify --contract` |
+| [Agent Verification](docs/agent-verification.mdx) | Static pre-deployment verification of AI-agent guardrails and evidence |
+| [Agent Behavior Testing](docs/agent-behavior-testing.mdx) | Deterministic runtime scenarios for responses, tool calls, refusals, and source evidence |
 | [AI Features](docs/ai-features.mdx) | `skylos verify`, AI-code defect benchmarks, remediation proof tests, and LLM-assisted review |
 | [Code Quality](code-quality.mdx) | Complexity, nesting, structure checks |
 | [Technical Debt](docs/technical-debt.mdx) | Structural debt hotspots, changed-view reviews, and debt baselines |
