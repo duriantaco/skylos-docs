@@ -119,10 +119,11 @@ Get your API key from [skylos.dev/dashboard/settings](https://skylos.dev/dashboa
 | `quality_check` | **Free** | Runs locally |
 | `secrets_scan` | **Free** | Runs locally |
 | `verify_change` | **Free** | Runs locally; returns narrow AI-code trust findings for changed code |
+| `verify_agent` | **Free** | Runs locally; verifies AI-agent guardrails with scores, failed checks, OWASP coverage, gate verdict, and attestation digest |
 | `remediate` | **10** | AI-powered fix generation |
 
 Analysis tools (`analyze`, `security_scan`, `quality_check`, `secrets_scan`,
-and `verify_change`) run entirely on your machine — they don't cost credits.
+`verify_change`, and `verify_agent`) run entirely on your machine — they don't cost credits.
 Only the `remediate` tool, which uses LLM-powered fix generation, costs 10
 credits per call.
 
@@ -268,6 +269,21 @@ Contract-backed findings can include `contract_id`, `contract_clause`,
 `contract_path`, and `contract_reason`.
 
 ---
+
+
+### `verify_agent`
+
+Statically verifies AI-agent guardrails before deployment. It inventories LLM integrations, runs the same deterministic defense checks as `skylos defend`, and returns defense/ops scores, failed checks with remediation, OWASP coverage summary, an optional gate verdict, and an attestation digest.
+
+```json
+{
+  "path": ".",
+  "fail_on": "critical",
+  "owasp_framework": "agentic"
+}
+```
+
+**Returns**: Compact JSON with `tool: "verify_agent"`, `defense_score`, `ops_score`, `failed_checks`, `owasp`, `gate`, and `attestation`. The verification is deterministic static analysis, not another model reviewing the code.
 
 ### `remediate`
 
