@@ -25,6 +25,7 @@ Every new account gets **50 starter credits** and a **7-day Pro trial**. You can
 | Local exit-code enforcement only | `skylos . --gate` |
 | Connect this repo to a cloud project | `skylos login` |
 | Upload a scan to the dashboard | `skylos . --upload` |
+| Compare Skylos with an existing scanner without replacing its gate | `skylos compare . --against incumbent.sarif --upload` |
 | Pull project policy and suppressions into the repo | `skylos sync pull` |
 | Inspect which project this repo is linked to | `skylos project status` |
 
@@ -60,7 +61,10 @@ Each project currently has tabs for:
 - `Suppressions`
 - `Defense`
 - `Provenance`
+- `Scanner proof`
 - `Settings`
+
+The **Scanner proof** tab stores bounded, tamper-evident comparison receipts from `skylos compare --upload`. Use it to evaluate Skylos beside an incumbent scanner on the same revision before changing a required gate. See [Scanner Comparison](/scanner-comparison).
 
 ### Project Settings
 
@@ -129,6 +133,8 @@ When you upload a scan, Skylos Cloud receives analysis results and metadata, not
 | summary counts and gate data | your git history as source blobs |
 
 Uploaded findings can include security-sensitive metadata and contextual evidence needed to explain results. Treat cloud scan results as sensitive security data even though Skylos does not upload the full repo as source blobs during normal scan upload.
+
+Scanner-comparison receipts are narrower than normal scan uploads: scanner messages, source snippets, fingerprints, and absolute local paths remain local. Cloud receives aggregate evidence and repository-relative review metadata only.
 
 ## Next Step
 

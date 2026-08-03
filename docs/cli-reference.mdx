@@ -498,10 +498,17 @@ skylos . --select SKY-GPU001,SKY-GPU002,SKY-GPU003 --gate
 
 ## Exit Codes
 
+Exact meaning is command-specific; these are the common categories:
+
 | Code | Meaning |
 |------|---------|
-| `0` | Success (no issues or gate passed) |
-| `1` | Failure (analysis error or gate failed) |
+| `0` | The command completed and its selected output, report, or policy passed |
+| `1` | Findings, a gate/policy decision, or another command-specific analysis or operational failure caused the command to fail |
+| `2` | The invocation, configuration, or input was invalid, or the command could not produce a usable result safely |
+
+For example, `skylos compare` uses `0` for a usable receipt and `2` for an
+invalid, unsafe, or unusable comparison; it does not use `1`. See
+[Scanner Comparison](./scanner-comparison#exit-codes).
 
 ## AI-Powered Features (Deprecated)
 
