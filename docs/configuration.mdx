@@ -64,6 +64,7 @@ complexity = 12
 # Quality gate settings
 fail_on_critical = true
 max_security = 0
+max_reliability = 0
 max_quality = 10
 strict = false
 
@@ -131,8 +132,13 @@ The `[tool.skylos.gate]` section controls the quality gate behavior when using `
 |--------|------|---------|-------------|
 | `fail_on_critical` | bool | `true` | Block deployment if CRITICAL security issues or secrets are found |
 | `max_security` | int | `0` | Maximum allowed security findings before gate fails |
+| `max_reliability` | int | `0` | Maximum allowed deployment/runtime Reliability findings before the gate fails; evaluated separately from `max_security` |
 | `max_quality` | int | `10` | Maximum allowed quality findings before gate fails |
 | `strict` | bool | `false` | When `true`, prevents bypassing a failed gate interactively |
+
+Release Reliability findings have their own JSON bucket, count, and gate
+threshold. See [Release Reliability](./release-reliability) for the Kubernetes
+and GPU rule contracts.
 
 ## Whitelist Configuration
 

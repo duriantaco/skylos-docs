@@ -9,7 +9,8 @@ Skylos fits into CI in three different ways. The right choice depends on whether
 
 | Goal | Use this | Notes |
 |---|---|---|
-| Local-only CI gate | `skylos . --gate` | No cloud state required |
+| Local-only CI gate | `skylos . --danger --secrets --quality --ai-defects --gate` | Explicit analyzers; no cloud state required |
+| Kubernetes/GPU release proof | `skylos . --select RULES --gate` | Exact cross-file proof with an independent Reliability threshold |
 | Workflow security review | `skylos . --danger` | Scans `.github/workflows/*` and local action metadata |
 | Cloud upload with dashboard policy | `skylos . --upload` | Uses project policy, suppressions, and cloud history |
 | GitHub hard enforcement | `skylos . --upload` plus GitHub App and branch protection | Requires repo URL and cloud setup |
@@ -21,6 +22,12 @@ metadata. It flags CI/CD supply-chain risks such as privileged triggers, broad
 `GITHUB_TOKEN` permissions, unpinned actions, unsafe checkout credentials,
 template injection, secret overexposure, mutable containers, OIDC release risk,
 and missing timeouts on privileged jobs.
+
+The same `--danger` invocation also runs deployment/runtime contract analysis.
+Kubernetes and GPU results whose category is Reliability stay in the separate
+`reliability` JSON bucket and gate threshold; they do not inflate Security
+counts. JSON output, uploads, GitHub annotations, and PR review formatting
+preserve this category.
 
 See [GitHub Actions Security](/github-actions-security) for setup guidance and
 the full scanner scope.
@@ -290,10 +297,25 @@ stage('Skylos Scan') {
 ### Local gate
 
 ```bash
-skylos . --gate
+skylos . --danger --secrets --quality --ai-defects --gate
 ```
 
-Use this when you only want CLI exit codes from local config.
+Use this when you only want CLI exit codes from local config. A bare `--gate`
+does not enable every analyzer.
+
+For a narrow release proof:
+
+```bash
+# Kubernetes exposure path
+skylos . --select SKY-DEP001,SKY-DEP002,SKY-DEP003 --gate
+
+# CUDA, build-architecture, and TensorRT compatibility
+skylos . --select SKY-GPU001,SKY-GPU002,SKY-GPU003 --gate
+```
+
+GPU leaf selection automatically retains `SKY-GPU000` so a missing or invalid
+target contract fails closed. Reliability uses `max_reliability = 0` by
+default. See [Release Reliability](./release-reliability) for contract setup.
 
 ### Cloud gate
 
