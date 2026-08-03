@@ -1,0 +1,201 @@
+---
+title: "Scanner Comparison"
+description: "Run Skylos beside your current scanner and prove its value on the same code before changing a required gate."
+---
+
+# Prove value before replacing your scanner
+
+`skylos compare` runs Skylos beside SonarQube, CodeQL, Snyk, Semgrep, or
+another scanner that exports SARIF. Your existing quality gate stays unchanged
+while Skylos checks revision provenance and marks mismatched or unverified
+inputs explicitly.
+
+The comparison helps you find:
+
+- source locations reported by both scanners
+- findings unique to either scanner for human review
+- incumbent findings inside code Skylos classifies as likely or validated dead
+- categories that could not be compared fairly because scope or coverage was incomplete
+
+Unique findings are **review candidates**, not automatically a scanner miss or a false positive. Skylos only presents stronger comparison claims when revision, repository scope, and export completeness can be verified.
+
+## Quick start
+
+Export findings from your current scanner, then run:
+
+```bash
+skylos compare . --against incumbent.sarif
+```
+
+Supported inputs are:
+
+- SARIF 2.1-style reports
+- SonarQube `api/issues/search` JSON
+- normalized JSON with a top-level `findings` array
+
+Each input must be a regular, non-symlink UTF-8 JSON file no larger than 50
+MiB. Incumbent reports are limited to 100,000 raw findings. Skylos rejects an
+unsafe or oversized input instead of silently truncating the comparison.
+
+Save the full local report for CI or later review:
+
+```bash
+skylos compare . \
+  --against incumbent.sarif \
+  --format json \
+  -o scanner-value-report.json
+```
+
+You can also reuse a previous Skylos result:
+
+```bash
+skylos . -a --format json -o skylos.json
+skylos compare --against incumbent.sarif --skylos-results skylos.json
+```
+
+Without `--skylos-results`, the comparison runs a new local profile covering
+dead code, Security, Release Reliability, Quality, and AI defects. Secrets and
+dependency-hallucination checks are disabled, SCA is disabled unless `--sca`
+is supplied, and the grep cache is disabled. `--confidence`, `--exclude`, and
+`--sca` tune only a new scan; they do not change a report loaded with
+`--skylos-results`.
+
+### Command options
+
+| Option | Purpose |
+|---|---|
+| `--against FILE` | Required incumbent SARIF, SonarQube, or normalized JSON report |
+| `--skylos-results FILE` | Reuse an existing Skylos JSON result instead of scanning `path` |
+| `--confidence 0..100` | Dead-code confidence for a new Skylos scan; defaults to `60` |
+| `--exclude FOLDER` | Exclude a folder from a new scan; repeat as needed. This makes full-repository scope unverified |
+| `--sca` | Opt in to bounded exact-pin direct-dependency OSV checks; may make network queries |
+| `--external-revision REV` | Bind an incumbent report that has no revision metadata |
+| `--skylos-revision REV` | Bind a reused Skylos report that has no revision metadata |
+| `--format text\|json` | Print a human scorecard or the complete JSON report |
+| `-o`, `--output FILE` | Safely write the complete JSON report without overwriting an input |
+| `--upload` | Explicitly upload a bounded receipt to the linked Cloud project |
+
+Revision overrides cannot replace conflicting report provenance. They create
+an **asserted** match, not the stronger Git-backed verified match.
+
+### Input completeness
+
+Skylos preserves uncertainty instead of interpreting a partial export as a
+clean scanner result:
+
+| Input | Completeness behavior |
+|---|---|
+| SARIF | A failed invocation marks the export incomplete. Otherwise SARIF does not prove that every result page or configured category was exported, so completeness remains unknown |
+| SonarQube JSON | `paging.total` is compared with the number of exported issues. Missing paging leaves completeness unknown; fewer issues than `total` makes the comparison unusable |
+| Normalized JSON | Set top-level `complete` to `true` only when the export contains every in-scope finding. Omit it when unknown |
+
+A normalized report can also attest repository scope and identity:
+
+```json
+{
+  "tool": "Incumbent",
+  "revision": "0123456789abcdef",
+  "complete": true,
+  "scope": {
+    "complete_repository": true,
+    "repository_identity": "https://github.com/acme/service.git",
+    "source_root": "."
+  },
+  "findings": []
+}
+```
+
+Do not set `complete_repository` when exporting only a directory, branch diff,
+rule subset, severity subset, or one page of results.
+
+## Add a Cloud receipt
+
+[Connect the repository to a Skylos Cloud project](./cloud-workflow#2-connect-the-repo-to-skylos-cloud),
+then explicitly opt in to upload:
+
+```bash
+skylos compare . --against incumbent.sarif --upload
+```
+
+Open the project's **Scanner proof** tab to review the scorecard, comparable categories, review candidates, provenance, and tamper-evident receipt history.
+
+The upload is bounded and project-authenticated. It does **not** send source code, scanner messages, source snippets, fingerprints, or absolute local paths. Repository-relative evidence and aggregate comparison data are retained so the result can be reviewed without uploading the repository.
+
+The serialized upload envelope is limited to 4,000,000 bytes (about 4 MB). If
+a comparison is larger, Skylos does not truncate it: write the complete local
+report with `-o`, then upload a narrower comparison.
+
+Scanner Proof receipts are opt-in audit evidence. Cloud applies hard count and byte ceilings and retains them until their project or workspace is deleted; deleting either also deletes its comparison receipts.
+
+Repository identity is optional in a Cloud receipt. If an identity is present,
+it must be a safe network Git remote; local paths and `file://` remotes are
+refused before serialization so workstation paths cannot cross the upload
+boundary. The complete comparison can still be written locally with `-o`.
+
+Without `--upload`, the comparison stays local. Dependency comparison is also offline by default; add `--sca` only when you want bounded exact-pin OSV checks, which may query package and version metadata.
+
+`--sca` is deliberately not a full dependency-coverage claim. It checks direct
+dependencies with versions Skylos can resolve from supported manifests;
+transitive dependencies are not enumerated, version ranges can remain
+unresolved, and unsupported lockfiles are recorded as coverage limitations.
+Inspect `skylos.sca_coverage` and
+`coverage.all_requested_categories_complete` in the local JSON receipt before
+comparing dependency counts.
+
+For browser login, API keys, and headless CI credentials, see
+[Authentication](./authentication).
+
+## Read the result safely
+
+| Result | What it means |
+|---|---|
+| Same-location overlap | Both tools reported the same unambiguous file and line. This is corroboration, not proof of the same root cause. |
+| Skylos-only, comparable category | A review candidate in a category both inputs covered. It is not automatically an incumbent miss. |
+| Incumbent-only | A review candidate, not automatically a Skylos miss or an incumbent false positive. |
+| Finding in likely-dead code | A deletion or review candidate when the finding category is eligible. Secrets and dependency findings still require their normal remediation. |
+| Reachability unknown | Skylos could not conservatively associate the finding with live or reportable dead code. Unknown is never treated as safe. |
+| Provisional | One or more claims are limited because revision, scope, export completeness, or category coverage could not be fully verified. |
+
+### Usable versus fully verified
+
+A report can be useful and still be provisional. A fully verified comparison
+requires all of the following:
+
+- both reports contain matching, non-CLI revision provenance;
+- for a new local scan, Skylos starts and ends on that revision with no
+  relevant worktree changes;
+- Skylos scans the repository root without exclusions;
+- the incumbent export attests complete repository scope and includes every
+  result page;
+- both reports identify the same repository; and
+- no category observed in the incumbent report is uncovered or incomplete in
+  the Skylos result.
+
+The JSON fields `usable`, `complete`, `completeness_state`,
+`completeness_reasons`, `revision`, `scope`, and `coverage` show exactly which
+claim is allowed. Revision mismatch, repository-identity mismatch, a
+known-incomplete incumbent export, or an incomplete Skylos core scan makes the
+report unusable. Unknown provenance or incomplete observed-category coverage
+keeps an otherwise usable report provisional.
+
+For a defensible evaluation, scan the same commit and complete repository,
+export every incumbent result page, and keep the incumbent check unchanged.
+Review representative unique findings with humans before measuring alert
+reduction or promoting Skylos to a required gate.
+
+### Exit codes
+
+`skylos compare` exits `0` when the report is usable and any requested upload
+succeeds. A usable but provisional report can still exit `0`; inspect
+`complete` before making a strong claim. It exits `2` for invalid or unsafe
+input/output, an unusable comparison, a conflicting revision override, or a
+failed requested upload. It does not use exit `1`.
+
+## Recommended trial
+
+1. Keep the current required check unchanged.
+2. Run Skylos in advisory mode on representative repositories for two to four weeks.
+3. Compare the same commits and record incomplete runs instead of treating them as clean.
+4. Blind-review a sample of unique and dead-code-associated findings.
+5. Measure confirmed defects, developer interruptions, review time, and scan completion—not raw finding volume.
+6. Enable enforcement only where the evidence supports it.

@@ -69,7 +69,7 @@ When a new issue appears, Skylos supports three resolution paths:
 Run Skylos as a gate before your deploy/test command. If the scan fails, the
 step exits non-zero and later CI steps do not run:
 ```bash
-skylos . --gate
+skylos . --danger --secrets --quality --ai-defects --gate
 ```
 ```mermaid
 flowchart LR
@@ -107,9 +107,33 @@ skylos . --danger --secrets --quality --ai-defects
 If you're gating a deploy/test step, run Skylos first and only run deploy after
 the gate passes:
 ```bash
-skylos . --gate
+skylos . --danger --secrets --quality --ai-defects --gate
 ./deploy.sh
 ```
+
+---
+
+## Release Reliability Gates
+
+`--gate` evaluates the analyzers enabled in that invocation; it does not turn
+every analyzer on by itself. `--danger` enables deployment/runtime contract
+analysis as well as Security, while exact `--select` rules enable only the
+families they need.
+
+Reliability has an independent threshold, `max_reliability`, which defaults to
+`0`. It does not consume `max_security` or alter the Security count.
+
+```bash
+# Prove the external Kubernetes deployment path
+skylos . --select SKY-DEP001,SKY-DEP002,SKY-DEP003 --gate
+
+# Prove the GPU artifact against the declared target fleet
+skylos . --select SKY-GPU001,SKY-GPU002,SKY-GPU003 --gate
+```
+
+The GPU gate automatically retains `SKY-GPU000`. A missing, invalid, deleted,
+or incomplete required GPU contract therefore blocks instead of silently
+passing. See [Release Reliability](./release-reliability) for setup.
 
 ---
 
@@ -141,7 +165,7 @@ Action required:
 3. Fix the code
 4. Re-run:
 ```bash
-skylos . --danger --secrets --quality --ai-defects
+skylos . --danger --secrets --quality --ai-defects --gate
 ```
 
 5. Gate passes when there are **0 new unsuppressed** findings
@@ -196,11 +220,15 @@ Strict Mode disables local bypass flags so production controls can't be sidestep
 ```toml
 [tool.skylos.gate]
 enabled = true
+max_reliability = 0
 
 # Free/local environments can allow manual bypass.
 # In Pro/Enterprise, strict mode is managed by the dashboard project settings.
 strict = false
 ```
+
+Any Reliability finding blocks by default. This threshold is evaluated
+separately from Security.
 
 ### Recommended policy defaults
 
@@ -241,7 +269,7 @@ jobs:
         run: pip install skylos
 
       - name: Quality Gate
-        run: skylos . --gate
+        run: skylos . --danger --secrets --quality --ai-defects --gate
 
       - name: Deploy
         run: ./deploy.sh

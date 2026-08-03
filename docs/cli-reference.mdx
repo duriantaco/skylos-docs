@@ -188,16 +188,49 @@ src/test.py:5  unused class
 Clean scans print nothing and exit `0`. Scans with findings exit `1` unless
 `--force` is used.
 
+## Finding Filters
+
+| Flag | Description |
+|------|-------------|
+| `--severity LEVEL` | Show findings at or above `critical`, `high`, `medium`, or `low` |
+| `--category CAT` | Show one or more comma-separated categories: `security`, `reliability`, `secret`, `quality`, `ai_defects`, `dead_code`, or `dependency` |
+| `--select RULE` | Report exact rule IDs, case-insensitively. Repeat the option or use commas; required analyzer families are enabled automatically |
+| `--file-filter PATTERN` | Show findings whose file contains the given substring |
+| `--limit N` | Limit displayed findings per category while retaining a summary of the remainder |
+
+`--severity`, `--category`, `--file-filter`, and `--limit` filter presentation.
+`--select` is different: it both enables the matching analyzer family and
+restricts results to exact rule IDs. Unknown IDs are configuration errors and
+exit `2`.
+
+```bash
+# Gate only the GPU compatibility proof
+skylos . --select SKY-GPU001,SKY-GPU002,SKY-GPU003 --gate --format concise
+```
+
+GPU leaf rules require a valid release contract. Selecting `SKY-GPU001`,
+`SKY-GPU002`, or `SKY-GPU003` automatically retains prerequisite
+`SKY-GPU000`, so a missing or malformed contract remains visible and the gate
+cannot pass open.
+
 ## Analysis Flags
 
 | Flag | Description |
 |------|-------------|
-| `--danger` | Enable security vulnerability scanning |
+| `--danger` | Enable security plus deployment/runtime contract scanning. Non-security deployment and GPU results are reported under Reliability |
 | `--secrets` | Enable API key and secret detection |
 | `--quality` | Enable code quality checks (complexity, nesting, etc.) |
 | `--ai-defects` | Enable evidence-backed AI defect checks such as phantom references, hallucinated APIs, impossible dependency versions, weakened test assertions, test-impact gaps, CI privilege expansion, and CLI surface drift |
 | `--trace` | Run tests with call tracing to capture dynamic dispatch (visitor patterns, getattr, plugins) |
 | `--confidence`| Confidence threshold (0-100). Lower values include more uncertain findings. Default: `60` |
+
+Reliability has no separate broad analysis flag. Use `--danger` (or `-a`) to
+run deployment/runtime contract analyzers, or use `--select` to enable exact
+Reliability rules. Use `--category reliability` only when you want to hide
+other categories from the displayed result.
+
+See [Release Reliability](./release-reliability) for Kubernetes exposure proof
+and GPU artifact compatibility.
 
 ## Reference Graph Cache
 
@@ -231,6 +264,12 @@ skylos . --diff origin/main --danger --quality --ai-defects
 # Auto-detect base ref (uses GITHUB_BASE_REF or defaults to origin/main)
 skylos . --diff --danger --secrets --quality --ai-defects
 ```
+
+For cross-file findings, Skylos also checks `related_locations` against the
+changed scope. A finding can therefore remain visible when the PR changes a
+supporting contract, manifest, source route, build file, or Dockerfile rather
+than only the finding's primary location. Required fail-closed prerequisites
+such as `SKY-GPU000` are retained for selected leaf rules.
 
 ## Folder Exclusion
 
@@ -433,13 +472,21 @@ skylos <path> --gate [command...]
 
 | Flag | Description |
 |------|-------------|
-| `--gate` | Run as a quality gate. Blocks if thresholds are exceeded. |
+| `--gate` | Run as a quality gate. Blocks if thresholds for the enabled or selected analyzers are exceeded. |
 
-If the gate passes, Skylos either runs the provided command or launches the deployment wizard. If the gate fails, it shows reasons and (unless `strict = true`) offers a bypass prompt.
+Reliability is evaluated separately from Security and defaults to
+`max_reliability = 0`. A bare `--gate` does not enable every analyzer; combine
+it with explicit analysis flags or exact `--select` rules. If the gate passes,
+Skylos either runs the provided command or launches the deployment wizard. If
+the gate fails, it shows reasons and (unless `strict = true`) offers a bypass
+prompt.
 
 **Example:**
 ```bash
-skylos . --danger --gate
+skylos . --danger --secrets --quality --ai-defects --gate
+
+# Targeted GPU release gate; SKY-GPU000 is retained automatically
+skylos . --select SKY-GPU001,SKY-GPU002,SKY-GPU003 --gate
 ```
 
 ## Other Options
@@ -451,10 +498,17 @@ skylos . --danger --gate
 
 ## Exit Codes
 
+Exact meaning is command-specific; these are the common categories:
+
 | Code | Meaning |
 |------|---------|
-| `0` | Success (no issues or gate passed) |
-| `1` | Failure (analysis error or gate failed) |
+| `0` | The command completed and its selected output, report, or policy passed |
+| `1` | Findings, a gate/policy decision, or another command-specific analysis or operational failure caused the command to fail |
+| `2` | The invocation, configuration, or input was invalid, or the command could not produce a usable result safely |
+
+For example, `skylos compare` uses `0` for a usable receipt and `2` for an
+invalid, unsafe, or unusable comparison; it does not use `1`. See
+[Scanner Comparison](./scanner-comparison#exit-codes).
 
 ## AI-Powered Features (Deprecated)
 

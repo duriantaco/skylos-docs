@@ -11,6 +11,8 @@ description: "Complete reference for all Skylos static analysis rules — securi
 | `SKY-S` | Secrets | Hardcoded credentials and sensitive data |
 | `SKY-SC` | Smart Contracts | Blockchain and contract-specific security issues |
 | `SKY-G` | Go-Specific Security | Go-only vulnerabilities with no cross-language equivalent |
+| `SKY-DEP` | Deployment Security & Reliability | Correlated Kubernetes exposure and unsafe runtime-mode findings |
+| `SKY-GPU` | GPU Release Reliability | Fail-closed CUDA, build-architecture, and TensorRT compatibility findings |
 | `SKY-Q` | Quality & Architecture | Complexity, nesting, concurrency, coupling, cohesion, and architecture metrics |
 | `SKY-C` | Structure | Function size and parameter count |
 | `SKY-L` | Logic | Common bug patterns |
@@ -242,6 +244,78 @@ settings can turn ordinary app bugs into device compromise.
 | `SKY-D334` | Systemd Root Service Executes Mutable Path | HIGH | Root systemd service executes a script from user-writable locations such as `/home` or `/tmp` |
 | `SKY-D335` | Systemd Edge Service Missing Sandboxing | MEDIUM | Edge/device service lacks common hardening such as `NoNewPrivileges`, `ProtectSystem`, or `PrivateTmp` |
 | `SKY-D336` | Systemd Broad Edge Service Privilege | HIGH | Service grants broad capabilities, broad device access, or starts a privileged container |
+
+### Kubernetes Deployment Exposure (SKY-DEP)
+
+These opt-in rules prove an exposure path across one rendered,
+multi-document Kubernetes file: an explicitly external, plain-HTTP Ingress
+must resolve through a Service and workload to one container. Skylos abstains
+when an edge in that chain is missing, dynamic, or ambiguous.
+
+The Ingress must declare `skylos.dev/network-scope: external` (or `public`) and
+`skylos.dev/backend-protocol: http`. `SKY-DEP001` also requires the workload
+Pod template to declare `skylos.dev/source-file` and
+`skylos.dev/required-guards`.
+
+| Rule ID | Name | Severity | Category | Description |
+|---------|------|----------|----------|-------------|
+| `SKY-DEP001` | Externally Deployed Route Missing Required Auth Guard | HIGH | Security | An Ingress-reachable sensitive FastAPI or Flask route is missing a guard required by the workload contract |
+| `SKY-DEP002` | External Ingress Exposes Flask Development Debugger | HIGH | Security | The resolved externally routed Flask container effectively enables its development debugger |
+| `SKY-DEP003` | External Ingress Routes To Reload-Mode Server | MEDIUM | Reliability | The resolved Flask, Uvicorn, or Gunicorn container effectively enables reload mode |
+
+```bash
+# Discover this rule family
+skylos rules list deployment
+
+# Scan only the deployment proof rules
+skylos . --select SKY-DEP001,SKY-DEP002,SKY-DEP003 --format concise
+```
+
+These are correlated static proofs, not live-cluster checks. Skylos does not
+render Helm or Kustomize, join resources split across files, or infer network
+policy. See [Release Reliability](./release-reliability#kubernetes-deployment-exposure-proof)
+for the contract and proof chain.
+
+### GPU Release Compatibility (SKY-GPU)
+
+Skylos treats `.skylos/gpu-targets.yml` (or `.yaml`) version 1 as the release
+target contract and cross-checks it against effective final-stage Docker CUDA
+images, CMake/NVCC architecture output, and packaged TensorRT engines. It does
+not probe installed hardware or perform package CVE analysis.
+
+```yaml
+version: 1
+targets:
+  - name: inference-t4
+    vendor: nvidia
+    driver: "535.104.05"
+    compute_capability: "7.5"
+    platform: linux/amd64
+```
+
+The contract is fail-closed once present or explicitly selected: invalid,
+deleted, ambiguous, or incomplete contract/evidence state produces
+`SKY-GPU000` instead of a confident compatibility result.
+
+| Rule ID | Name | Severity | Category | Description |
+|---------|------|----------|----------|-------------|
+| `SKY-GPU000` | GPU Release Contract Is Invalid Or Incomplete | HIGH | Reliability | Contract validation or bounded evidence discovery could not complete |
+| `SKY-GPU001` | CUDA Image Requires Newer NVIDIA Driver | HIGH | Reliability | The effective final CUDA image requires a newer driver branch than a declared target provides |
+| `SKY-GPU002` | CUDA Target Architecture Missing From Build | HIGH | Reliability | Emitted SASS/PTX does not cover a declared target compute capability |
+| `SKY-GPU003` | TensorRT Engine Is Not Portable Across Target GPUs | HIGH | Reliability | A packaged serialized TensorRT engine lacks the compatibility evidence required by the declared target fleet |
+
+```bash
+# Discover this rule family
+skylos rules list gpu
+
+# Fail the release gate on an invalid or incompatible GPU artifact
+skylos . --select SKY-GPU000,SKY-GPU001,SKY-GPU002,SKY-GPU003 --gate --format concise
+```
+
+Selecting `SKY-GPU001`, `SKY-GPU002`, or `SKY-GPU003` also retains
+`SKY-GPU000`, so a missing or invalid required contract cannot disappear behind
+an exact-rule filter. See [Release Reliability](./release-reliability#gpu-release-compatibility)
+for setup and evidence semantics.
 
 ### Secret Rules (SKY-S)
 

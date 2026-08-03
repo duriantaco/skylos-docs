@@ -48,6 +48,57 @@ When you run Skylos, results are printed as tables grouped by category. This gui
 
 ---
 
+## Reliability
+
+Reliability findings describe release incompatibilities backed by evidence
+across deployment, source, build, container, and target-contract files:
+
+```text
+Dockerfile:1  SKY-GPU001  reliability issue
+deploy/rendered.yaml:42  SKY-DEP003  reliability issue
+```
+
+They are emitted under a separate top-level JSON bucket:
+
+```json
+{
+  "reliability": [
+    {
+      "rule_id": "SKY-GPU001",
+      "category": "RELIABILITY",
+      "severity": "HIGH",
+      "file": "Dockerfile",
+      "line": 1,
+      "message": "CUDA 12.4 requires NVIDIA driver branch 525 or newer.",
+      "related_locations": [
+        {
+          "file": ".skylos/gpu-targets.yml",
+          "line": 5
+        }
+      ]
+    }
+  ],
+  "analysis_summary": {
+    "reliability_count": 1
+  }
+}
+```
+
+`related_locations` records the other files and lines used to prove a
+cross-file result. Diff-aware scans consider those supporting locations as
+well as the primary location.
+
+Reliability is activated by `--danger` / `-a`, or automatically when an exact
+Reliability rule is requested with `--select`. `--category reliability` is a
+display filter; it does not enable the analyzer by itself.
+
+Reliability does not inflate `danger_count` or the Security grade. Gates use
+the independent `max_reliability` threshold, which defaults to `0`. See
+[Release Reliability](../release-reliability) for the Kubernetes and GPU
+contracts.
+
+---
+
 ## AI Defects (`--ai-defects`)
 
 In JSON output, AI-defect checks are grouped under `ai_defects`:

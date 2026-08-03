@@ -37,6 +37,7 @@ const sidebars = {
       collapsible: false,
       items: [
         { type: 'doc', id: 'cloud', label: 'Cloud Platform' },
+        { type: 'doc', id: 'scanner-comparison', label: 'Scanner Comparison' },
         { type: 'doc', id: 'enterprise-trust', label: 'Enterprise Trust' },
         { type: 'doc', id: 'cloud-workflow', label: 'CLI to Dashboard' },
         { type: 'doc', id: 'authentication', label: 'Authentication' },
@@ -54,6 +55,7 @@ const sidebars = {
         { type: 'doc', id: 'dead-code-detection', label: 'Dead Code' },
         { type: 'doc', id: 'smart-tracing', label: 'Smart Tracing' },
         { type: 'doc', id: 'security-analysis', label: 'Security' },
+        { type: 'doc', id: 'release-reliability', label: 'Release Reliability' },
         { type: 'doc', id: 'agent-verification', label: 'Agent Verification' },
         { type: 'doc', id: 'agent-behavior-testing', label: 'Agent Behavior Testing' },
         { type: 'doc', id: 'ai-defense', label: 'AI Defense' },
