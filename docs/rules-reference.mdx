@@ -64,6 +64,7 @@ use the `SKY-A` prefix.
 | `SKY-D216` | SSRF | CRITICAL | Python, TS, Java, Go, Dart, C#, Shell | Tainted URL passed to HTTP clients, request builders, `curl`, or `wget` |
 | `SKY-D217` | SQL Injection (raw) | CRITICAL | Python | Tainted input in `sqlalchemy.text()`, `pandas.read_sql()`, Django `.raw()` |
 | `SKY-D235` | Remote Command Execution Sink | HIGH | Python | User-controlled values flow into command execution sinks |
+| `SKY-D254` | HTTP Session Trust Boundary Violation | HIGH | Java | Servlet-controlled data crosses into HTTP session state (CWE-501) |
 | `SKY-D261` | Untrusted Input To LLM Prompt | HIGH | Python | Request-controlled data reaches an LLM prompt or message without a clear instruction/data boundary |
 | `SKY-D262` | Unsafe LLM Output Handling | CRITICAL | Python | Model output flows into code execution, shell, SQL, or network sinks without validation |
 | `SKY-D263` | Sensitive Data Sent To LLM | HIGH | Python | Secrets, credential fields, or sensitive environment values flow into LLM or embedding API input |
