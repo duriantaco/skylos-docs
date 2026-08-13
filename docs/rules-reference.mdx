@@ -87,7 +87,7 @@ use the `SKY-A` prefix.
 | `SKY-D231` | CORS Misconfiguration | HIGH | Python | Wildcard origins, credential leaks, overly permissive headers |
 | `SKY-D232` | JWT Vulnerabilities | CRITICAL | Python | `algorithms=['none']`, `verify=False`, weak secrets |
 | `SKY-D234` | Mass Assignment | HIGH | Python | Django `Meta.fields = '__all__'` exposes all model fields |
-| `SKY-D282` | Unverified Webhook Handler | HIGH | Python, TS | Webhook handler processes provider events without obvious signature verification |
+| `SKY-D282` | Webhook Signature Verification Issue | HIGH | Python, TS | Matching request payload is not proven verified before body trust or event side effects |
 | `SKY-D510` | Prototype Pollution | HIGH | TS | `__proto__` access |
 
 #### TypeScript-Specific Security
@@ -104,6 +104,8 @@ use the `SKY-A` prefix.
 | `SKY-D253` | Timing-Unsafe Comparison | MEDIUM | String comparison for secrets — vulnerable to timing attacks (CWE-208) |
 | `SKY-D270` | Sensitive Data in Storage | MEDIUM | Tokens/passwords in `localStorage` / `sessionStorage` (CWE-922) |
 | `SKY-D271` | Error Info Disclosure (HTTP) | MEDIUM | Stack traces / error details returned in HTTP responses (CWE-209) |
+| `SKY-D280` | Next.js Mutating Route Missing Authentication | HIGH | Protected mutation is reachable without a proven route-local rejecting authentication guard |
+| `SKY-D281` | Next.js Server Action SQL Injection | CRITICAL | Untrusted Server Action input reaches SQL text without a parameterized binding proof (CWE-89) |
 
 #### Supply Chain
 
@@ -323,7 +325,7 @@ for setup and evidence semantics.
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
 | `SKY-S101` | Hardcoded Secret | CRITICAL | All | API keys, passwords, tokens, private keys in source code |
-| `SKY-S102` | High-Entropy Generic Secret | HIGH | All | Generic high-entropy token-like value near secret keywords |
+| `SKY-S102` | Client-Side Secret Exposure | HIGH–CRITICAL | TS/JS, HTML, client bundles | Secret material or a server-only environment variable reaches client-accessible code |
 
 Scanned file types include supported source and config files such as `.py`, `.pyi`, `.pyw`, `.env`, `.yaml`, `.yml`, `.json`, `.toml`, `.ini`, `.cfg`, `.conf`, `.ts`, `.tsx`, `.js`, `.jsx`, `.go`, `.java`, `.php`, `.rs`, `.dart`, `.cs`, `.sh`, `.bash`, `.zsh`, `.ksh`, and `.bats`.
 
@@ -1350,16 +1352,93 @@ subprocess.run(["status-check", safe_service_name], check=True)
 
 ---
 
-### SKY-D282 · Unverified Webhook Handler
+### SKY-D252 · Insecure Cookie
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | TypeScript / JavaScript, Go, Java |
+| **What** | An HTTP response cookie is missing a proven `httpOnly: true` or `secure: true` setting |
+| **Risk** | Script access or cleartext transport can expose session credentials |
+
+For TypeScript and JavaScript, Skylos follows response-object aliases and evaluates cookie options as `true`, `false`, absent, or unknown. Only proven `true` for both flags establishes the safe case; explicit `false`, missing flags, and unresolved runtime values remain findings.
+
+```typescript
+// Bad
+response.cookie("session", token, { httpOnly: true, secure: false });
+
+// Good
+response.cookie("session", token, { httpOnly: true, secure: true });
+```
+
+---
+
+### SKY-D280 · Next.js Mutating Route Missing Authentication
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | TypeScript / JavaScript |
+| **What** | A mutating Next.js route reaches a protected side effect without a proven route-local authentication guard |
+| **Risk** | Unauthenticated callers may create, update, or delete protected data |
+
+Skylos requires a trusted authentication result and a rejecting guard that dominates the mutation. Auth-shaped comments, imports, headers, cookies, or unused helper calls do not count as protection. Recognized framework helpers include Auth.js/NextAuth and Clerk patterns when their result actually controls the route.
+
+```typescript
+// Bad
+export async function POST(request: Request) {
+  await db.user.create({ data: await request.json() });
+  return Response.json({ ok: true });
+}
+
+// Good
+export async function POST(request: Request) {
+  const session = await auth();
+  if (!session?.user) return new Response("Unauthorized", { status: 401 });
+  await db.user.create({ data: await request.json() });
+  return Response.json({ ok: true });
+}
+```
+
+---
+
+### SKY-D281 · Next.js Server Action SQL Injection
+
+| | |
+|---|---|
+| **Severity** | CRITICAL |
+| **Languages** | TypeScript / JavaScript |
+| **What** | Untrusted Server Action input reaches executable SQL text without a parameterized-query proof |
+| **Risk** | Attackers may read, modify, or delete database data (CWE-89) |
+
+The bounded proof engine follows Server Action parameters through local helpers, classes, closures, object properties, control flow, exceptions, async/`await`, and native Promise reactions. It distinguishes SQL text from bound values, recognizes proven parameterizing APIs and tagged templates, and reports incomplete analysis instead of silently declaring safety when a proof budget is exhausted.
+
+```typescript
+// Bad
+"use server";
+export async function find(input: string) {
+  return db.query(`SELECT * FROM users WHERE name = '${input}'`);
+}
+
+// Good
+"use server";
+export async function find(input: string) {
+  return db.query("SELECT * FROM users WHERE name = $1", [input]);
+}
+```
+
+---
+
+### SKY-D282 · Webhook Signature Verification Issue
 
 | | |
 |---|---|
 | **Severity** | HIGH |
 | **Languages** | Python, TypeScript / JavaScript |
-| **What** | Webhook handler reads provider event bodies without obvious signature verification |
+| **What** | The matching request payload is not proven signature-verified before body trust or event side effects |
 | **Risk** | Forged webhook requests can trigger billing, account, or workflow state changes |
 
-Skylos reports this only when the file looks like a real inbound webhook handler: webhook/provider evidence, POST handling, request body usage, and no strong signature verification signal.
+Skylos reports this only when the file looks like a real inbound webhook handler. A verifier must consume the matching raw request payload and provider signature before parsed-body trust or event side effects. Verification of an unrelated value, a verifier call on only one non-dominating branch, or a check after the side effect does not establish safety.
 
 ```python
 # Bad
@@ -2165,22 +2244,26 @@ API_KEY = os.environ["API_KEY"]
 
 ---
 
-### SKY-S102 · High-Entropy Generic Secret
+### SKY-S102 · Client-Side Secret Exposure
 
 | | |
 |---|---|
-| **Severity** | HIGH |
-| **Languages** | All |
-| **What** | Generic high-entropy token-like value near secret-related keywords |
-| **Risk** | Unknown or internal credentials may be committed even when no provider-specific pattern matches |
+| **Severity** | HIGH for server-only environment references; CRITICAL for a concrete hardcoded credential |
+| **Languages** | TypeScript / JavaScript, HTML, and client bundle artifacts |
+| **What** | Secret material or a server-only environment variable reaches code delivered to a browser/client |
+| **Risk** | Anyone loading or inspecting the client bundle can recover the value |
 
-```python
-# Bad
-internal_api_token = "aP9xQ7rT2mN8vK4sD6fH1jL3zX5cB0yE"
+```typescript
+// Bad
+"use client";
+const billingToken = process.env.STRIPE_SECRET_KEY;
 
-# Good
-internal_api_token = os.environ["INTERNAL_API_TOKEN"]
+// Good
+// Keep the secret server-side and expose only non-sensitive public config.
+const publicRegion = process.env.NEXT_PUBLIC_REGION;
 ```
+
+Skylos also scans generated client artifacts for concrete credential patterns. When a client exposure is the same concrete secret originally detected by `SKY-S101`, it is emitted as `SKY-S102` while retaining CRITICAL severity.
 
 ---
 
