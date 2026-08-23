@@ -401,6 +401,9 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 |---------|------|----------|-----------|-------------|
 | `SKY-T101` | Untyped Public Parameters | LOW | Python | Public function in a typed module has one or more untyped parameters |
 | `SKY-T102` | Missing Public Return Type | LOW | Python | Public function in a typed module has no return annotation |
+| `SKY-T103` | Suspicious Chained Type Assertion | MEDIUM | TypeScript | Assertion reaches a precise type through `any`, `unknown`, `object`, or `{}` |
+| `SKY-T104` | TypeScript Compiler Suppression Directive | MEDIUM–HIGH | TypeScript, JavaScript | Effective `@ts-ignore` or file-wide `@ts-nocheck` hides compiler errors |
+| `SKY-T105` | Unvalidated JSON Type Assertion | MEDIUM | TypeScript | Direct `JSON.parse()` or proven fetch `Response.json()` result is asserted without runtime validation |
 
 ### Framework Practice Rules (SKY-F)
 
@@ -2396,6 +2399,81 @@ cfg := &tls.Config{MinVersion: tls.VersionTLS10}
 // Good
 cfg := &tls.Config{MinVersion: tls.VersionTLS12}
 ```
+
+---
+
+### SKY-T103 · Suspicious Chained Type Assertion
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | TypeScript |
+| **What** | A chained assertion uses `any`, `unknown`, `object`, or `{}` to force a value into a more precise type |
+| **Risk** | The broad middle type bypasses TypeScript's evidence that the conversion is safe |
+
+```typescript
+// Flagged: the unknown bridge forces input to User
+const user = input as unknown as User;
+
+// Better: narrow or validate the value first
+const user = UserSchema.parse(input);
+```
+
+Normal single assertions and chains between precise types are not reported.
+
+---
+
+### SKY-T104 · TypeScript Compiler Suppression Directive
+
+| | |
+|---|---|
+| **Severity** | MEDIUM for `@ts-ignore`; HIGH for effective `@ts-nocheck` |
+| **Languages** | TypeScript, JavaScript |
+| **What** | A compiler directive hides errors on one line or disables checking for the whole file |
+| **Risk** | Real type regressions can pass builds without review |
+
+```typescript
+// Flagged
+// @ts-ignore
+const port: number = process.env.PORT;
+
+// Better for a narrow, intentional exception
+// @ts-expect-error -- upstream types reject this supported value
+configureLegacyOption("supported-value");
+```
+
+Skylos follows TypeScript's leading file pragma behavior: the last leading
+`@ts-check` or `@ts-nocheck` decides whether file checking is enabled.
+`@ts-expect-error` is not reported because it fails when the expected error
+disappears.
+
+---
+
+### SKY-T105 · Unvalidated JSON Type Assertion
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | TypeScript |
+| **What** | Dynamic `JSON.parse()` data or a proven fetch `Response.json()` result is asserted directly as a domain type |
+| **Risk** | Type assertions do not validate runtime data, so malformed input can enter typed code unchecked |
+
+```typescript
+// Flagged
+const user = JSON.parse(payload) as User;
+
+const response = await fetch(url);
+const account = (await response.json()) as Account;
+
+// Better: validate at the boundary
+const user = UserSchema.parse(JSON.parse(payload));
+const account = AccountSchema.parse(await response.json());
+```
+
+The rule only reports direct, precise assertions when Skylos can prove the
+built-in JSON or fetch boundary. It skips shadowed or replaced built-ins,
+mutated response methods, generated files, declaration files, and ambiguous
+provenance.
 
 ---
 

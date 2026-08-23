@@ -3,7 +3,9 @@ title: "TypeScript Support"
 description: "Analyzing TypeScript and JavaScript files with Skylos"
 ---
 
-Skylos provides analysis capabilities for TypeScript (`.ts`, `.tsx`) and JavaScript (`.js`, `.jsx`) files using tree-sitter parsing.
+Skylos provides analysis capabilities for TypeScript (`.ts`, `.tsx`, `.mts`,
+`.cts`) and JavaScript (`.js`, `.jsx`, `.mjs`, `.cjs`) files using tree-sitter
+parsing.
 
 ## Features
 
@@ -11,7 +13,7 @@ TypeScript analysis includes:
 
 - **Dead code detection:** Unused functions, classes, interfaces, enums, type aliases, variables, methods, and imports
 - **Security scanning:** `eval()`, unsafe `innerHTML`, `document.write()`, `new Function()`, `outerHTML`, string-based timers, command injection, webhook signature verification
-- **Quality analysis:** Cyclomatic complexity, nesting depth, function length, and parameter count
+- **Quality analysis:** Cyclomatic complexity, nesting depth, function length, parameter count, type-evidence bypasses, and compiler suppression directives
 
 ## How It Works
 
@@ -240,6 +242,48 @@ function configure(a: string, b: number, c: boolean, d: object, e: string[], f: 
   // ...
 }
 ```
+
+### SKY-T103: Suspicious Chained Type Assertion
+
+Reports a cast that reaches a precise type through the broad `any`, `unknown`,
+`object`, or `{}` type.
+
+```typescript
+// Flagged
+const user = input as unknown as User;
+
+// Not flagged: validate the value instead
+const user = UserSchema.parse(input);
+```
+
+### SKY-T104: TypeScript Compiler Suppression Directive
+
+Reports effective `@ts-ignore` comments and file-wide `@ts-nocheck`. A narrow
+`@ts-ignore` is MEDIUM severity; an effective `@ts-nocheck` is HIGH because it
+disables checking for the whole file. `@ts-expect-error` is not reported.
+
+```typescript
+// Flagged
+// @ts-ignore
+const port: number = process.env.PORT;
+```
+
+### SKY-T105: Unvalidated JSON Type Assertion
+
+Reports direct assertions from dynamic `JSON.parse()` data and from a proven,
+awaited fetch `Response.json()` result.
+
+```typescript
+// Flagged
+const user = JSON.parse(payload) as User;
+
+// Not flagged: runtime validation establishes the type
+const user = UserSchema.parse(JSON.parse(payload));
+```
+
+Skylos fails closed when the boundary cannot be proved. Shadowed or replaced
+built-ins, mutated response methods, ambiguous aliases, generated files, and
+TypeScript declaration files are not reported by these rules.
 
 ### Configuration
 

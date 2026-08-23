@@ -20,7 +20,7 @@ Taste-only preferences should not become default rules. They can still be enforc
 |---|---|---|
 | Python style and lint hygiene | PEP 8, Ruff | `SKY-R102`, advisory `ruff check .` |
 | Python type clarity | PEP 484, mypy / pyright | `SKY-T101`, `SKY-T102`, `SKY-R101`, advisory mypy |
-| TypeScript type safety | TypeScript strict mode | `SKY-R105`, advisory TypeScript build |
+| TypeScript type safety | TypeScript strict mode | `SKY-T103`, `SKY-T104`, `SKY-T105`, `SKY-R105`, advisory TypeScript build |
 | Rust idioms and correctness | Rustfmt, Clippy | advisory `cargo fmt --check`, `cargo clippy` |
 | API authorization and response contracts | OWASP API Security Top 10, FastAPI conventions, CWE | `SKY-F101`, `SKY-F102` |
 | Maintainability, reliability, and complexity | ISO/IEC 5055, ISO/IEC 25010, CWE coding-standard classes | `SKY-Q*`, `SKY-C*`, `SKY-L*`, `SKY-P*` |
@@ -338,6 +338,9 @@ These checks are intended to catch bad coding practices that create review, secu
 |---|---|---|
 | `SKY-T101` | Public functions in typed modules with untyped parameters | Public API contracts are harder to review and type-check |
 | `SKY-T102` | Public functions in typed modules without return annotations | Callers lose the API contract and regressions hide until runtime |
+| `SKY-T103` | Chained TypeScript assertions through `any`, `unknown`, `object`, or `{}` | Broad bridge types bypass evidence that a precise conversion is safe |
+| `SKY-T104` | Effective `@ts-ignore` or file-wide `@ts-nocheck` | Compiler errors can be hidden instead of fixed or reviewed narrowly |
+| `SKY-T105` | Direct assertions from `JSON.parse()` or proven fetch JSON results | Type assertions do not validate runtime input |
 | `SKY-F101` | FastAPI routes without `response_model`, `response_class`, or return annotation | Responses become undocumented and harder to validate |
 | `SKY-F102` | Mutating routes without an obvious auth, security, or dependency guard | API write paths need an explicit authorization boundary |
 | `SKY-R101` | Python repos without mypy or pyright policy | Type checking should be visible as repo policy |
