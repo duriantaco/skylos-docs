@@ -370,7 +370,7 @@ For best results, use `skylos agent scan` and `skylos agent scan --security` ins
 - **Machine-stable output:** a small JSON verdict shaped for agents, not a full human report
 - **Range filtering:** findings can be scoped to the lines an agent just edited
 - **Real API checks:** Python package calls can be checked against installed API surfaces
-- **Dependency version checks:** npm and Go manifest pins can be checked against registry metadata
+- **Dependency checks:** Python imports and package manifest pins can be checked against registry metadata; raw diffs that add both an import and its manifest declaration are handled together
 - **Local operation:** verifier findings come from Skylos analysis; LLM use is not required
 
 ### Confidence Scoring

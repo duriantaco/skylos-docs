@@ -1134,7 +1134,7 @@ Skylos validates a small allowlist of common packages against the installed pack
 }
 ```
 
-Skylos validates package/version existence for `package.json` and `go.mod` manifests. Registry lookups are constrained to fixed npm and Go hosts, package coordinates are validated before request construction, and responses are size-capped.
+Skylos validates package/version existence for `package.json` and `go.mod` manifests. In `package.json`, Skylos only checks dependency sections such as `dependencies`, `devDependencies`, `peerDependencies`, and `optionalDependencies`, not arbitrary config objects. Registry lookups are constrained to fixed npm and Go hosts, package coordinates are validated before request construction, and responses are size-capped.
 
 ---
 
