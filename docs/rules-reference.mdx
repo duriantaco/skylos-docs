@@ -358,7 +358,7 @@ Go rules that **do** have equivalents (SQL injection, command injection, etc.) a
 
 Go-specific rules scan `.go` files. Secrets and cross-language rules also scan the source and config file types listed above.
 
-### Quality Rules — Python (SKY-Q)
+### Quality Rules (SKY-Q)
 
 | Rule ID | Name | Severity | Languages | Default Threshold |
 |---------|------|----------|-----------|-------------------|
@@ -369,6 +369,9 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-Q401` | Async Blocking | MEDIUM | Python | — |
 | `SKY-Q403` | Inconsistent Lock Acquisition Order | HIGH | Python | Nested locks are acquired in reversed orders that can deadlock |
 | `SKY-Q404` | Thread Shared State Mutation | MEDIUM | Python | Thread target mutates module state without an obvious lock |
+| `SKY-Q405` | Async Promise Executor | HIGH | TypeScript, JavaScript | `new Promise(async ...)` ignores the executor's async result |
+| `SKY-Q406` | Async Array.forEach Callback | HIGH | TypeScript, JavaScript | Built-in `Array.forEach` does not wait for async callbacks |
+| `SKY-Q407` | Discarded Async Array.map Result | HIGH | TypeScript, JavaScript | Promises returned by `Array.map(async ...)` are discarded |
 | `SKY-Q501` | God Class | MEDIUM | Python | 20 methods / 15 attributes |
 | `SKY-Q502` | Class Too Large | MEDIUM | Python | Class has too many methods or attributes for maintainable ownership |
 | `SKY-Q701` | Coupling Between Objects (CBO) | MEDIUM/HIGH | Python | Ce > 4 |
@@ -404,6 +407,7 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-T103` | Suspicious Chained Type Assertion | MEDIUM | TypeScript | Assertion reaches a precise type through `any`, `unknown`, `object`, or `{}` |
 | `SKY-T104` | TypeScript Compiler Suppression Directive | MEDIUM–HIGH | TypeScript, JavaScript | Effective `@ts-ignore` or file-wide `@ts-nocheck` hides compiler errors |
 | `SKY-T105` | Unvalidated JSON Type Assertion | MEDIUM | TypeScript | Direct `JSON.parse()` or proven fetch `Response.json()` result is asserted without runtime validation |
+| `SKY-T106` | Unsafe Exported API Type | MEDIUM | TypeScript | Exported API uses exact `any`, `Record<string, any>`, or an any-valued index signature |
 
 ### Framework Practice Rules (SKY-F)
 
@@ -432,7 +436,7 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-L004` | Anti-Pattern Try Block | LOW | Overly broad try/except, nested try, too much control flow |
 | `SKY-L005` | Unused Exception Variable | LOW | `except Error as e:` where `e` is never referenced |
 | `SKY-L006` | Inconsistent Return | MEDIUM | Function returns both values and implicit `None` |
-| `SKY-L007` | Empty Error Handler | MEDIUM–HIGH | `except: pass`, `suppress(Exception)` — errors silently swallowed |
+| `SKY-L007` | Empty Error Handler | MEDIUM–HIGH | Python handlers or TS/JS `catch` blocks silently swallow errors |
 | `SKY-L008` | Missing Resource Cleanup | MEDIUM | `open()`, `connect()` without `with` statement (CWE-404) |
 | `SKY-L009` | Debug Leftover | LOW–HIGH | `print()`, `breakpoint()`, `pdb.set_trace()` left in code |
 | `SKY-L010` | Security TODO Marker | MEDIUM | `# TODO: add auth`, `# FIXME: validate input` left in code (CWE-546) |
@@ -444,7 +448,7 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-L020` | Overly Broad File Permissions | HIGH | `os.chmod(path, 0o777)` or sensitive files with lax perms (CWE-732) |
 | `SKY-L021` | Security Regression | MEDIUM | Newly introduced code weakens an existing security control |
 | `SKY-L024` | Stale Mock | HIGH | `mock.patch("mod.func")` targets function that no longer exists |
-| `SKY-L026` | Unfinished Generation | MEDIUM | Function body is only `pass`, `...`, or `raise NotImplementedError` |
+| `SKY-L026` | Unfinished code or placeholder default | MEDIUM | Python placeholder body/default or TS/JS function that only throws a not-implemented marker |
 | `SKY-L027` | Duplicate String Literal | LOW/MEDIUM | Same string repeated 3+ times — extract to a constant. Configurable via `duplicate_strings` in `[tool.skylos]` |
 | `SKY-L028` | Too Many Returns | LOW | Function has 5+ return statements |
 | `SKY-L029` | Boolean Trap | LOW | Boolean positional parameter harms call-site readability |
@@ -452,6 +456,8 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-L031` | Missing Network Timeout | MEDIUM | Network request can block indefinitely because no timeout is set |
 | `SKY-L032` | Mock Or Placeholder Data | LOW | Production path contains obvious sample/mock/placeholder values |
 | `SKY-L033` | No-Effect Statement | LOW | Expression statement has no observable effect |
+| `SKY-L034` | Repeated Mutable Alias | MEDIUM | Sequence multiplication reuses mutable elements across repetitions |
+| `SKY-L035` | Blanket ESLint Disable | HIGH | A leading bare `/* eslint-disable */` turns off every ESLint rule for the file |
 
 ### Performance Rules (SKY-P)
 
@@ -2477,6 +2483,39 @@ provenance.
 
 ---
 
+### SKY-T106 · Unsafe Exported API Type
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | TypeScript |
+| **What** | An exported API uses exact `any`, built-in `Record<string, any>`, or an index signature whose value is `any` |
+| **Risk** | Callers lose useful type checking at the public boundary |
+
+```typescript
+// Flagged
+export function parse(value: any): Record<string, any> {
+  return value;
+}
+
+// Better
+export function parse(value: unknown): Record<string, unknown> {
+  return validatePayload(value);
+}
+```
+
+The rule checks types that callers can see: function parameters and returns,
+overloads, interfaces, public class members, generic defaults, tuple entries,
+export assignments, destructured exports, and simple exported objects.
+Type-only class and namespace exports only check their type side. An explicit
+type always wins over an inferred value or default.
+
+Skylos does not guess when it cannot tell which local value an export uses. It
+also skips nested uses such as `Promise<any>`, private or protected members,
+non-built-in `Record` types, generated files, and malformed syntax.
+
+---
+
 ### SKY-Q301 · Cyclomatic Complexity
 
 | | |
@@ -2644,6 +2683,81 @@ def worker():
     with events_lock:
         events.append("done")
 ```
+
+---
+
+### SKY-Q405 · Async Promise Executor
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | TypeScript, JavaScript |
+| **What** | `new Promise(async (...) => ...)` passes an async executor to the Promise constructor |
+| **Risk** | The constructor ignores the executor's async result. An async-generator executor does not run, so the outer promise can stay pending |
+
+```typescript
+// Flagged
+const value = new Promise(async (resolve) => {
+  resolve(await loadValue());
+});
+
+// Better
+const value = loadValue();
+```
+
+The rule requires the built-in `Promise` binding and a direct inline async
+executor. It also catches async-generator executors, whose body never runs.
+Shadowed or replaced constructors are not reported.
+
+---
+
+### SKY-Q406 · Async Array.forEach Callback
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | TypeScript, JavaScript |
+| **What** | A proven built-in array passes an async callback to `forEach` |
+| **Risk** | `forEach` does not wait for callback promises, so the caller can continue before work finishes |
+
+```typescript
+// Flagged
+items.forEach(async (item) => save(item));
+
+// Better: sequential
+for (const item of items) {
+  await save(item);
+}
+```
+
+The callback can be inline or a stable local async function. Skylos only
+reports receivers it can prove are built-in arrays. Custom `forEach` methods
+and ambiguous or mutated bindings are skipped.
+
+---
+
+### SKY-Q407 · Discarded Async Array.map Result
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | TypeScript, JavaScript |
+| **What** | Promises from a proven array `map` call with an async callback are discarded |
+| **Risk** | The mapped promises are not consumed, so work can outlive the caller and failures can go unhandled |
+
+```typescript
+// Flagged
+items.map(async (item) => save(item));
+
+// Better: concurrent and awaited
+await Promise.all(items.map(async (item) => save(item)));
+```
+
+The callback can be inline or a stable local async function. Assigning,
+returning, or passing the mapped promises to another call is not reported.
+Directly awaiting the array is still reported because `await` does not wait
+for the promises stored inside it. Skylos also reports code that only reads
+the mapped array's length, or drops a built-in `.filter(Boolean)` chain.
 
 ---
 
@@ -2985,7 +3099,7 @@ def find_user(user_id):
 | | |
 |---|---|
 | **Severity** | MEDIUM–HIGH |
-| **Languages** | Python |
+| **Languages** | Python, TypeScript, JavaScript |
 | **What** | Error handler that silently swallows exceptions — bugs become invisible |
 
 ```python
@@ -3006,6 +3120,26 @@ except PaymentError as e:
     logger.error("Payment failed: %s", e)
     raise
 ```
+
+```typescript
+// Flagged
+try {
+  refreshCache();
+} catch {
+}
+
+// Better
+try {
+  refreshCache();
+} catch (error) {
+  console.warn("Cache refresh failed", error);
+}
+```
+
+An empty TS/JS catch can be left unreported by adding a clear comment that
+explains why ignoring that specific error is safe.
+
+Skylos skips this check in test, fixture, mock, story, E2E, and Cypress files.
 
 ---
 
@@ -3342,13 +3476,13 @@ Resolves dotted mock paths to actual project files, parses the AST, and checks w
 
 ---
 
-### SKY-L026 · Unfinished Generation
+### SKY-L026 · Unfinished code or placeholder default
 
 | | |
 |---|---|
 | **Severity** | MEDIUM |
-| **Languages** | Python |
-| **What** | Function body is only `pass`, `...`, or `raise NotImplementedError` in production code |
+| **Languages** | Python, TypeScript, JavaScript |
+| **What** | Python placeholder body/default or TS/JS function that only throws a static not-implemented marker in production code |
 | **Vibe Category** | `incomplete_generation` |
 | **AI Likelihood** | high |
 
@@ -3372,7 +3506,16 @@ class Base(ABC):
 # Good — test files, __init__.py, and dunder methods are NOT flagged
 ```
 
-Skips abstract methods (`@abstractmethod`), test files, `__init__.py`, and dunder methods (`__repr__`, `__eq__`, etc.).
+```typescript
+// Flagged
+function sendNotification(): never {
+  throw new Error("Not implemented");
+}
+```
+
+Skips abstract methods (`@abstractmethod`), declarations, test files,
+`__init__.py`, dunder methods (`__repr__`, `__eq__`, etc.), generated files,
+and functions that do real work before throwing.
 
 ---
 
@@ -3489,6 +3632,53 @@ requests.get("https://api.example.com/data", timeout=10)
 | **Languages** | Python |
 | **What** | Expression statement has no observable effect |
 | **Risk** | Likely leftover code or typo that does not do what the author intended |
+
+---
+
+### SKY-L034 · Repeated Mutable Alias
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | Python |
+| **What** | Sequence multiplication repeats mutable elements by reference instead of creating independent values |
+| **Risk** | Updating one entry can unexpectedly change other entries that share the same object |
+
+```python
+# Flagged: every row is the same list
+matrix = [[0] * columns] * rows
+
+# Better: each row is independent
+matrix = [[0] * columns for _ in range(rows)]
+```
+
+The rule reports mutable literals and comprehensions, including nested mutable
+values inside tuples. It skips counts that cannot repeat more than once and
+ambiguous named objects whose mutability cannot be proved.
+
+---
+
+### SKY-L035 · Blanket ESLint Disable
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | TypeScript, JavaScript |
+| **What** | A leading bare `/* eslint-disable */` turns off every ESLint rule for the file |
+| **Risk** | Type, correctness, and security lint checks can all disappear without a visible build failure |
+
+```typescript
+// Flagged
+/* eslint-disable */
+runLegacyCode();
+
+// Better: name the one required rule
+/* eslint-disable no-console */
+console.log("legacy output");
+```
+
+A later bare `/* eslint-enable */` closes the suppression and is not reported
+as file-wide. JSDoc comments are not treated as ESLint directives.
 
 ---
 
