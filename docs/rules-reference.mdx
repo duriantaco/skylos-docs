@@ -128,6 +128,7 @@ and output contract.
 | `SKY-A103` | CI Permission Expansion | HIGH | GitHub Actions diff | Workflow diff adds write permissions or privileged workflow triggers |
 | `SKY-A104` | Public CLI Surface Drift | MEDIUM | Diff-aware CLI | Public CLI flag removed from argparse, Click, or Typer surface |
 | `SKY-A105` | Contract Route Guard Missing | HIGH | Python contract verify | Route handler is missing a guard decorator required by an AI hallucination contract |
+| `SKY-A106` | Suspicious Dependency Version Bump | LOW | Python manifests and lock files in Git changes | A dependency's old and new versions exactly match the project's own version change |
 | `SKY-L012` | Phantom Function Call | CRITICAL | Python | Call to a security helper that is never defined or imported |
 | `SKY-L023` | Phantom Decorator | CRITICAL | Python | Security decorator that is never defined or imported |
 | `SKY-D222` | Hallucinated Dependency | CRITICAL | Python | Imported package does not exist on PyPI |
@@ -1062,6 +1063,71 @@ Run this through `skylos verify --contract` to enforce repository-specific route
 truth during editor, agent, or PR loops. Contract-backed findings include
 `contract_clause`, `contract_path`, and `contract_reason` metadata so reviewers
 can see exactly which local policy was violated.
+
+---
+
+### SKY-A106 · Suspicious Dependency Version Bump
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | Python project manifests, requirements files, uv and Poetry lock files |
+| **What** | A dependency version edit exactly repeats the project's own old and new versions |
+| **Risk** | A global version replacement can accidentally change an unrelated dependency during a release |
+| **Output Bucket** | `ai_defects` |
+
+```diff
+ [project]
+ name = "example-app"
+-version = "3.4.1"
++version = "3.4.2"
+ dependencies = [
+-    "inquirer==3.4.1",
++    "inquirer==3.4.2",
+ ]
+```
+
+The matching version change is a reason to review the edit, not proof that the
+dependency version is invalid. Unlike `SKY-D225`, this rule does not query a
+registry. It does not execute `setup.py` or change dependencies.
+
+For committed PR changes:
+
+```bash
+skylos . --ai-defects --diff-base origin/main --format json
+```
+
+Without a diff option, the rule compares local working files with HEAD. With
+`--diff-base`, it compares the merge base with committed HEAD, leaving
+uncommitted edits out of that comparison. `--diff origin/main` uses the same
+committed comparison and filters findings to changed lines. When both options
+are supplied, `--diff-base` chooses the comparison base.
+
+The `skylos agent pre-commit` command compares HEAD with staged Git files, so
+unstaged edits do not change the dependency versions being checked.
+
+The initial scope is literal project names and versions in `pyproject.toml` or
+static setuptools/distutils `setup.py` calls. Dependency declarations include
+project, build, development and optional dependency groups, requirements files,
+and actual package version records in `uv.lock` and `poetry.lock`. Version
+exclusions such as `!=3.4.1` also count. Dynamic project versions, `setup.cfg`,
+other manifest formats and ambiguous changes are not inferred.
+
+Findings identify the dependency declaration and carry the project name,
+dependency name, both version pairs and project source location in `metadata`.
+They use `signal_only: true` and `blocking_recommended: false`. These fields
+recommend review; they do not override configured gate thresholds or `--strict`.
+The existing precommit gate blocks reported AI findings, including this advisory.
+Likewise, `verify_change` keeps the finding and returns its existing `fail` status
+when findings are present; it does not treat advisory metadata as an exemption.
+
+This advisory uses project ignores rather than inline comments. To disable it,
+add the rule to the existing ignore list:
+
+```toml
+[tool.skylos]
+ignore = ["SKY-A106"]
+```
 
 ---
 
