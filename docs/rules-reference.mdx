@@ -1097,9 +1097,14 @@ For committed PR changes:
 skylos . --ai-defects --diff-base origin/main --format json
 ```
 
-Without `--diff-base`, the rule compares local working files with HEAD. With
+Without a diff option, the rule compares local working files with HEAD. With
 `--diff-base`, it compares the merge base with committed HEAD, leaving
-uncommitted edits out of that comparison.
+uncommitted edits out of that comparison. `--diff origin/main` uses the same
+committed comparison and filters findings to changed lines. When both options
+are supplied, `--diff-base` chooses the comparison base.
+
+The `skylos agent pre-commit` command compares HEAD with staged Git files, so
+unstaged edits do not change the dependency versions being checked.
 
 The initial scope is literal project names and versions in `pyproject.toml` or
 static setuptools/distutils `setup.py` calls. Dependency declarations include
@@ -1112,6 +1117,9 @@ Findings identify the dependency declaration and carry the project name,
 dependency name, both version pairs and project source location in `metadata`.
 They use `signal_only: true` and `blocking_recommended: false`. These fields
 recommend review; they do not override configured gate thresholds or `--strict`.
+The existing precommit gate blocks reported AI findings, including this advisory.
+Likewise, `verify_change` keeps the finding and returns its existing `fail` status
+when findings are present; it does not treat advisory metadata as an exemption.
 
 This advisory uses project ignores rather than inline comments. To disable it,
 add the rule to the existing ignore list:
