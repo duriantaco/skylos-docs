@@ -58,7 +58,7 @@ bucket when their catalog category is `ai_defect`.
 
 | Rule ID | Category | Why the prefix may differ |
 |---------|----------|---------------------------|
-| `SKY-A101` to `SKY-A105` | `ai_defect` | New AI-defect-only rules |
+| `SKY-A101` to `SKY-A106` | `ai_defect` | New AI-defect-only rules |
 | `SKY-L012`, `SKY-L023` | `ai_defect` | Historical logic-rule IDs kept for compatibility |
 | `SKY-D222`, `SKY-D224`, `SKY-D225` | `ai_defect` | Historical dependency/API IDs kept for compatibility |
 
@@ -87,6 +87,7 @@ because an LLM says a change is suspicious.
 | `SKY-A103` | HIGH | GitHub Actions workflow adds write permissions or privileged triggers | Diff | Usually block or require explicit review |
 | `SKY-A104` | MEDIUM | Public CLI flag removed from argparse, Click, or Typer surface | Diff | Warn or require compatibility review |
 | `SKY-A105` | HIGH | Route handler missing a contract-required guard decorator | Contract + route AST | Block |
+| `SKY-A106` | LOW | Dependency version edit exactly repeats the project's own version change | Git snapshots and parsed Python packaging metadata | Review signal; configured gates still apply |
 | `SKY-L012` | CRITICAL | Phantom function/security helper call | Repo symbol analysis | Block |
 | `SKY-L023` | CRITICAL | Phantom security decorator | Repo symbol analysis | Block |
 | `SKY-D222` | CRITICAL | Imported package does not exist | Package registry reality check | Block |
@@ -131,6 +132,28 @@ The diff model reduces noise: moved unchanged lines are ignored, existing broad
 tests and broad CI permissions are not reported unless the PR newly weakens or
 adds them, and high-risk source changes only warn when the changed-file set has
 no accompanying test file.
+
+### Suspicious Dependency Version Bumps
+
+`SKY-A106` looks for a release edit that changes a dependency from exactly the
+same old version to exactly the same new version as the project itself. For
+example, a project release from `3.4.1` to `3.4.2` may accidentally also change
+`inquirer==3.4.1` to `inquirer==3.4.2` through a global text replacement.
+
+```bash
+# Compare committed PR changes with the merge base.
+skylos . --ai-defects --diff-base origin/main --format json
+
+# Compare local working files with HEAD.
+skylos . --ai-defects --format json
+```
+
+This is separate from checking whether a package or version exists. A real
+dependency version can still be an unintended change. The rule is a LOW review
+signal, makes no registry requests, and never runs packaging code. It currently
+supports literal Python project metadata, requirements files, and uv/Poetry
+package version records. See the [rule reference](./rules-reference#sky-a106--suspicious-dependency-version-bump)
+for supported declarations, comparison behavior, ignores and gate semantics.
 
 ## What Belongs Elsewhere
 
