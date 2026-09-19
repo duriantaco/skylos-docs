@@ -23,6 +23,26 @@ skylos --version
 See [Installation](/installation) for `uv`, source installs, Docker, and
 optional extras.
 
+## Choose The Right Command
+
+Choose by the thing you need Skylos to inspect:
+
+| Goal | Command | Input |
+|:---|:---|:---|
+| Scan source code | `skylos PATH` | Repository source and configuration |
+| Verify source for AI-code defects | `skylos verify [PATH]` | Source; Python working changes also get a behavior comparison with Git HEAD |
+| Check an exact local GPU release | `skylos preflight [ARTIFACT]` | Local built artifact and declared GPU fleet |
+| Find container vulnerabilities | `skylos image scan IMAGE@sha256:<digest> --platform os/arch` | Remote registry image scanned by a separately installed Trivy |
+| Run the combined repo report | `skylos suite [DIRECTORY]` | Static, debt, defense, and provenance checks |
+| Check agent guardrails | `skylos defend [DIRECTORY]` | Python and TypeScript/JavaScript LLM and agent implementation source |
+| Remove Python dead code | `skylos clean [PATH] --dry-run` | Python import/function cleanup candidates; `--dry-run` never writes |
+
+`verify` scans source for AI-code defects; its separate Python behavior model
+compares working files with Git HEAD. `preflight` inspects a local built GPU
+artifact. A digest-pinned OCI reference provides identity only and returns
+`UNKNOWN` in the CLI. `image scan` finds container CVEs. Run `skylos --help`
+for this chooser and `skylos commands` for the installed command-family map.
+
 ## 2. Run Your First Scan
 
 From the repository root:
@@ -50,8 +70,14 @@ The `-a` scan enables the main static checks:
 | Config | CI/CD workflow risk, Docker Compose edge runtime exposure, systemd edge service hardening |
 | Secrets | API keys, tokens, private credentials, high-entropy strings |
 | Quality | complexity, deep nesting, duplicate branches, long functions, inconsistent returns |
+| AI-code defects | phantom references, hallucinated APIs, unfinished code, weakened assertions |
+| Dependencies | supported manifest inventory and OSV vulnerability checks |
 
 For exact rules, see [Rules Reference](/rules-reference).
+
+Most source analysis is local. The dependency/SCA family may query OSV. Use
+explicit analyzer flags instead of `-a` when an offline run must exclude that
+network-backed family.
 
 ## 4. Keep Findings Focused On Active Work
 
@@ -96,20 +122,40 @@ OIDC, tokens, annotations, and branch protection.
 | Technical debt hotspots | `skylos debt .` | [Technical Debt](/technical-debt) |
 | AI-assisted review | `skylos agent scan .` | [AI Features](/ai-features) |
 | Pre-deployment agent verification | `skylos defend . --format md` | [Agent Verification](/agent-verification) |
+| Built GPU artifact check | `skylos preflight build/app` | [Release Reliability](/release-reliability#built-artifact-preflight) |
+| Container vulnerability scan | `skylos image scan IMAGE@sha256:<digest> --platform linux/amd64` | [CLI Reference](/cli-reference#skylos-image-scan) |
 | Runtime agent behavior test | `skylos agent init && skylos agent test --allow-contract-endpoint` | [Agent Behavior Testing](/agent-behavior-testing) |
 | Cloud dashboard upload | `skylos suite . --upload` | [CLI to Dashboard](/cloud-workflow) |
 | MCP server for AI assistants | `python -m skylos_mcp.server` | [MCP Server](/mcp-server) |
+
+`image scan` requires Trivy to be installed separately on `PATH`. It forces
+Trivy's remote image source, so the registry must be reachable and any required
+registry authentication must already be configured. Findings are report-only
+unless you add `--fail-on LEVEL`.
+
+`suite` accepts a directory and may query OSV and public package registries. It
+returns `0` when the report contains findings; operational, output, upload, or
+Cloud gate failures are nonzero. `defend` also accepts a directory and is
+report-only unless `--fail-on`, `--min-score`, or a gate policy is set. `clean`
+supports Python import/function transforms; without a mode it is interactive
+and can write after confirmation. Use `--dry-run` for a guaranteed no-write
+preview. A completed apply pass can still exit `0` after printing an individual
+transform failure, so review its completion output.
 
 ## Cheatsheet
 
 | I want to... | Command |
 |:---|:---|
 | Find dead code | `skylos .` |
-| Run the main local audit | `skylos . -a` |
+| Run every main source analyzer | `skylos . -a` |
 | Find security issues | `skylos . --danger` |
 | Find hardcoded secrets | `skylos . --secrets` |
 | Check code quality | `skylos . --quality` |
 | Check AI defects | `skylos . --ai-defects` |
+| Verify source for AI-code defects | `skylos verify` |
+| Check a built GPU artifact | `skylos preflight build/app` |
+| Scan a pinned image for CVEs | `skylos image scan IMAGE@sha256:<digest> --platform linux/amd64` |
+| Run the combined repo report | `skylos suite` |
 | Scan changed lines only | `skylos . -a --diff origin/main` |
 | Gate locally | `skylos . -a --gate` |
 | Print concise IDE output | `skylos --format concise src/test.py` |

@@ -305,7 +305,7 @@ skylos . --confidence 80
 
 ### 2. Preview deterministic cleanup
 
-For safe unused import/function cleanup, preview the exact edits first:
+For Python unused import/function cleanup, preview the exact edits first:
 
 ```bash
 skylos clean . --dry-run --types import,function --confidence 80
@@ -326,7 +326,11 @@ skylos clean . --apply --comment-out --types import,function --confidence 80
 ```
 
 `skylos clean` currently edits unused imports and unused functions only. It
-skips unsupported finding types and uses CST codemods rather than regex edits.
+skips unsupported finding types and other languages, and uses Python LibCST
+codemods rather than regex edits. With no mode flag, it interactively selects
+edits and can write after final confirmation. `--dry-run` never writes. A
+completed apply pass can still exit `0` after printing an individual transform
+failure, so review its completion output.
 
 ### 4. Review in interactive mode
 

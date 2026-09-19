@@ -23,12 +23,23 @@ Use it when you want to:
 | Workflow | Command | What It Does |
 |:---|:---|:---|
 | Dead code scan | `skylos .` | finds unused functions, classes, imports, files, and entrypoints |
-| Full local audit | `skylos . -a` | adds security, secrets, config, quality, and dependency checks |
+| Main source audit | `skylos . -a` | adds security, secrets, config, quality, AI-defect, and dependency checks |
 | Changed-code review | `skylos . -a --diff origin/main` | focuses on lines touched by a PR |
+| AI-code verification | `skylos verify` | scans the selected source target; separately compares supported Python working changes with Git HEAD |
+| Built GPU artifact preflight | `skylos preflight build/app` | compares exact local artifact evidence with the declared GPU fleet; OCI is `UNKNOWN` in the CLI |
+| Container vulnerability scan | `skylos image scan IMAGE@sha256:<digest> --platform linux/amd64` | uses separately installed Trivy plus registry network access; findings gate only with `--fail-on` |
+| Combined repo report | `skylos suite` | runs static, debt, defense, and provenance checks; findings are report-only |
+| Dead-code cleanup | `skylos clean --dry-run` | previews Python import/function edits without writing files |
 | CI gate | `skylos cicd init` | generates a GitHub Actions workflow |
-| Pre-deployment agent verification | `skylos defend . --format md` | verifies AI-agent guardrails, gates CI, and emits attested evidence |
+| Pre-deployment agent verification | `skylos defend . --format md` | reports guardrails for recognized Python and TypeScript/JavaScript integrations; gating is opt-in |
 | Runtime agent behavior test | `skylos agent test --allow-contract-endpoint` | checks responses, tool selection, refusals, and source IDs against a contract |
 | Agent review | `skylos agent scan .` | optional LLM-assisted review and fix suggestions |
+
+`verify` scans source and models supported Python working changes, `preflight`
+statically reads a local built GPU artifact, and `image scan` asks Trivy to
+scan a remote registry image. See the [CLI
+Reference](/cli-reference#choose-the-command-by-its-input) for the command
+chooser.
 
 ## How Skylos Is Different
 
@@ -58,8 +69,10 @@ becoming hard merge gates.
 
 ### Local-First By Default
 
-Core static analysis runs on your machine without an API key. Cloud upload,
-LLM-assisted review, and remediation are optional.
+Core static analysis runs on your machine without an API key or source upload.
+Cloud upload, LLM-assisted review, and remediation are optional. Dependency
+checks can query OSV or package registries, and direct image scanning contacts
+a registry through Trivy.
 
 ## Language Support
 

@@ -127,13 +127,18 @@ Reliability has an independent threshold, `max_reliability`, which defaults to
 # Prove the external Kubernetes deployment path
 skylos . --select SKY-DEP001,SKY-DEP002,SKY-DEP003 --gate
 
-# Prove the GPU artifact against the declared target fleet
+# Check GPU source/build intent against the declared target fleet
 skylos . --select SKY-GPU001,SKY-GPU002,SKY-GPU003 --gate
 ```
 
 The GPU gate automatically retains `SKY-GPU000`. A missing, invalid, deleted,
 or incomplete required GPU contract therefore blocks instead of silently
 passing. See [Release Reliability](./release-reliability) for setup.
+
+That rule gate does not inspect a built binary. After the build, run
+`skylos preflight build/app`; its independent gate contract is exit `0` for
+`PASS`, `1` for a proved incompatibility, and `2` for `UNKNOWN` or invalid
+input.
 
 ---
 

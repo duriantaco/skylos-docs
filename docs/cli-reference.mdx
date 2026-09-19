@@ -4,13 +4,75 @@ description: "Complete reference for Skylos CLI flags and options. Dead code sca
 ---
 
 ## Basic Usage
+
 ```bash
 skylos <path> [options]
 ```
 
-The `<path>` argument can be a directory (scans recursively) or a single file.
+This form scans source code. The `<path>` argument can be a directory (scanned
+recursively) or one file. A bare `skylos` or `skylos --help` opens the command
+chooser; `skylos <path> --help` shows source-scan flags.
+
+## Choose The Command By Its Input
+
+| Question | Command | Input Skylos reads |
+|------|---------|--------------------|
+| What problems are in this source tree? | `skylos <path>` | Source and project configuration; dead code by default, every main source analyzer with `-a` |
+| What AI-code mistakes are in this source? | `skylos verify [path]` | The selected source target, plus a separate Git HEAD behavior comparison for supported Python working changes |
+| Will this exact local GPU build fit the declared fleet? | `skylos preflight [ARTIFACT]` | A local built artifact plus `.skylos/gpu-targets.yml` or `.yaml`; OCI input is identity-only in the CLI |
+| What vulnerabilities are in this container? | `skylos image scan IMAGE@sha256:<digest> --platform os/arch` | A remote registry image scanned through separately installed Trivy |
+| What does the combined repo report contain? | `skylos suite [DIRECTORY]` | Static analysis, technical debt, AI defense, and provenance |
+| Does an agent implementation have deployment guardrails? | `skylos defend [DIRECTORY]` | Recognized Python and TypeScript/JavaScript LLM integrations |
+| Which Python dead code can Skylos remove? | `skylos clean [path] --dry-run` | Python import/function cleanup candidates; `--dry-run` never writes |
+
+The three similarly placed checks have different inputs: `verify` scans source
+and separately models supported Python working changes, `preflight` statically
+inspects a local built GPU artifact, and `image scan` asks Trivy to inspect a
+remote registry image. Optional paths default to the current directory;
+`suite` and `defend` require a directory. Run `skylos commands` for the
+installed command-family map.
 
 ## Commands
+
+### Top-Level Command Map
+
+This table maps the active top-level families. Run `skylos commands` for the
+installed family map and `skylos <family> --help` for its real parser options.
+
+| Command | Purpose |
+|------|---------|
+| `skylos PATH [PATH ...]` | Scan source; dead code by default, every main source analyzer with `-a` |
+| `skylos suite [DIRECTORY]` | Build one static, debt, defense, and provenance report |
+| `skylos verify [path]` | Scan source for AI-code mistakes and separately model supported Python working changes |
+| `skylos preflight [ARTIFACT]` | Check an exact local built GPU artifact against its fleet; OCI is `UNKNOWN` in the CLI |
+| `skylos clean [path]` | Preview or apply Python import/function cleanup |
+| `skylos review [path]` | Record and manage local finding decisions |
+| `skylos baseline [path]` | Save the current finding baseline |
+| `skylos debt [path]` | Rank technical-debt hotspots and trends |
+| `skylos lint [RUFF_ARGS ...]` | Forward arguments to `ruff check` |
+| `skylos sbom [path]` | Export supported dependency inventory as CycloneDX JSON |
+| `skylos discover [path]` | Inventory recognized Python and TypeScript/JavaScript LLM integrations and tools |
+| `skylos defend [DIRECTORY]` | Report static guardrails; threshold flags or policy make it a gate |
+| `skylos image scan ...` | Ask installed Trivy to scan a pinned remote image for vulnerabilities |
+| `skylos ingest <trivy\|claude-security>` | Normalize findings from an external tool |
+| `skylos compare [path] --against REPORT` | Compare Skylos with an incumbent report |
+| `skylos provenance [path]` | Detect AI-authored code in PR changes |
+| `skylos agent <command>` | Run LLM review, Deep Mode, remediation, behavior tests, or agent-state workflows |
+| `skylos cicd <command>` | Generate or run CI gates, annotations, and PR review output |
+| `skylos rules <command>` | Initialize, validate, list, install, or remove rule packs |
+| `skylos contract <command>` | Initialize, validate, or inspect AI hallucination contracts |
+| `skylos cache <clear\|stats>` | Clear or measure cached run data |
+| `skylos whitelist [pattern\|--show]` | Manage symbol whitelist patterns |
+| `skylos sonar import [properties_file]` | Create a Skylos migration plan from Sonar properties |
+| `skylos init` | Initialize project configuration |
+| `skylos doctor` | Check installation and language-engine health |
+| `skylos badge` | Print README badge Markdown |
+| `skylos login`, `whoami`, `project`, `sync` | Manage the optional Cloud connection and project |
+| `skylos key`, `credits` | Manage provider keys and view Cloud credits |
+| `skylos commands`, `tour` | Show the command map or guided capability tour |
+
+`skylos run` and `skylos city` are removed compatibility names and exit `2`
+with replacement guidance.
 
 ### `skylos init`
 
@@ -21,15 +83,10 @@ skylos init
 
 Creates or appends a `[tool.skylos]` section to `pyproject.toml` with default settings.
 
-### `skylos run` (deprecated)
+### `skylos run` (removed)
 
-Start the deprecated local web dashboard.
-```bash
-skylos run [--port <port>] [--exclude-folder <folder>] [--include-folder <folder>] [--no-default-excludes]
-```
-
-This command is deprecated and will be removed in a future major release. Use
-`skylos . -a` or `skylos suite .` for local analysis.
+`skylos run` exits with code `2`. Use `skylos . -a` for the main source audit
+or `skylos suite` for the combined repository report.
 
 ### `skylos whitelist`
 
@@ -59,9 +116,9 @@ Run static analysis on the specified path.
 skylos . --danger --quality --ai-defects
 ```
 
-### `skylos verify`
+### `skylos verify [path]`
 
-Verify a changed file, range, or stdin code blob for AI-code trust findings. Add
+Scan a file, directory, range, or stdin code blob for AI-code trust findings. Add
 `--contract .skylos/ai-contract.yml` to enforce repo-specific generated-code
 truth such as required route decorators or approved phantom-symbol checks. This
 is the narrow in-loop verifier designed for coding agents and editor hooks, so
@@ -84,12 +141,20 @@ printf '{"file":"src/app.py","code":"def handler(): pass\n","range":"1:1"}' \
   | skylos verify . --stdin --no-fail
 ```
 
-The command prints versioned JSON with `tool: "verify_change"`, a `status`, the
-target file/range, and findings shaped for agent consumption:
+For a directory target, the AI-defect analyzer scans that selected tree. Only
+the separate Python `behavior` result compares working-tree functions with Git
+HEAD; it does not narrow all analyzer findings to changed files. Path targets
+enable dependency hallucination checks by default and may query public package
+registries. Use `--no-dependency-hallucinations` to disable those lookups.
+
+On a terminal, the command renders a human report. It emits versioned JSON with
+`tool: "verify_change"` when stdout is redirected, when `--stdin` is used, or
+to the file selected by `--output`. That result contains a `status`, target
+file/range, and findings shaped for agent consumption:
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "tool": "verify_change",
   "status": "fail",
   "findings": [
@@ -121,14 +186,140 @@ target file/range, and findings shaped for agent consumption:
 | `--stdin` | Read a JSON manifest with `file`, `code`, and optional `range` |
 | `--project-context` | Scan the project path and filter to `--file` |
 | `--dependency-hallucinations` | Include package metadata checks for hallucinated dependencies and versions |
+| `--no-dependency-hallucinations` | Disable dependency checks and package-registry lookups |
+| `--contract <path>` | Apply a specific AI hallucination contract |
+| `--no-contract` | Disable contract discovery and application |
 | `--exclude-folder <folder>` | Add an excluded folder. Can be repeated |
 | `--confidence`, `-c` | Analyzer confidence threshold. Default: `60` |
 | `--no-fail` | Exit `0` even when verify findings are returned |
 | `--output`, `-o <file>` | Write JSON output to a file |
 
-Without `--no-fail`, `skylos verify` exits `1` when the JSON status is `fail`.
+Without `--no-fail`, `skylos verify` exits `1` for `fail` and `2` for
+`incomplete`. An incomplete result means Skylos could not establish a requested
+proof; it is not silently treated as a pass.
 
-### `skylos debt <path>`
+### `skylos preflight [ARTIFACT]`
+
+Check one exact local built GPU artifact against the machines declared in
+`.skylos/gpu-targets.yml` (or `.yaml`). This command inspects artifact evidence.
+It does not review source edits or scan packages for CVEs.
+
+```yaml title=".skylos/gpu-targets.yml"
+version: 1
+targets:
+  - name: inference-t4
+    vendor: nvidia
+    driver: "535.104.05"
+    compute_capability: "7.5"
+    platform: "linux/amd64"
+```
+
+Inspect a local file or directory:
+
+```bash
+skylos preflight build/app
+```
+
+Local version-1 inspection supports Linux ELF/CUDA artifacts and requires a
+trusted NVIDIA `cuobjdump` installed outside the project and artifact. Skylos
+takes private file snapshots and never loads or executes target code.
+
+You may omit `ARTIFACT` when `.skylos/release.json` names one project-relative
+artifact:
+
+```json title=".skylos/release.json"
+{"version": 1, "artifact": "build/app"}
+```
+
+There are no preflight mode flags. The artifact and fleet contract define the
+check. A valid report is concise on a TTY and schema-version-1 JSON when stdout
+is redirected. Argument and adapter errors can be plain text and exit `2`.
+
+| Status | Exit | Meaning |
+|------|:----:|---------|
+| `PASS` | `0` | The exact identity and every fleet target pass all checks within the declared static scope |
+| `FAIL` | `1` | Artifact evidence proves at least one fleet target incompatible |
+| `UNKNOWN` | `2` | Evidence is missing, ambiguous, unsupported, incomplete, or input is invalid |
+
+A digest-pinned OCI reference is accepted as an identity, but this CLI never
+pulls or starts it and therefore returns `UNKNOWN`. A trusted library caller
+can supply digest-bound inspection facts to `skylos.preflight.run_preflight`.
+
+Version 1 covers exact local identity, Linux ELF platform, selected executable
+fatbin architecture routes, a static packaged `$ORIGIN` CUDA runtime route,
+and documented driver-family compatibility. It does not establish runtime
+execution, workload correctness, memory demand, performance, nonselected or
+relocatable fatbins, per-kernel symbol parity, or Windows PE runtime imports.
+See [Release Reliability](./release-reliability#built-artifact-preflight) for
+the evidence model and library API.
+
+Here, a *selected executable fatbin* is the executable CUDA record set that
+`cuobjdump --list-elf`/`--list-ptx` selects. Its *producer identifier* groups
+the cubin and PTX records that must share a compatibility route. Every observed
+group needs native cubin coverage for `PASS`; PTX-only coverage remains
+`UNKNOWN` because static inspection does not prove the deployment driver's JIT
+path. Across checks and targets, `FAIL` wins over `UNKNOWN`, and `UNKNOWN` wins
+over `PASS`.
+
+### `skylos image scan`
+
+Scan a digest-pinned remote registry image for package vulnerabilities. Install
+Trivy separately as a trusted executable on `PATH`, and provide registry
+network access and any required registry credentials:
+
+```bash
+skylos image scan IMAGE@sha256:<digest> \
+  --platform linux/amd64 --fail-on high
+```
+
+This command checks CVEs. It does not check CUDA architectures, packaged CUDA
+runtime binding, or fleet driver compatibility; use `skylos preflight` for
+those artifact checks.
+
+Without `--fail-on`, vulnerability findings are report-only and a completed
+scan exits `0`. With `--fail-on LEVEL`, findings at or above that severity exit
+`1`. Scanner or report incompleteness exits `2`.
+
+### `skylos suite [DIRECTORY]`
+
+Build one repository report from static analysis, technical debt, agent
+defense, and provenance. `DIRECTORY` defaults to the current directory; a file
+target is rejected.
+
+```bash
+skylos suite
+skylos suite . --json -o suite.json
+```
+
+Use `skylos <path>` when you need only the source scan and its analyzer flags.
+Suite runs in the local process and uploads only with `--upload`, but its SCA
+and AI dependency stages may query OSV.dev and public package registries.
+Findings are report-only and do not change the default `0` exit. Operational,
+output, upload, and uploaded Cloud quality-gate failures are nonzero.
+
+### `skylos defend [DIRECTORY]`
+
+Inspect recognized LLM integrations in Python and TypeScript/JavaScript source,
+score their deployment guardrails, and optionally emit evidence or gate by
+severity. `DIRECTORY` defaults to the current directory; files are rejected.
+
+```bash
+skylos defend .
+skylos defend . --format md -o evidence.md
+skylos defend . --fail-on critical
+```
+
+`defend` checks the implementation of an AI agent. It does not validate the
+current code edit like `verify`, inspect a built GPU artifact like `preflight`,
+or exercise a running endpoint like `skylos agent test`. See [Agent
+Verification](./agent-verification).
+
+Findings are report-only and exit `0` unless `--fail-on`, `--min-score`, or an
+explicit policy requests a gate. Upload and requested gate failures exit `1`.
+If no supported integration is detected, the empty result does not prove that
+an unsupported or unrecognized implementation has guardrails.
+
+### `skylos debt [path]`
 
 Analyze technical debt hotspots for the specified path.
 ```bash
@@ -160,16 +351,19 @@ Use this command when you want a debt hotspot report instead of the normal dead-
 
 For the full scoring model and baseline semantics, see [Technical Debt](/technical-debt).
 
-## Output Options
+## Source-Scan Output Options
+
+The flags in this section belong to `skylos <path>`. Other commands have their
+own output contracts; in particular, preflight has no output-format flag and
+emits JSON for valid reports when stdout is redirected.
 
 | Flag | Description |
 |------|-------------|
 | `--json` | Output raw JSON to stdout |
 | `--llm` | Output LLM-optimized report with code context for AI agents (Claude Code, Codex, etc.) |
-| `--format FORMAT` | Select `rich`, `json`, `llm`, `github`, or `concise` output. `concise` prints only IDE-clickable `file:line` findings. |
+| `--format FORMAT` | Select `rich`, `pretty`, `json`, `llm`, `github`, `gitlab`, or `concise` output. `concise` prints IDE-clickable `file:line RULE_ID message` findings. |
 | `--output`, `-o <file>` | Write results to a file |
 | `--tree` | Display findings in a hierarchical tree format |
-| `--table` | *(Deprecated)* Display findings in table format |
 
 ### Concise IDE-Friendly Output
 
@@ -181,8 +375,8 @@ skylos --format concise src/test.py
 ```
 
 ```text
-src/test.py:1  unused function
-src/test.py:5  unused class
+src/test.py:1  SKY-D001  Unused function: helper
+src/test.py:5  SKY-D003  Unused class: LegacyClient
 ```
 
 Clean scans print nothing and exit `0`. Scans with findings exit `1` unless
@@ -204,7 +398,7 @@ restricts results to exact rule IDs. Unknown IDs are configuration errors and
 exit `2`.
 
 ```bash
-# Gate only the GPU compatibility proof
+# Gate only GPU source/build intent
 skylos . --select SKY-GPU001,SKY-GPU002,SKY-GPU003 --gate --format concise
 ```
 
@@ -229,8 +423,8 @@ run deployment/runtime contract analyzers, or use `--select` to enable exact
 Reliability rules. Use `--category reliability` only when you want to hide
 other categories from the displayed result.
 
-See [Release Reliability](./release-reliability) for Kubernetes exposure proof
-and GPU artifact compatibility.
+See [Release Reliability](./release-reliability) for Kubernetes exposure,
+GPU source/build intent, and exact built-artifact preflight.
 
 ## Reference Graph Cache
 
@@ -298,11 +492,12 @@ Interactive mode requires the `inquirer` package.
 
 ## Deterministic Cleanup
 
-Use `skylos clean` when you want a repeatable cleanup plan that can be reviewed
-before files are edited.
+Use `skylos clean` for Python import and function cleanup. With no mode flag it
+asks about each candidate and can write files after final confirmation.
+`--dry-run` is the guaranteed no-write preview.
 
 ```bash
-# Preview safe import/function cleanup edits without writing files
+# Preview Python import/function cleanup edits without writing files
 skylos clean . --dry-run --types import,function --confidence 80
 
 # Apply the same kind of cleanup without prompting
@@ -320,9 +515,12 @@ skylos clean . --apply --comment-out --types import,function --confidence 80
 | `--types <list>` | Comma-separated cleanup types; currently `import` and `function` |
 | `--comment-out` | Comment out matches instead of deleting them |
 
-`skylos clean` still uses Skylos' CST codemods and path-containment checks.
+`skylos clean` uses Python LibCST codemods and path-containment checks.
 Automatic cleanup currently edits unused imports and unused functions only;
-classes, variables, and lower-confidence findings remain review items.
+classes, variables, other languages, and lower-confidence findings remain
+review items. The command currently exits `0` after a completed apply pass even
+if an individual transform failure was printed, so review the completion
+output.
 
 ## AI-Powered Features
 
@@ -337,7 +535,8 @@ classes, variables, and lower-confidence findings remain review items.
 | **Authenticated Remote Agent Test** | `skylos agent test --endpoint https://agent.example/v1/chat/completions --allow-remote --auth-env AGENT_TOKEN` | Select the remote destination and bearer-token environment variable from the trusted CLI invocation |
 | **Bounded Agent Test** | `skylos agent test --max-scenarios 25 --max-seconds 300 --max-tokens 1024` | Enforce scenario/time budgets and request an endpoint response-token cap |
 | **AI Security Scan** | `skylos agent scan . --security` | Security taskflow audit with repo map, file facts, and verifier-backed evidence |
-| **Automated Repair** | `skylos agent scan . --fix` | Let the LLM fix what it found, re-scan to confirm closure, and attach proof-test metadata when available |
+| **Fix Suggestions** | `skylos agent scan . --with-fixes` | Add suggestions without changing files |
+| **Automated Repair** | `skylos agent remediate .` | Apply supported fixes and re-scan; tests and PR creation are explicit options |
 | **PR Review** | `skylos agent scan --changed` | Analyze only git-changed files |
 | **Local LLM** | `skylos agent scan . --base-url http://localhost:11434/v1 --model codellama` | Use Ollama/LM Studio (no API key needed) |
 
@@ -502,7 +701,7 @@ Exact meaning is command-specific; these are the common categories:
 
 | Code | Meaning |
 |------|---------|
-| `0` | The command completed and its selected output, report, or policy passed |
+| `0` | Command-specific success; report-only commands can still contain findings |
 | `1` | Findings, a gate/policy decision, or another command-specific analysis or operational failure caused the command to fail |
 | `2` | The invocation, configuration, or input was invalid, or the command could not produce a usable result safely |
 
@@ -510,18 +709,12 @@ For example, `skylos compare` uses `0` for a usable receipt and `2` for an
 invalid, unsafe, or unusable comparison; it does not use `1`. See
 [Scanner Comparison](./scanner-comparison#exit-codes).
 
-## AI-Powered Features (Deprecated)
+## Removed Legacy AI Flags
 
-| Flag | Description |
-|------|-------------|
-| `--fix` | Use AI to automatically fix detected issues |
-| `--audit` | Deep scan files using AI for logic and security review |
-
-These features require an API key. Skylos checks:
-
-1. Environment variables (`OPENAI_API_KEY` or `ANTHROPIC_API_KEY`)
-2. System keyring (saved from previous sessions)
-3. Interactive prompt (if neither is found)
+The main source-scan command no longer accepts `--fix` or `--audit`. Use
+`skylos agent scan [path]` for LLM-assisted review,
+`skylos agent audit [path]` for Deep Mode, and
+`skylos agent remediate [path]` when you intend to change files.
 
 ## Examples
 
@@ -551,9 +744,9 @@ skylos clean . --apply --types imports --confidence 80
 skylos . --danger --quality --ai-defects --gate
 ```
 
-**AI-powered audit of changed files:**
+**LLM-assisted audit:**
 ```bash
-skylos . --audit --model claude-sonnet-4-20250514
+skylos agent audit . --changed --model claude-sonnet-4-20250514
 ```
 
 **Whitelist a dynamic pattern:**

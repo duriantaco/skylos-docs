@@ -5,10 +5,12 @@ description: "Pre-deployment AI agent verification with skylos discover and skyl
 
 # Pre-Deployment Agent Verification
 
-Statically verify an AI agent's guardrails before it ships. `skylos discover`
-inventories every LLM integration in the tree; `skylos defend` runs 13
-deterministic checks against each integration, scores the result, gates CI,
-and emits auditor-ready evidence with a reproducible attestation digest.
+Statically inspect an AI agent's guardrails before it ships. `skylos discover`
+inventories recognized LLM integrations in Python and TypeScript/JavaScript;
+`skylos defend` runs 13 deterministic checks against each detected integration,
+scores the result, and emits auditor-ready evidence with a reproducible
+attestation digest. It gates CI only when a threshold flag or policy supplies
+gate criteria.
 
 Runtime guardrails are the WAF; this is the SAST. Verification is AST-based,
 runs locally, and involves no model — the same tree with the same flags,
@@ -26,8 +28,14 @@ skylos defend . --fail-on critical              # CI gate
 ```
 
 `skylos defend` exits `1` when the gate fails (`--fail-on`, `--min-score`, or
-policy `gate.*`), otherwise `0`. Format never changes gating: a SARIF or md
-run with `--fail-on high` still writes the report and exits non-zero.
+policy `gate.*`), otherwise `0`. Without those settings, findings are
+report-only. Format never changes gating: a SARIF or md run with
+`--fail-on high` still writes the report and exits non-zero. The command
+requires a directory target.
+
+If discovery finds no supported integration, the empty result means none was
+recognized in the supported language scope. Its score alone is not proof that
+an unsupported or unrecognized agent implementation has guardrails.
 
 ## The 13 checks
 
@@ -130,7 +138,7 @@ Consequences:
 - Any file edit, policy change, plugin-set change, or result change produces
   a different digest, so changed run evidence is detectable by re-running.
 
-To re-verify a report: `skylos defend <path> --format json` on the same tree
+To re-verify a report: `skylos defend <directory> --format json` on the same tree
 with the same flags and Skylos version; compare `attestation.digest`.
 
 ## Regulatory framework evidence

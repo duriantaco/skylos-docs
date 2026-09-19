@@ -255,7 +255,7 @@ edit before showing the change to a human.
 | `confidence` | int | 60 | Confidence threshold |
 | `project_context` | bool | false | Scan the project root and filter to `file` |
 | `include_dependency_hallucinations` | bool | true | Include package metadata checks for hallucinated dependencies and versions |
-| `contract_path` | string | null | Path to an AI hallucination contract used by `skylos verify --contract` |
+| `contract_path` | string | null | Path to an AI hallucination contract, equivalent to `skylos verify . --contract PATH` |
 | `exclude_folders` | string | null | Comma-separated folders to exclude |
 
 **Example prompt**: "Verify the change I just made to `src/app.py` lines 40 to 75."

@@ -1,6 +1,6 @@
 ---
 title: "Release Reliability"
-description: "Prove Kubernetes exposure paths and GPU artifact compatibility across source, build, container, and deployment files."
+description: "Check Kubernetes exposure paths, GPU source/build intent, and exact built GPU artifacts against a declared fleet."
 ---
 
 Most linters inspect one file at a time. Release failures often live in the
@@ -27,8 +27,11 @@ Run a narrow release gate by selecting exact rules:
 # Kubernetes exposure proof
 skylos . --select SKY-DEP001,SKY-DEP002,SKY-DEP003 --gate --format concise
 
-# GPU release compatibility
+# GPU source/build intent
 skylos . --select SKY-GPU001,SKY-GPU002,SKY-GPU003 --gate --format concise
+
+# Exact built GPU artifact
+skylos preflight build/app
 ```
 
 Exact selection enables the required analyzer family automatically. The GPU
@@ -115,15 +118,23 @@ network policy, or claim that an unannotated Ingress is private.
 
 ## GPU Release Compatibility
 
-GPU checks compare the fleet you intend to support with the artifact you are
-actually building and packaging:
+One fleet contract supports two separate checks:
 
 ```mermaid
 flowchart LR
-    T[GPU target contract] --> D[Final CUDA image]
-    T --> A[Compiled SASS and PTX]
-    T --> E[Packaged TensorRT engine]
+    T[.skylos/gpu-targets.yml] --> S[Source and build intent rules]
+    S --> B[Build produces artifact]
+    T --> P[Artifact preflight]
+    B --> P
 ```
+
+- `skylos . --select SKY-GPU...` checks Dockerfiles, CMake/NVCC settings, and
+  TensorRT packaging intent before or during the build.
+- `skylos preflight [ARTIFACT]` inspects the exact built artifact and compares
+  its static evidence with every declared target.
+
+The source gate can catch a bad plan early. Artifact preflight tells you what
+the resulting local build actually contains within its stated evidence scope.
 
 ### Declare The Target Fleet
 
@@ -144,16 +155,24 @@ targets:
     platform: linux/amd64
 ```
 
-Target names must be unique. Skylos currently accepts NVIDIA targets and uses
-the declared platform when applying CUDA driver branch floors.
+Target names must be unique. All targets in one profile receive the same
+artifact. Use separate profiles and preflight runs for per-device builds.
+Skylos currently accepts NVIDIA targets and uses the declared platform when
+applying CUDA driver branch floors.
 
-### Rules And Evidence
+### Source And Build Intent Rules
+
+```bash
+skylos . \
+  --select SKY-GPU001,SKY-GPU002,SKY-GPU003 \
+  --gate --format concise
+```
 
 | Rule | What Skylos correlates |
 |------|-------------------------|
 | `SKY-GPU000` | Contract validity and whether bounded evidence discovery completed without missing, deleted, dynamic, or ambiguous required inputs |
 | `SKY-GPU001` | The effective final Docker stage's NVIDIA CUDA major version against each target's driver branch and platform |
-| `SKY-GPU002` | Declared compute capabilities against real/virtual architectures emitted by CMake, `TORCH_CUDA_ARCH_LIST`, or real NVCC command evidence |
+| `SKY-GPU002` | Declared compute capabilities against real/virtual architectures requested by CMake, `TORCH_CUDA_ARCH_LIST`, or real NVCC command evidence |
 | `SKY-GPU003` | A serialized TensorRT engine's exact build/write path, its packaging into the effective final Docker stage, and hardware compatibility configured before the build |
 
 The TensorRT proof recognizes concrete Python and C++ builder operations. A
@@ -161,21 +180,99 @@ comment, docstring, `echo` example, similarly named artifact, unused Docker
 stage, or compatibility flag applied after the engine build is not accepted as
 release evidence.
 
-### Fail-Closed Contract Behavior
-
 Repositories without a GPU target contract are not treated as GPU projects by
 default. The contract becomes required when it exists, is deleted in a
-changed-file scan, or any `SKY-GPU*` rule is explicitly selected.
+changed-file scan, or any `SKY-GPU*` rule is explicitly selected. If Skylos
+cannot validate the contract or authoritative source evidence, it emits
+`SKY-GPU000`. Selecting a leaf rule automatically retains that prerequisite.
 
-If Skylos cannot validate the contract or authoritative evidence, it emits
-`SKY-GPU000` rather than making a compatibility claim. Selecting a leaf rule
-such as `SKY-GPU002` automatically retains `SKY-GPU000`, including in
-diff-scoped release gates.
+These `SKY-GPU*` rules do not inspect a built binary, probe GPUs or drivers,
+run a CUDA build, benchmark kernels, or scan dependencies for CVEs.
 
-These checks do not probe local GPUs or drivers, run a CUDA build, benchmark
-kernels, disassemble binaries, or scan dependencies for CVEs.
+### Built Artifact Preflight
 
-## Output And Gating
+Run preflight after the build:
+
+```bash
+skylos preflight build/app
+```
+
+`ARTIFACT` can be one local regular file or a directory bundle. Local version-1
+inspection supports Linux ELF/CUDA artifacts and requires a trusted NVIDIA
+`cuobjdump` installed outside the project and artifact. Skylos copies candidate
+files into a private snapshot and never loads or executes target code.
+
+For an argument-free CI step, create a strict release receipt whose artifact
+path stays inside the project:
+
+```json title=".skylos/release.json"
+{"version": 1, "artifact": "build/app"}
+```
+
+Then run:
+
+```bash
+skylos preflight
+```
+
+There are no preflight mode flags. The artifact and declared fleet profile
+define the check. Terminal output is concise;
+after report generation, redirected stdout is a schema-version-1
+`gpu_artifact_preflight` JSON report with the exact identity, per-target checks,
+evidence, errors, and limitations. Argument and adapter errors can be plain text
+and exit `2`.
+
+| Status | Exit | Meaning |
+|------|:----:|---------|
+| `PASS` | `0` | Exact identity is verified and every target passes every check within the declared static scope |
+| `FAIL` | `1` | Artifact evidence proves at least one target incompatible |
+| `UNKNOWN` | `2` | Evidence is missing, ambiguous, unsupported, incomplete, or input is invalid |
+
+`UNKNOWN` is an abstention. Missing evidence never becomes `PASS`.
+Across checks and targets, a proved `FAIL` takes precedence over `UNKNOWN`, and
+`UNKNOWN` takes precedence over `PASS`.
+
+Version 1 checks:
+
+- the SHA-256 identity of a local file or the full bounded content-tree
+  identity of a directory;
+- Linux ELF host platform;
+- architecture routes in the selected executable fatbin, grouped by producer
+  identifier;
+- a static packaged `DT_NEEDED`/`DT_SONAME` CUDA runtime route anchored to
+  `$ORIGIN`; and
+- documented CUDA runtime/driver-family compatibility for each target.
+
+The *selected executable fatbin* is the executable CUDA record set selected by
+`cuobjdump --list-elf`/`--list-ptx`. The producer identifier is the label that
+groups cubin and PTX records from that set; every observed group needs a
+compatible native cubin route for `PASS`. PTX-only coverage remains `UNKNOWN`
+because static inspection does not establish the deployment driver's PTX
+compiler/ISA compatibility.
+
+A `PASS` does not establish runtime execution, workload correctness, memory
+demand, performance, nonselected or relocatable fatbins, or per-kernel symbol
+parity. Loader environment overrides and hardware-capability directory
+selection remain untested. Windows PE runtime import proof is not implemented.
+`cuobjdump` has time, output, environment, working-directory, and executable
+location bounds, but it is not placed inside a portable OS-level network and
+filesystem sandbox.
+
+Digest-pinned OCI references are accepted as identities. The CLI never pulls
+or starts them and returns `UNKNOWN` because it has no trusted artifact facts.
+A trusted caller can provide a digest-bound inventory through the library API:
+
+```python
+from skylos.preflight import run_preflight
+
+report = run_preflight("build/app")
+# For OCI, pass inventory=<trusted digest-bound mapping>.
+```
+
+Supplied inventory is validated strictly and must bind to the requested digest
+before it can contribute to `PASS`.
+
+## Source-Rule Output And Gating
 
 Reliability findings have their own JSON bucket and count:
 
@@ -212,4 +309,5 @@ Use `--category reliability` to filter displayed results after analysis. Use
 [CLI Reference](./cli-reference#finding-filters),
 [Understanding the Output](./guides/understanding-output#reliability), and
 [Quality Gate](./quality-gate#release-reliability-gates) for the complete
-operational contract.
+source-rule contract. Artifact preflight uses the separate `PASS`/`FAIL`/
+`UNKNOWN` report and exit codes documented above.
