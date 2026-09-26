@@ -275,7 +275,7 @@ Instead of binary "used/unused", Skylos scores confidence:
 # 1. See what would be removed
 skylos clean . --dry-run --types import,function --confidence 80
 
-# 2. Apply safe import/function cleanup
+# 2. Apply matching Python import/function cleanup
 skylos clean . --apply --types imports --confidence 80
 
 # 3. Interactive selection for the rest

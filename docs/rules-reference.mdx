@@ -313,14 +313,16 @@ deleted, ambiguous, or incomplete contract/evidence state produces
 # Discover this rule family
 skylos rules list gpu
 
-# Fail the release gate on an invalid or incompatible GPU artifact
+# Fail the source/build intent gate on an invalid GPU contract or plan
 skylos . --select SKY-GPU000,SKY-GPU001,SKY-GPU002,SKY-GPU003 --gate --format concise
 ```
 
 Selecting `SKY-GPU001`, `SKY-GPU002`, or `SKY-GPU003` also retains
 `SKY-GPU000`, so a missing or invalid required contract cannot disappear behind
-an exact-rule filter. See [Release Reliability](./release-reliability#gpu-release-compatibility)
-for setup and evidence semantics.
+an exact-rule filter. These rules inspect source and build declarations, not a
+built binary. Run `skylos preflight [ARTIFACT]` after the build. See [Release
+Reliability](./release-reliability#gpu-release-compatibility) for both evidence
+stages.
 
 ### Secret Rules (SKY-S)
 
@@ -1061,8 +1063,10 @@ def admin_dashboard(request):
     return {"status": "ok"}
 ```
 
-Run this through `skylos verify --contract` to enforce repository-specific route
-truth during editor, agent, or PR loops. Contract-backed findings include
+Run this through
+`skylos verify . --contract .skylos/ai-contract.yml` to enforce
+repository-specific route truth during editor, agent, or PR loops.
+Contract-backed findings include
 `contract_clause`, `contract_path`, and `contract_reason` metadata so reviewers
 can see exactly which local policy was violated.
 

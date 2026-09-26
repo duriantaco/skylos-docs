@@ -129,7 +129,7 @@ export SKYLOS_LLM_BASE_URL=http://localhost:11434/v1
 
 ### `skylos verify`
 
-Run a narrow, local verifier for code an agent or editor just changed:
+Run the focused source verifier for code an agent or editor is working on:
 
 ```bash
 skylos verify . --file src/app.py --range 40:75 --project-context
@@ -144,12 +144,20 @@ skylos verify . --contract .skylos/ai-contract.yml
 skylos verify . --file apps/api/routes.py --project-context --contract .skylos/ai-contract.yml
 ```
 
-`skylos verify` is different from a full scan. It returns only AI-code trust
-findings in a stable JSON schema, including hallucinated references, unfinished
-generated code, stale references, disabled controls, dependency
-hallucinations, API signature hallucinations, and weakened assertions. Full
-scan JSON reports the strict AI-defect rules under `ai_defects` rather than
-`quality` or `danger`.
+`skylos verify` is different from a full scan. For a directory target, its
+AI-code analysis covers the selected tree. A separate Python-only `behavior`
+result compares supported working-tree functions with Git HEAD; that behavior
+model does not restrict every analyzer finding to changed files. Findings can
+include hallucinated references, unfinished generated code, stale references,
+disabled controls, dependency hallucinations, API signature hallucinations,
+and weakened assertions. Full scan JSON reports the strict AI-defect rules
+under `ai_defects` rather than `quality` or `danger`.
+
+Path targets enable dependency hallucination checks by default, which may query
+public package registries. Use `--no-dependency-hallucinations` to disable those
+lookups. The CLI renders a human report on a terminal and emits the stable JSON
+schema when redirected, when `--stdin` is used, or when `--output` selects a
+file.
 
 For the full static-scan AI-defect method, category contract, and current rule
 list, see [AI Defect Verification](./ai-defects). For repo-specific verifier
@@ -162,7 +170,7 @@ printf '{"file":"src/app.py","code":"def handler(): pass\n","range":"1:1"}' \
   | skylos verify . --stdin --no-fail
 ```
 
-The JSON response uses `tool: "verify_change"` and includes `rule_id`,
+The JSON result uses `tool: "verify_change"` and includes `rule_id`,
 `vibe_category`, `ai_likelihood`, `range`, `message`, `suggested_fix`,
 `confidence`, `severity`, and `category` for each finding. Contract-backed
 findings may also include `contract_id`, `contract_clause`, `contract_path`,
@@ -206,9 +214,7 @@ skylos agent scan ./src
 | `--format` | Output format: `table`, `tree`, `json`, `sarif` |
 | `--output`, `-o` | Write output to file |
 | `--min-confidence` | Filter by confidence: `high`, `medium`, `low` |
-| `--fix` | Generate fix proposals for findings |
-| `--apply` | Apply approved fixes to files |
-| `--yes` | Auto-approve prompts (use with `--apply`) |
+| `--with-fixes` | Generate fix suggestions without applying them |
 
 **Examples:**
 
@@ -222,8 +228,11 @@ skylos agent scan ./src \
   --base-url http://localhost:11434/v1 \
   --model codellama:13b
 
-# Generate and apply fixes
-skylos agent scan ./src --fix --apply
+# Generate suggestions without changing files
+skylos agent scan ./src --with-fixes
+
+# Preview the separate remediation workflow
+skylos agent remediate ./src --dry-run
 
 # Output as SARIF for CI integration
 skylos agent scan ./src --format sarif --output results.sarif
@@ -335,19 +344,18 @@ This is a convenience flag that:
 2. Runs analysis only on those files
 3. Perfect for pre-commit or PR review workflows
 
-## Legacy Commands
+## Applying AI Remediation
 
-The following flags still work on the main command for quick, single-file operations:
-
-### `--fix` flag
+`skylos agent scan --with-fixes` produces suggestions. Use the explicit
+remediation command when you intend to change files:
 
 ```bash
-skylos . --danger --quality --fix
+skylos agent remediate . --dry-run
+skylos agent remediate .
 ```
 
-:::note
-For best results, use `skylos agent scan` and `skylos agent scan --security` instead. They provide repo-aware context to the LLM, and the security path adds framework-aware file facts plus verifier-backed evidence instead of a single opaque pass.
-:::
+Add `--run-tests` only for a trusted repository, or pass a trusted command with
+`--test-command`. PR creation is opt-in with `--auto-pr`.
 
 ## What Gets Detected
 

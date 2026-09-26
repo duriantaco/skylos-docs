@@ -5,12 +5,18 @@ description: "Accurate CI/CD patterns for Skylos: local gate, cloud uploads, Git
 
 Skylos fits into CI in three different ways. The right choice depends on whether you want local-only exit codes, cloud-managed policy, or GitHub-native hard enforcement.
 
+Here, *local-only* means the analysis runs on the CI worker without a Skylos
+Cloud upload. It does not promise an offline run: dependency checks can query
+OSV or package registries, and direct image scans contact a registry through
+Trivy.
+
 ## Choose a CI Mode
 
 | Goal | Use this | Notes |
 |---|---|---|
 | Local-only CI gate | `skylos . --danger --secrets --quality --ai-defects --gate` | Explicit analyzers; no cloud state required |
-| Kubernetes/GPU release proof | `skylos . --select RULES --gate` | Exact cross-file proof with an independent Reliability threshold |
+| Kubernetes or GPU source/build proof | `skylos . --select RULES --gate` | Exact source/config correlation with an independent Reliability threshold |
+| Built GPU artifact gate | `skylos preflight build/app` | Exact artifact report: exit `0` PASS, `1` FAIL, `2` UNKNOWN |
 | Workflow security review | `skylos . --danger` | Scans `.github/workflows/*` and local action metadata |
 | Cloud upload with dashboard policy | `skylos . --upload` | Uses project policy, suppressions, and cloud history |
 | GitHub hard enforcement | `skylos . --upload` plus GitHub App and branch protection | Requires repo URL and cloud setup |
@@ -303,19 +309,29 @@ skylos . --danger --secrets --quality --ai-defects --gate
 Use this when you only want CLI exit codes from local config. A bare `--gate`
 does not enable every analyzer.
 
-For a narrow release proof:
+For a narrow source/config release proof:
 
 ```bash
 # Kubernetes exposure path
 skylos . --select SKY-DEP001,SKY-DEP002,SKY-DEP003 --gate
 
-# CUDA, build-architecture, and TensorRT compatibility
+# CUDA image, build-architecture, and TensorRT packaging intent
 skylos . --select SKY-GPU001,SKY-GPU002,SKY-GPU003 --gate
 ```
 
 GPU leaf selection automatically retains `SKY-GPU000` so a missing or invalid
 target contract fails closed. Reliability uses `max_reliability = 0` by
 default. See [Release Reliability](./release-reliability) for contract setup.
+
+After producing the local GPU artifact, gate that exact output separately:
+
+```bash
+skylos preflight build/app
+```
+
+Preflight uses its own result contract: `0` is `PASS`, `1` is a proved
+`FAIL`, and `2` is `UNKNOWN` or invalid input. Treat `2` as a blocked release
+in CI. See [Built Artifact Preflight](./release-reliability#built-artifact-preflight).
 
 ### Cloud gate
 

@@ -4,7 +4,8 @@ description: "Reference for Skylos AI Defense checks. For current pre-deployment
 ---
 
 :::info
-**New in Skylos 4.0:** AI Defense scans your Python codebase for LLM integrations and evaluates their security posture automatically. TypeScript support is planned.
+AI Defense scans Python and TypeScript/JavaScript source for recognized LLM
+integrations and evaluates their static security posture.
 :::
 
 :::tip Current workflow
@@ -28,7 +29,11 @@ flowchart LR
     D --> G[OWASP Coverage]
 ```
 
-Discover performs static analysis to find every LLM call site in your codebase — provider, model, input sources, prompt construction, and output handling. Defend then evaluates each integration against 10 defense checks and 3 ops checks, producing a weighted score with OWASP LLM Top 10 mapping.
+Discover performs static analysis to find recognized LLM call sites in the
+supported source scope: provider, model, input sources, prompt construction,
+and output handling. Defend then evaluates each detected integration against 10
+defense checks and 3 ops checks, producing a weighted score with OWASP LLM Top
+10 mapping.
 
 ---
 
@@ -171,7 +176,9 @@ skylos defend . --fail-on high --min-score 70  # combine both
 
 ## Discover
 
-`skylos discover` performs AST-based detection of LLM integrations. No runtime, no API keys, no network access required — it reads your source code and identifies every LLM call site.
+`skylos discover` performs AST-based detection of recognized LLM integrations
+in Python and TypeScript/JavaScript. It needs no runtime, API key, or network
+access.
 
 ### Supported Providers
 
@@ -310,33 +317,38 @@ skylos discover <path> --exclude vendor tests
 
 ```bash
 # Basic scan
-skylos defend <path>
+skylos defend <directory>
 
 # JSON output
-skylos defend <path> --json
+skylos defend <directory> --json
 
 # Save to file
-skylos defend <path> --json -o defense.json
+skylos defend <directory> --json -o defense.json
 
 # CI gating
-skylos defend <path> --fail-on critical   # exit 1 if critical failures
-skylos defend <path> --min-score 80       # exit 1 if score < 80%
+skylos defend <directory> --fail-on critical   # exit 1 if critical failures
+skylos defend <directory> --min-score 80       # exit 1 if score < 80%
 
 # Filtering
-skylos defend <path> --min-severity high  # only high+ severity checks
-skylos defend <path> --owasp LLM01       # only OWASP LLM01 checks
-skylos defend <path> --owasp LLM01,LLM02 # multiple OWASP filters
+skylos defend <directory> --min-severity high  # only high+ severity checks
+skylos defend <directory> --owasp LLM01       # only OWASP LLM01 checks
+skylos defend <directory> --owasp LLM01,LLM02 # multiple OWASP filters
 
 # Policy file
-skylos defend <path> --policy policy.yaml
+skylos defend <directory> --policy policy.yaml
 
 # Exclude directories
-skylos defend <path> --exclude vendor tests
+skylos defend <directory> --exclude vendor tests
 
 # Upload to cloud dashboard
-skylos defend <path> --upload
-skylos defend <path> --json --upload    # JSON output + upload
+skylos defend <directory> --upload
+skylos defend <directory> --json --upload    # JSON output + upload
 ```
+
+`defend` requires a directory. Findings are report-only unless `--fail-on`,
+`--min-score`, or policy gate settings are present. An empty result means no
+supported integration was recognized; it is not evidence about unsupported
+languages or frameworks.
 
 ---
 
@@ -432,4 +444,3 @@ The dashboard provides:
 :::info
 Cloud upload requires a Skylos token. Run `skylos sync connect` or set `SKYLOS_TOKEN` to authenticate.
 :::
-

@@ -11,6 +11,16 @@ Skylos is a Vulture alternative with 95% recall and 3x fewer false positives. Bu
 - [Configuration](https://docs.skylos.dev/configuration): Configure via pyproject.toml — exclusions, thresholds, quality gates
 - [CLI Reference](https://docs.skylos.dev/cli-reference): All command-line flags and options
 
+## Command Chooser
+
+- `skylos PATH`: scan source; dead code by default, every main source analyzer with `-a`.
+- `skylos verify [PATH]`: scan the selected source for AI-code mistakes; a separate Python behavior result compares supported working changes with Git HEAD.
+- `skylos preflight [ARTIFACT]`: statically check an exact local GPU artifact against `.skylos/gpu-targets.yml`; OCI input is identity-only and returns `UNKNOWN` in the CLI.
+- `skylos image scan IMAGE@sha256:<digest> --platform os/arch`: ask separately installed Trivy to scan a remote registry image; findings gate only with `--fail-on`.
+- `skylos suite [DIRECTORY]`: build one static, debt, defense, and provenance report; findings are report-only by default.
+- `skylos defend [DIRECTORY]`: report guardrails for recognized Python and TypeScript/JavaScript LLM integrations; threshold flags or policy enable gating.
+- `skylos clean [PATH] --dry-run`: preview Python import/function cleanup without writing.
+
 ## Core Features
 
 - [Dead Code Detection](https://docs.skylos.dev/dead-code-detection): Find unused functions, imports, classes, and variables
@@ -20,6 +30,7 @@ Skylos is a Vulture alternative with 95% recall and 3x fewer false positives. Bu
 - [Technical Debt](https://docs.skylos.dev/technical-debt): Structural debt hotspots, baseline comparison, changed-scope reviews, and saved debt history reports
 - [Framework Awareness](https://docs.skylos.dev/framework-awareness): Django, Flask, FastAPI, Pydantic, and pytest recognition to reduce false positives
 - [Smart Tracing](https://docs.skylos.dev/smart-tracing): Runtime call tracing for dynamic code
+- [Release Reliability](https://docs.skylos.dev/release-reliability): GPU source/build contracts and exact local artifact preflight with PASS/FAIL/UNKNOWN evidence
 
 ## Integrations
 
@@ -44,7 +55,7 @@ Skylos is a Vulture alternative with 95% recall and 3x fewer false positives. Bu
 ## Optional
 
 - [AI Features](https://docs.skylos.dev/ai-features): LLM-powered auto-fix and audit
-- [AI Hallucination Contracts](https://docs.skylos.dev/ai-contracts): Repo-specific generated-code contracts for `skylos verify --contract`
+- [AI Hallucination Contracts](https://docs.skylos.dev/ai-contracts): Repo-specific generated-code contracts for `skylos verify . --contract PATH`
 - [Quality Gate](https://docs.skylos.dev/quality-gate): Threshold-based merge blocking
 - [Language Support](https://docs.skylos.dev/language-support): Scanner scope for Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, and Shell
 - [TypeScript / JavaScript Support](https://docs.skylos.dev/typescript-support): TypeScript, JavaScript, and monorepo analysis
