@@ -111,6 +111,7 @@ use the `SKY-A` prefix.
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
 | `SKY-D223` | Undeclared Dependency | MEDIUM | Python | Import not declared in requirements.txt / pyproject.toml / setup.py |
+| `SKY-SCA-LIC001` | Dependency License Policy Violation | HIGH (set with `license_severity`) | Python, JavaScript | A dependency's declared license is on your `license_deny` list or outside your `license_allow` list; unknown (`NOASSERTION`) licenses never trigger it |
 
 #### AI Defects
 
@@ -180,6 +181,7 @@ Dockerfile `RUN` instructions, and selected Dockerfile build inputs.
 | `SKY-D346` | Flask Debug Mode Enabled | HIGH | Flask application enables debug mode, exposing interactive debugger behavior in unsafe contexts |
 | `SKY-D347` | Unsafe Logging Config Listener | MEDIUM | `logging.config.listen()` starts a configuration listener that can accept unsafe logging configuration input |
 | `SKY-D348` | Insecure Temporary Filename | HIGH | `tempfile.mktemp()` creates a predictable filename without securely creating the file, allowing race-condition attacks |
+| `SKY-D349` | Server-Side Template Injection | CRITICAL | Untrusted input reaches a template engine as template source (for example Flask `render_template_string` or Jinja2 `Environment.from_string`), letting an attacker run code on the server |
 
 #### GitHub Actions / CI/CD Security
 
