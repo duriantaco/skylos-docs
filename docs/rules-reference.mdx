@@ -129,6 +129,11 @@ and output contract.
 | `SKY-A104` | Public CLI Surface Drift | MEDIUM | Diff-aware CLI | Public CLI flag removed from argparse, Click, or Typer surface |
 | `SKY-A105` | Contract Route Guard Missing | HIGH | Python contract verify | Route handler is missing a guard decorator required by an AI hallucination contract |
 | `SKY-A106` | Suspicious Dependency Version Bump | LOW | Python manifests and lock files in Git changes | A dependency's old and new versions exactly match the project's own version change |
+| `SKY-A110` | Test Deleted | HIGH | Python tests (`skylos done`) | An existing test disappears without a matching moved or renamed test, or loses parametrized cases |
+| `SKY-A111` | Test Newly Skipped | HIGH | Python tests (`skylos done`) | An existing test gains skip, skipif, xfail, `pytest.skip()`, `importorskip`, or `skipTest` |
+| `SKY-A112` | Test Settings Loosened | HIGH | pytest, coverage, GitHub Actions (`skylos done`) | Test selection, local hooks, coverage floors, or CI test failure handling weaken the test run |
+| `SKY-A113` | Tests Fail When Skylos Runs Them | HIGH | Any test command (`skylos done`) | The configured test command fails, or an expected Python test does not report a result |
+| `SKY-A114` | Skylos Settings or Hooks Changed | HIGH | Repository files (`skylos done`) | Protected paths, `[tool.skylos]`, or a CI workflow that runs Skylos change |
 | `SKY-L012` | Phantom Function Call | CRITICAL | Python | Call to a security helper that is never defined or imported |
 | `SKY-L023` | Phantom Decorator | CRITICAL | Python | Security decorator that is never defined or imported |
 | `SKY-D222` | Hallucinated Dependency | CRITICAL | Python | Imported package does not exist on PyPI |
@@ -1134,6 +1139,77 @@ add the rule to the existing ignore list:
 [tool.skylos]
 ignore = ["SKY-A106"]
 ```
+
+---
+
+### Completion-Gate Rules (`skylos done`)
+
+The following five rules run through `skylos done`, rather than the ordinary
+`--ai-defects` scan. Their evidence is stored in the done receipt's
+`checks[*].findings`. Settings come from the trusted base commit: HEAD for a
+local comparison, or the requested base reference for `--base origin/main`.
+A check configured to block cannot pass when it is skipped or unfinished.
+
+### SKY-A110 · Test Deleted
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Python tests |
+| **What** | An existing test is deleted without a matching moved or renamed test, or loses parametrized cases |
+
+Matching test bodies preserve moved and renamed tests. A deleted test that
+directly references a deleted production module is reported as feature-removal
+advice; deleting an unrelated module does not qualify.
+
+### SKY-A111 · Test Newly Skipped
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Python tests |
+| **What** | An existing test gains skip, skipif, xfail, `pytest.skip()`, `importorskip`, or `skipTest` |
+
+The check compares existing tests with the base. Skips in a newly added test
+are not treated as a change to an existing test's protections.
+
+### SKY-A112 · Test Settings Loosened
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | pytest, coverage configuration, GitHub Actions |
+| **What** | Test settings are changed to run fewer tests, rewrite results, lower coverage floors, or allow CI test failures |
+
+Examples include added pytest selectors or ignored paths, local `conftest.py`
+hooks that drop tests or alter outcomes, and CI test steps that swallow errors.
+Assertion weakening remains separate advice under `SKY-A101` in the done gate.
+
+### SKY-A113 · Tests Fail When Skylos Runs Them
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Any configured test command; Python test inventory and JUnit XML for detailed evidence |
+| **What** | Skylos runs the configured test command and observes failure or missing expected Python test results |
+
+Pytest failures can be rerun within the time budget; a failure that passes on
+rerun is reported as flaky. A timeout, missing expected result, unavailable
+command, or `--no-tests` leaves a blocking check unfinished rather than passed.
+Trusted base collection settings may explain intentionally excluded tests;
+unexplained runtime deselection does not.
+
+### SKY-A114 · Skylos Settings or Hooks Changed
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Repository configuration and hook files |
+| **What** | The change edits protected paths, `[tool.skylos]` settings, or a CI workflow that runs Skylos |
+
+Protected paths include the configured agent hook and Skylos settings files.
+The change's own working-tree configuration cannot loosen this gate because
+Skylos reads done-gate settings from the trusted base.
 
 ---
 
