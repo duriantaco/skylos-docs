@@ -134,6 +134,7 @@ and output contract.
 | `SKY-A112` | Test Settings Loosened | HIGH | pytest, coverage, GitHub Actions (`skylos done`) | Test selection, local hooks, coverage floors, or CI test failure handling weaken the test run |
 | `SKY-A113` | Tests Fail When Skylos Runs Them | HIGH | Any test command (`skylos done`) | The configured test command fails, or an expected Python test does not report a result |
 | `SKY-A114` | Skylos Settings or Hooks Changed | HIGH | Repository files (`skylos done`) | Protected paths, `[tool.skylos]`, or a CI workflow that runs Skylos change |
+| `SKY-A120` | Changed Line Not Checked by Tests | MEDIUM | Python with pytest (`skylos done`) | A changed executable line in non-test code is not run by tests, or its tests still pass after a deliberate mutation; advises by default |
 | `SKY-L012` | Phantom Function Call | CRITICAL | Python | Call to a security helper that is never defined or imported |
 | `SKY-L023` | Phantom Decorator | CRITICAL | Python | Security decorator that is never defined or imported |
 | `SKY-D222` | Hallucinated Dependency | CRITICAL | Python | Imported package does not exist on PyPI |
@@ -1144,7 +1145,7 @@ ignore = ["SKY-A106"]
 
 ### Completion-Gate Rules (`skylos done`)
 
-The following five rules run through `skylos done`, rather than the ordinary
+The following six rules run through `skylos done`, rather than the ordinary
 `--ai-defects` scan. Their evidence is stored in the done receipt's
 `checks[*].findings`. Settings come from the trusted base commit: HEAD for a
 local comparison, or the requested base reference for `--base origin/main`.
@@ -1210,6 +1211,25 @@ unexplained runtime deselection does not.
 Protected paths include the configured agent hook and Skylos settings files.
 The change's own working-tree configuration cannot loosen this gate because
 Skylos reads done-gate settings from the trusted base.
+
+### SKY-A120 · Changed Line Not Checked by Tests
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | Python with pytest |
+| **What** | A changed executable line in non-test code is not run by tests, or its tests still pass after Skylos deliberately changes it |
+
+After a passing pytest run, Skylos traces changed lines inside functions and
+reruns their covering tests against bounded mutations loaded in memory. The
+working tree is not modified. Uncovered lines and surviving mutations are
+listed as unverified on the receipt.
+
+Import-only or untraceable code and time or mutant limits are reported as not
+checked. A line without a supported mutation has coverage-only evidence.
+The `changed_lines_checked` check in `[tool.skylos.done.checks]` advises by
+default; configure it to block when failed or unfinished checks should stop
+the gate.
 
 ---
 
