@@ -571,22 +571,43 @@ Requires `skylos login` first. See [Billing & Credits](/billing) for pricing.
 
 ### `skylos cicd init`
 
-Generate a GitHub Actions workflow file for automated scanning.
+Generate a GitHub Actions workflow with a PR quality gate, a Done job when
+tests are discovered, and a default-branch Cloud upload through GitHub OIDC.
+
+The behavior and options in this section require **Skylos 4.46.0 or newer**.
+Skylos 4.45.0 has the older generator and does not accept `--no-upload`,
+`--done` or `--default-branch`.
 
 ```bash
+python -m pip install --upgrade "skylos>=4.46.0"
 skylos cicd init
+skylos cicd init --no-upload
 ```
+
+PR scan and Done jobs have no Cloud credentials or OIDC permission. The
+separate upload job runs only on default-branch pushes and needs the Skylos
+GitHub App installed on the repository. Inspect the generated test dependency
+step before making **Skylos Done** a required check.
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--python-version` | 3.12 | Python version for the workflow |
 | `--triggers` | `pull_request push` | GitHub event triggers |
-| `--analysis` | `dead-code security quality secrets` | Analysis types to enable |
+| `--analysis` | `dead-code security quality ai-defects secrets dependency` | Analysis types to enable |
 | `--no-baseline` | false | Skip baseline comparison |
 | `--llm` | false | Include LLM-enhanced analysis |
 | `--model` | — | LLM model to use with `--llm` |
-| `--upload` | false | Include `--upload` step to send scan results to the Skylos cloud dashboard. Requires `SKYLOS_TOKEN` in repo secrets. |
+| `--upload` / `--no-upload` | on | Upload full scans on default-branch pushes with GitHub OIDC; no stored API key required. Use `--no-upload` for CI without Cloud. |
+| `--done` / `--no-done` | auto | Add Done when pytest tests or a configured `[tool.skylos.done]` test command are found; force or omit the job explicitly. |
+| `--default-branch` | `origin/HEAD`, else `main` and `master` | Branch whose pushes are scanned for Cloud upload. |
+| `--scan-path` | `.` | Directory to scan, such as `apps/api`. Does not route the generated policy-sync step to a Cloud project subpath. |
+| `--advisory-gate` | false | Report quality-gate failures without failing the generated gate job. |
+| `--defend` | false | Include AI Defense checks. |
 | `--output`, `-o` | `.github/workflows/skylos.yml` | Output file path |
+
+For multiple Cloud projects in a monorepo, use the GitHub App's generated
+per-root workflow. The CLI-generated `skylos sync pull` step sends no GitHub
+project-subpath header, so `--scan-path` alone can leave policy sync ambiguous.
 
 ### `skylos cicd gate`
 

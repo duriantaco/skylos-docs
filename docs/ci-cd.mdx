@@ -19,7 +19,7 @@ Trivy.
 | Built GPU artifact gate | `skylos preflight build/app` | Exact artifact report: exit `0` PASS, `1` FAIL, `2` UNKNOWN |
 | Workflow security review | `skylos . --danger` | Scans `.github/workflows/*` and local action metadata |
 | Cloud upload with dashboard policy | `skylos . --upload` | Uses project policy, suppressions, and cloud history |
-| GitHub hard enforcement | `skylos . --upload` plus GitHub App and branch protection | Requires repo URL and cloud setup |
+| GitHub required checks | `skylos cicd init` plus branch protection | PR quality gate and Done run without Cloud credentials; the GitHub App provides a separate Cloud-managed PR gate |
 
 ## GitHub Actions Workflow Security
 
@@ -45,82 +45,201 @@ misconfiguration rules.
 
 ## GitHub Actions with OIDC
 
-OIDC is the cleanest GitHub Actions path because it avoids long-lived secrets.
+Run PR scans and tests without Cloud credentials. Upload full scans only on
+pushes to the default branch, using GitHub OIDC. Generate this workflow with:
+
+```bash
+python -m pip install --upgrade "skylos>=4.46.0"
+skylos cicd init
+```
+
+The onboarding generator, Done discovery and options below require **Skylos
+4.46.0 or newer**. Skylos 4.45.0 does not include this generated workflow or
+the `--no-upload`, `--done` and `--default-branch` options.
+
+See the [first gated PR guide](https://github.com/duriantaco/skylos/blob/main/docs/first-gated-pr.md)
+for setup and branch protection. Use `skylos cicd init --no-upload` if you
+do not use Cloud.
 
 Preconditions:
-- the Skylos project has a unique GitHub `repo_url`
-- the workflow has `id-token: write`
+- the Skylos project is bound to the GitHub repository
+- the Skylos GitHub App is installed on that repository
+- only the default-branch upload job has `id-token: write`
+
+The example below assumes a Python project with pytest and one Cloud project
+for the repository. Replace `main` with your default branch and edit the Done
+dependency step for your project. Use the App's per-root workflow for multiple
+monorepo projects.
+`skylos cicd init` detects your branch and whether to add Done automatically.
 
 ```yaml
-name: Skylos Quality Gate
+name: Skylos Analysis
 
 on:
   pull_request:
-    branches: [main, master]
+  push:
+    branches: [main]
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   skylos:
+    if: github.event_name == 'pull_request'
+    name: Skylos Quality Gate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
-          python-version: '3.11'
-      - run: pip install skylos
-      - run: skylos . --danger --quality --ai-defects --upload
+          python-version: '3.12'
+      - run: python -I -m pip install "skylos>=4.46.0"
+      - name: Scan changed code
+        run: |
+          pr_base_ref="origin/$GITHUB_BASE_REF"
+          skylos . --danger --secrets --quality --ai-defects --sca --no-upload --diff-base "$pr_base_ref" --diff "$pr_base_ref" --json -o skylos-results.json
+      - name: Quality gate
+        if: always()
+        run: skylos cicd gate --input skylos-results.json --summary
+
+  done:
+    if: github.event_name == 'pull_request'
+    name: Skylos Done
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - run: python -I -m pip install "skylos>=4.46.0"
+      - name: Install project test dependencies
+        run: python -I -m pip install -e . pytest
+      - name: Run tests and check the change is finished
+        run: skylos done --base "origin/$GITHUB_BASE_REF"
+
+  cloud-upload:
+    if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    name: Skylos Cloud upload
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - run: python -I -m pip install "skylos>=4.46.0"
+      - run: skylos sync pull
+      - run: skylos . --danger --secrets --quality --ai-defects --sca --upload
+        env:
+          SKYLOS_COMMIT: ${{ github.sha }}
+          SKYLOS_BRANCH: ${{ github.ref_name }}
 ```
+
+The generated workflow also adds annotations and PR review comments. The
+example above shows the scan, test and upload jobs without those optional
+reporting steps. Done reads its settings from the base branch, runs your
+tests, and writes a receipt to the job summary. A skipped or unfinished
+blocking check cannot pass.
+
+The GitHub App's Cloud-managed PR workflow is a separate path. It scans PR
+code in an unprivileged job, then publishes through an isolated trusted job.
+Adding OIDC permission or a stored token to an ordinary PR test job does not
+turn it into that workflow.
+
+In the App-generated Done job, Python test dependencies share the scanner's
+Python environment. Keep them compatible with the selected Skylos version;
+the job stops before Done runs if installation replaces that version. If your
+Python build backend creates local artifacts such as `*.egg-info/`, add
+narrow patterns to the reviewed base `.gitignore` before requiring the check.
+The clean-checkout guard still rejects source changes; do not ignore all
+untracked files to make a receipt pass.
+
+The App workflow uses `pull_request_target`. GitHub's [default event
+policy](https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target#default-policy-for-pull_request_target)
+applies to public repositories without an existing applicable event policy.
+It currently evaluates this trigger; enforcement starts November 2, 2026
+for affected repositories using that default policy before general
+availability. Check that your applicable policy permits the App workflow
+before requiring its check.
 
 How OIDC works:
 1. GitHub Actions issues a short-lived OIDC token
 2. Skylos verifies it
-3. Skylos resolves the target project by matching the workflow repository to the project's `repo_url`
+3. Cloud verifies the repository and App binding, then resolves the project, using the project subpath when supplied
 4. the upload proceeds with no `SKYLOS_TOKEN`
 
 ### OIDC failure modes
 
 OIDC upload fails when:
-- no project has the matching repo URL
-- more than one project has the same repo URL
-- the workflow is missing `id-token: write`
+- no project matches the verified repository and requested project subpath
+- several projects match because the request omits a subpath or duplicates exist for that repository and subpath
+- the GitHub App is not installed on the repository
+- the upload job is missing `id-token: write`
+- an ordinary PR job tries to upload instead of a default-branch push job
 
 ## GitHub Actions with `SKYLOS_TOKEN`
 
-Use this when you want explicit secret management or are not ready to rely on OIDC.
+Use this for explicit secret management. Keep the stored token in a trusted
+default-branch upload job; PR scans and tests do not need it. A local API key
+upload is stored as unverified and cannot pass the Cloud GitHub gate.
+Put `SKYLOS_TOKEN` in a GitHub environment named `skylos-security` and
+restrict that environment to your default branch.
 
 ```yaml
-name: Skylos Quality Gate
+name: Skylos Cloud upload
 
 on:
-  pull_request:
-    branches: [main, master]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
-  skylos:
+  cloud-upload:
+    if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: skylos-security
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
-          python-version: '3.11'
-      - run: pip install skylos
+          python-version: '3.12'
+      - run: python -I -m pip install skylos
       - name: Run Skylos
         env:
           SKYLOS_TOKEN: ${{ secrets.SKYLOS_TOKEN }}
-        run: skylos . --danger --quality --ai-defects --upload
+        run: skylos . --danger --secrets --quality --ai-defects --upload
 ```
 
+Replace `main` with your default branch.
+
 Use `SKYLOS_TOKEN` for:
-- GitHub without OIDC
-- `skylos sync pull` in CI
-- fallback while migrating to OIDC
+- CI providers without OIDC
+- explicit project selection in a trusted CI job
+- local policy sync or upload
+
+For GitHub OIDC, `skylos sync pull` uses the same accepted CI identity as the
+upload. It does not require a stored token in the default-branch upload job.
 
 ## Advisory Quality Checks
 
@@ -136,7 +255,7 @@ Recommended advisory bundle:
 
 ```yaml
 - name: Skylos advisory scan
-  run: skylos . --danger --secrets --quality --ai-defects --diff-base origin/main --diff origin/main --json -o skylos-results.json
+  run: skylos . --danger --secrets --quality --ai-defects --no-upload --diff-base origin/main --diff origin/main --json -o skylos-results.json
 
 - name: Advisory quality summary
   if: always()
@@ -164,31 +283,35 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   skylos:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
-          python-version: '3.11'
-      - run: pip install skylos
+          python-version: '3.12'
+      - run: python -I -m pip install skylos
 
       - name: Run Skylos on changed code
         run: |
           pr_base_ref="origin/${GITHUB_BASE_REF:-main}"
-          skylos . --danger --quality --secrets --ai-defects --diff "$pr_base_ref" --json -o skylos-results.json
+          skylos . --danger --quality --secrets --ai-defects --no-upload --diff-base "$pr_base_ref" --diff "$pr_base_ref" --json -o skylos-results.json
 
       - name: Post GitHub annotations
         if: always()
         run: skylos cicd annotate --input skylos-results.json
 
       - name: Post PR review comments
-        if: always()
+        if: always() && github.event.pull_request.head.repo.full_name == github.repository
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -205,10 +328,20 @@ skylos cicd review --input skylos-results.json --pr 42 --repo owner/repo
 
 Use `--summary-only` when you want a single PR summary comment without inline
 comments. Use `--max-comments` to cap review noise on large diffs.
+Fork PRs still get the scan and annotations; the comment step is skipped
+because their GitHub token has read-only permissions.
 
 ## Pulling Policy in CI
 
-If you want the CI runner to use the latest dashboard-managed thresholds and suppressions locally before the scan, add:
+The generated default-branch upload job pulls policy with its GitHub OIDC
+identity before scanning:
+
+```yaml
+- name: Pull Skylos policy
+  run: skylos sync pull
+```
+
+In a trusted job that uses an API key instead, provide `SKYLOS_TOKEN`:
 
 ```yaml
 - name: Pull Skylos policy
@@ -218,35 +351,49 @@ If you want the CI runner to use the latest dashboard-managed thresholds and sup
 ```
 
 That writes `.skylos/config.yaml` and `.skylos/suppressions.json` in the checkout.
+Keep policy sync and its credentials out of ordinary PR test jobs.
 
 ## Generated Workflow Helpers
 
 ### `skylos cicd init`
 
-Use `skylos cicd init` when you want Skylos to scaffold a workflow file.
+Use `skylos cicd init` from **Skylos 4.46.0 or newer** to scaffold the workflow
+described here.
 
 Examples:
 
 ```bash
 skylos cicd init
-skylos cicd init --upload
+skylos cicd init --no-upload
+skylos cicd init --done
 skylos cicd init --defend
-skylos cicd init --defend --upload
 ```
 
-Important behavior today:
-- `skylos cicd init --upload` generates a **token-based** workflow
-- it does **not** generate an OIDC workflow for you
+The generated workflow has:
+- **Skylos Quality Gate** on PRs: a changed-line scan, gate summary, annotations and review comments
+- **Skylos Done** on PRs when pytest tests or a configured test command are found: tests and a completion receipt
+- **Skylos Cloud upload** on default-branch pushes: policy sync and a full scan using GitHub OIDC
+
+Upload is on by default; `--no-upload` omits it. `--done` and `--no-done`
+override test discovery. `--default-branch` overrides branch detection, and
+`--scan-path` changes the scanned directory. The generated workflow pins
+the installed Skylos version, so regenerate it after upgrading Skylos.
+
+For multiple Cloud projects in a monorepo, use the GitHub App's generated
+per-root workflow. CLI `--scan-path` does not route the generated
+`skylos sync pull` step: it sends no GitHub project-subpath header and can
+fail when several projects match the repository.
 
 ### `skylos sync setup`
 
-`skylos sync setup` is a token-driven scaffolding helper for optional hooks and workflow files.
+`skylos sync setup` asks for an API key to connect the local repository and
+scaffold optional hooks and workflow files.
 
 Current behavior:
 - it asks for a token
 - it can scaffold pre-push hooks, pre-commit config, and a GitHub Actions workflow
-- its generated upload workflow expects `SKYLOS_TOKEN`
-- it is **not** the browser-based OIDC setup path
+- its generated CI workflow scans PRs locally and uploads default-branch pushes with GitHub OIDC
+- use `skylos cicd init` for the PR gate and discovered Done job described above
 
 ## GitHub App Enforcement
 
@@ -355,15 +502,24 @@ Set the exact GitHub repo URL on the Skylos project.
 
 ### OIDC upload says the repo binding is ambiguous
 
-Make sure only one project has that repo URL.
+Make sure the request identifies the intended project subpath and only one
+project matches that repository and subpath. Use the App's per-root workflow
+for multiple monorepo projects; CLI `--scan-path` alone does not route policy
+sync.
 
 ### `skylos sync pull` fails in CI
 
-`sync pull` needs `SKYLOS_TOKEN`. It does not use GitHub OIDC.
+`sync pull` accepts GitHub OIDC in an authorized default-branch upload job.
+Check `id-token: write`, the project repo URL and the App installation.
+For local use or a provider without OIDC, use a saved API key or
+`SKYLOS_TOKEN`. Do not move policy sync into an ordinary PR test job.
 
 ### The workflow generated by `sync setup` still wants a token
 
-That is expected today. `sync setup` and generated upload workflows are token-based helpers.
+`sync setup` asks for a token to connect your local repository. Its generated
+default-branch upload uses GitHub OIDC. An older workflow that references
+`SKYLOS_TOKEN` can be replaced with `skylos cicd init`; review the generated
+file before committing it.
 
 ### Upload works but there is no GitHub-native PR status
 

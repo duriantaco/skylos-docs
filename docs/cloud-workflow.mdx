@@ -147,16 +147,18 @@ The current token resolution order is:
 4. the legacy default saved token
 5. system keyring fallback
 
-### Linked repos auto-upload by default
+### Linked repos upload when requested
 
-Once a repo is linked, plain `skylos .` will auto-enable upload unless you opt out:
+Linking saves the upload destination and credentials. Plain scans stay local;
+add `--upload` to send a report:
 
 ```bash
 skylos .
-skylos . --no-upload
+skylos . --upload
 ```
 
-That behavior is intentional and worth documenting for teams.
+The generated CI workflow has a separate upload job that passes `--upload`
+on default-branch pushes.
 
 ### Custom rules are loaded at scan time
 
@@ -212,7 +214,12 @@ Set the repo URL when you want:
 - PR-linked GitHub check runs and comments
 - repo-aware default-branch resolution
 
-OIDC uploads require one unique project whose `repo_url` matches the GitHub repository. If no project matches, or multiple projects match, OIDC upload fails.
+OIDC requires a unique project for the verified repository and the project
+subpath supplied by the request. Multiple projects in one monorepo work when
+each request identifies its root, such as `apps/api`. If no project matches,
+or several projects still match the repository and requested subpath, Cloud
+rejects the upload. A request without a subpath is ambiguous when it matches
+several projects.
 
 ## 6. Pull Cloud Policy and Suppressions Back Into the Repo
 
@@ -248,40 +255,72 @@ There are two main cloud upload patterns.
 
 ### GitHub Actions with OIDC
 
-Use this when you want secretless GitHub uploads.
+Use this for uploads from default-branch pushes without a stored API key.
+PR scans and tests run separately, without Cloud credentials or OIDC.
+`skylos cicd init` generates both paths; see [CI/CD Integration](/ci-cd#github-actions-with-oidc).
+
+The onboarding workflow and generator options described here require
+**Skylos 4.46.0 or newer**. Skylos 4.45.0 has the older generator.
 
 Preconditions:
-- the project has a unique GitHub `repo_url` saved in dashboard settings
-- the workflow has `id-token: write`
+- the project is bound to the GitHub repository in dashboard settings
+- the Skylos GitHub App is installed on the repository
+- only the upload job has `id-token: write`
+
+This upload-only example assumes one Cloud project for the repository and
+`main` as its default branch. Replace the branch name as needed. Use the
+App's per-root workflow for multiple monorepo projects.
 
 ```yaml
-name: Skylos Scan
+name: Skylos Cloud upload
 
 on:
-  pull_request:
-    branches: [main, master]
+  push:
+    branches: [main]
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
-  skylos:
+  cloud-upload:
+    if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
-          python-version: "3.11"
-      - run: pip install skylos
-      - run: skylos . --danger --quality --ai-defects --upload
+          python-version: '3.12'
+      - run: python -I -m pip install "skylos>=4.46.0"
+      - run: skylos sync pull
+      - run: skylos . --danger --secrets --quality --ai-defects --upload
+        env:
+          SKYLOS_COMMIT: ${{ github.sha }}
+          SKYLOS_BRANCH: ${{ github.ref_name }}
 ```
+
+Cloud rejects uploads from ordinary `pull_request` jobs. Its GitHub App has
+a separate PR workflow with an unprivileged scanner and isolated trusted
+policy and publishing jobs. Use that generated workflow for Cloud-verified
+PR checks; do not add credentials to your PR tests.
+
+The App's Done job selects test setup from the reviewed base branch. Python
+test dependencies share the scanner's Python environment and must preserve
+the selected Skylos version; setup stops with an error if installation
+replaces it. Expected local build artifacts, such as `*.egg-info/`, must have
+narrow ignore patterns in the reviewed base `.gitignore`. Done still requires
+a clean checkout: do not hide source changes or ignore all untracked files.
 
 ### Token-based CI
 
-Use this for GitHub without OIDC, GitLab, CircleCI, Jenkins, or any other CI.
+Use this in a trusted CI job for providers without OIDC or for explicit
+project selection. Keep stored tokens out of PR test jobs.
 
 ```yaml
 - name: Run Skylos
@@ -298,15 +337,29 @@ If you want the CI runner to use the latest synced dashboard thresholds and supp
 skylos sync pull
 ```
 
-That requires `SKYLOS_TOKEN`, because OIDC is used for upload resolution, not for `sync pull`.
+The generated default-branch upload job authenticates policy sync with its
+GitHub OIDC identity. For local use or CI without OIDC, provide a saved API
+key or `SKYLOS_TOKEN`.
 
 ### Generated workflows vs OIDC
 
-`skylos cicd init --upload` currently generates a token-based upload workflow. It does not generate an OIDC workflow for you.
+`skylos cicd init` generates a PR quality gate, a Done job when pytest tests
+or a configured test command are found, and a separate default-branch upload
+job using GitHub OIDC. Upload is on by default; use `--no-upload` to omit it.
+Use `--done` or `--no-done` to override test discovery. Regenerate after
+upgrading Skylos to update the installed-version pin.
+
+For multiple Cloud projects in a monorepo, use the GitHub App's generated
+per-root workflow. CLI `--scan-path` changes the scanned directory, but the
+CLI-generated `skylos sync pull` step does not send a GitHub project-subpath
+header and can fail with an ambiguous binding.
 
 ### `skylos sync setup`
 
-`skylos sync setup` is a token-driven helper for scaffolding hooks and workflow files. It currently asks for a token and writes token-based workflow examples. It is not the browser-based OIDC setup path.
+`skylos sync setup` asks for a token to connect the local repository and
+scaffold hooks and workflow files. Its generated CI workflow scans PRs
+locally and uploads default-branch pushes through GitHub OIDC. Use
+`skylos cicd init` to generate the quality gate and discovered Done job.
 
 ## 8. How the Cloud Gate Decides Pass or Fail
 
@@ -342,18 +395,19 @@ A clean team rollout usually looks like this:
 
 1. Start with local scans only.
 2. Connect the repo with `skylos login`.
-3. Upload from a developer machine once with `skylos . --upload`.
+3. Upload from a developer machine once with `skylos . --upload` to check the connection. This scan is unverified and cannot pass the Cloud GitHub gate.
 4. Set the project repo URL if you want GitHub-native features.
 5. Configure policy in `Dashboard -> Settings`.
 6. Run `skylos sync pull` so the repo has the latest synced config and suppressions.
-7. Add CI with either OIDC or `SKYLOS_TOKEN`.
-8. Add the GitHub App and branch protection only after uploads are stable.
+7. Install the GitHub App, then generate CI with `skylos cicd init`: PR checks plus default-branch OIDC uploads.
+8. Check that the expected PR jobs run, then require them in branch protection.
 
 ## Troubleshooting
 
-### `skylos .` uploads even without `--upload`
+### A linked scan does not appear in Cloud
 
-The repo is linked. Use `--no-upload` to force a local-only run.
+Linking alone does not enable scan uploads. Run `skylos . --upload` to send
+the report.
 
 ### OIDC says the repo is not linked
 
@@ -361,7 +415,9 @@ Save the exact GitHub repo URL on the project in dashboard settings.
 
 ### OIDC says the repo binding is ambiguous
 
-More than one project has the same `repo_url`. Fix the duplicate binding so one repo maps to one project.
+Check the requested project subpath and remove duplicate bindings for the
+same repository and subpath. For multiple monorepo projects, use the App's
+per-root workflow; CLI `--scan-path` alone does not route policy sync.
 
 ### `skylos sync pull` says not connected
 
