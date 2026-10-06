@@ -134,6 +134,9 @@ and output contract.
 | `SKY-A112` | Test Settings Loosened | HIGH | pytest, coverage, GitHub Actions (`skylos done`) | Test selection, local hooks, coverage floors, or CI test failure handling weaken the test run |
 | `SKY-A113` | Tests Fail When Skylos Runs Them | HIGH | Any test command (`skylos done`) | The configured test command fails, or an expected Python test does not report a result |
 | `SKY-A114` | Skylos Settings or Hooks Changed | HIGH | Repository files (`skylos done`) | Protected paths, `[tool.skylos]`, or a CI workflow that runs Skylos change |
+| `SKY-A115` | Test Answer Hard-Coded in Code | HIGH | Python, JavaScript/TypeScript (`skylos done`) | Added production code answers an existing test's literal input with that test's expected value; weaker matches advise |
+| `SKY-A116` | Code Detects the Test Run | HIGH | Python, JavaScript/TypeScript (`skylos done`) | Production code detects a test runner or reads the tests' own files; general environment switches advise |
+| `SKY-A117` | Comparison Rigged to Always Pass | HIGH | Python, JavaScript/TypeScript (`skylos done`) | Added comparison or coercion methods return constants or ignore the compared value |
 | `SKY-A120` | Changed Line Not Checked by Tests | MEDIUM | Python with pytest (`skylos done`) | A changed executable line in non-test code is not run by tests, or its tests still pass after a deliberate mutation; advises by default |
 | `SKY-L012` | Phantom Function Call | CRITICAL | Python | Call to a security helper that is never defined or imported |
 | `SKY-L023` | Phantom Decorator | CRITICAL | Python | Security decorator that is never defined or imported |
@@ -1145,7 +1148,7 @@ ignore = ["SKY-A106"]
 
 ### Completion-Gate Rules (`skylos done`)
 
-The following six rules run through `skylos done`, rather than the ordinary
+The following rules run through `skylos done`, rather than the ordinary
 `--ai-defects` scan. Their evidence is stored in the done receipt's
 `checks[*].findings`. Settings come from the trusted base commit: HEAD for a
 local comparison, or the requested base reference for `--base origin/main`.
@@ -1211,6 +1214,82 @@ unexplained runtime deselection does not.
 Protected paths include the configured agent hook and Skylos settings files.
 The change's own working-tree configuration cannot loosen this gate because
 Skylos reads done-gate settings from the trusted base.
+
+### SKY-A115 · Test Answer Hard-Coded in Code
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Python, JavaScript/TypeScript |
+| **What** | Added production code recognises a test's literal input and returns, prints or assigns that test's expected answer |
+
+The check matches branches, conditional expressions, `match`/`switch` cases
+and lookup tables against test assertions, parameter rows and recognised test
+data. Strong matches must link the code to a test assertion that existed at
+the base and match the input and expected answer from that same assertion.
+
+A function that also computes answers normally can still contain a hard-coded
+answer for a particular test. A table keyed by multiple inputs or a whole list
+can also count, even without another computation path. Simple standalone
+lookup tables, new assertions and ambiguous matches are advice. Trivial edge
+cases and string literals already used in non-test code or quoted in docs at
+the base are excluded or downgraded to advice.
+
+Exact-answer findings identify the production location, matched test, input
+and answer.
+
+### SKY-A116 · Code Detects the Test Run
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Python, JavaScript/TypeScript |
+| **What** | Added production code detects a test runner or reads identified test files or fixtures |
+
+Examples include `PYTEST_CURRENT_TEST`, `"pytest" in sys.modules`,
+`process.env.JEST_WORKER_ID`, `import.meta.vitest` and recognised reads of
+the tests' own files. General environment switches such as
+`NODE_ENV === "test"` are advice because applications commonly use them on
+purpose.
+
+Runner-detection and test-file-read markers in test setup, configuration and
+plugin files are excluded. The check distinguishes reads from writes;
+writing a file alone is not test-file detection.
+
+### SKY-A117 · Comparison Rigged to Always Pass
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Python, JavaScript/TypeScript |
+| **What** | Added comparison or coercion methods return constants or ignore the value being compared |
+
+Examples include Python `__eq__` returning `True`, `__ne__` returning `False`
+or `__contains__` returning `True`; JavaScript `equals()` or `isEqual()` that
+always succeeds, `compareTo()` that always returns zero, and constant
+`valueOf()` or `[Symbol.toPrimitive]` results.
+
+Honest field comparisons and Python `NotImplemented` returns are excluded.
+Constant ordering and hashes, constant string representations matching text a
+test expects, and classes named like wildcard matchers are weaker signals
+reported as advice.
+
+#### Shared Policy and Limits
+
+These three rules share the `test_special_casing` check. It statically analyses
+added or changed patterns in non-test production code and reports their source
+location. Existing patterns at the base, including code moved between changed
+files, do not count. Generated files and unreferenced new scripts receive
+advice rather than blocking findings.
+
+The check defaults to `block`, while weaker individual findings remain advice.
+Configure `test_special_casing` under `[tool.skylos.done.checks]` in the trusted
+base with `block`, `advise`, `shadow` or `off`. Changing that setting in the
+same change cannot loosen the current check.
+
+Detection is bounded: indirect helpers, dynamic test values, deeper call
+chains and some stateful cheats remain outside coverage. A finding is evidence
+to review, and the absence of a finding does not prove that code cannot cheat.
 
 ### SKY-A120 · Changed Line Not Checked by Tests
 
