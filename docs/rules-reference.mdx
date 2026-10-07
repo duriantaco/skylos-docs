@@ -137,7 +137,10 @@ and output contract.
 | `SKY-A115` | Test Answer Hard-Coded in Code | HIGH | Python, JavaScript/TypeScript (`skylos done`) | Added production code answers an existing test's literal input with that test's expected value; weaker matches advise |
 | `SKY-A116` | Code Detects the Test Run | HIGH | Python, JavaScript/TypeScript (`skylos done`) | Production code detects a test runner or reads the tests' own files; general environment switches advise |
 | `SKY-A117` | Comparison Rigged to Always Pass | HIGH | Python, JavaScript/TypeScript (`skylos done`) | Added comparison or coercion methods return constants or ignore the compared value |
+| `SKY-A118` | Inline Suppression Added | LOW | Non-test source (`skylos done`) | New suppression directives or dummy variable uses on added lines; always advice |
+| `SKY-A119` | Linter or Scanner Settings Weakened | HIGH | Linter, type-checker and scanner configuration (`skylos done`) | Previously enabled checks or strictness reduced, checked source excluded, or findings allow-listed; advises by default |
 | `SKY-A120` | Changed Line Not Checked by Tests | MEDIUM | Python with pytest (`skylos done`) | A changed executable line in non-test code is not run by tests, or its tests still pass after a deliberate mutation; advises by default |
+| `SKY-A121` | CI Check Weakened | HIGH | GitHub Actions, GitLab CI (`skylos done`) | Required checks become optional, stop running, lose merge triggers, or leave required job dependencies; advises by default |
 | `SKY-L012` | Phantom Function Call | CRITICAL | Python | Call to a security helper that is never defined or imported |
 | `SKY-L023` | Phantom Decorator | CRITICAL | Python | Security decorator that is never defined or imported |
 | `SKY-D222` | Hallucinated Dependency | CRITICAL | Python | Imported package does not exist on PyPI |
@@ -1291,6 +1294,41 @@ Detection is bounded: indirect helpers, dynamic test values, deeper call
 chains and some stateful cheats remain outside coverage. A finding is evidence
 to review, and the absence of a finding does not prove that code cannot cheat.
 
+### SKY-A118 · Inline Suppression Added
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | Non-test source files with supported suppression syntax |
+| **What** | An added line introduces a suppression directive or a dummy variable use that silences a warning |
+
+Examples include `# noqa`, `# type: ignore`, `# nosec`, `eslint-disable`,
+`@ts-ignore`, Go `//nolint`, Rust `#[allow(...)]`, and dummy uses such as
+`_ = name` or `void name;` when the dummy use is the variable's only use.
+Existing directives and equivalent moved suppressions are not new findings. Generated and vendored files are excluded;
+suppressions in tests are counted separately from production findings.
+
+Fix the underlying warning where possible, or keep a necessary suppression
+narrow and explain its reason. Inline suppression findings remain advice,
+even when the `silenced_checks` check is configured to block.
+
+### SKY-A119 · Linter or Scanner Settings Weakened
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Linter, type-checker and scanner configuration |
+| **What** | A change disables previously enabled checks, lowers strictness, excludes checked source, or adds finding or secret allow-lists |
+
+Examples include newly ignored Ruff or ESLint rules, disabled TypeScript
+`strict` settings, source exclusions, and scanner rules or secrets added to
+allow-lists. Restore the intended checks and review each necessary exception.
+
+Settings from the files a tool reads in one directory are compared together.
+Equivalent moves between configuration files do not weaken a check. Unknown
+dynamic configuration is not guessed, and exclusions that match no checked
+source are not reported.
+
 ### SKY-A120 · Changed Line Not Checked by Tests
 
 | | |
@@ -1309,6 +1347,41 @@ checked. A line without a supported mutation has coverage-only evidence.
 The `changed_lines_checked` check in `[tool.skylos.done.checks]` advises by
 default; configure it to block when failed or unfinished checks should stop
 the gate.
+
+### SKY-A121 · CI Check Weakened
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | GitHub Actions and GitLab CI |
+| **What** | A previously required check becomes optional, disabled, removed, no longer triggered for merges, or absent from required job dependencies |
+
+Examples include added `continue-on-error`, GitLab `allow_failure`, swallowed
+command failures, removed lint or scan steps, and a merge gate that no longer
+needs a job running checks. Restore check execution, failure propagation,
+merge triggers, and required job dependencies.
+
+Equivalent renamed or relocated checks and newly introduced advisory checks
+do not count as weakening. Workflows that only run on a schedule or manual
+trigger do not establish a merge gate. GitHub test steps newly allowed to
+fail remain under `SKY-A112`; removed or disabled test checks and applicable
+GitLab test changes are covered here. Changes to workflows running Skylos
+can also trigger `SKY-A114`.
+
+#### Silenced Checks Policy
+
+These three rules share the `silenced_checks` check, which advises by default.
+To make weakened settings and CI checks block, set this in the trusted base:
+
+```toml
+[tool.skylos.done.checks]
+silenced_checks = "block"
+```
+
+This makes weakened production settings and CI checks blocking. `SKY-A118`
+and settings changes affecting only test files remain advice. Changing this
+setting in the same change cannot loosen the current check.
+
 
 ---
 
