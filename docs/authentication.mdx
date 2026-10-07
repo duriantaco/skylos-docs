@@ -49,11 +49,12 @@ Files written:
 - `~/.skylos/credentials.json`
 - `<repo>/.skylos/link.json`
 
-After a repo is linked, plain `skylos .` will auto-enable upload unless you pass `--no-upload`.
+Linking saves the project and credentials for future uploads. A plain
+`skylos .` scan does not upload; add `--upload` to send its report to Cloud.
 
 ```bash
 skylos .
-skylos . --no-upload
+skylos . --upload
 ```
 
 ### Switching or inspecting the linked project
@@ -108,46 +109,82 @@ SKYLOS_TOKEN=sk_live_xxx... skylos . --upload
 
 ## GitHub Actions OIDC
 
-OIDC is the secretless GitHub Actions path.
+OIDC authenticates default-branch uploads without a stored API key. Generate
+the full PR gate and upload workflow with `skylos cicd init`; see
+[CI/CD Integration](/ci-cd#github-actions-with-oidc).
+
+The generated onboarding workflow described here requires **Skylos 4.46.0
+or newer**. Skylos 4.45.0 has the older workflow generator.
 
 Preconditions:
-1. your Skylos project has a unique `repo_url` that matches the GitHub repository
-2. your workflow has `id-token: write`
+1. your Skylos project is bound to the GitHub repository
+2. the Skylos GitHub App is installed on that repository
+3. only the upload job has `id-token: write`
+
+This upload-only example assumes one Cloud project for the repository and a
+default branch named `main`. Replace the branch name as needed. For multiple
+monorepo projects, use the App's per-root workflow described below.
 
 ```yaml
-name: Skylos Scan
-on: [pull_request]
+name: Skylos Cloud upload
+
+on:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
-  scan:
+  cloud-upload:
+    if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
-          python-version: '3.11'
-      - run: pip install skylos
-      - run: skylos . --danger --upload
+          python-version: '3.12'
+      - run: python -I -m pip install "skylos>=4.46.0"
+      - run: skylos sync pull
+      - run: skylos . --danger --secrets --quality --ai-defects --upload
+        env:
+          SKYLOS_COMMIT: ${{ github.sha }}
+          SKYLOS_BRANCH: ${{ github.ref_name }}
 ```
+
+Ordinary `pull_request` jobs scan code and run tests without OIDC or stored
+Cloud credentials. Adding `id-token: write` to one does not make its upload
+trusted. The GitHub App has a separate PR workflow that isolates scanning
+from its trusted policy and publishing jobs; use the App's generated workflow
+for Cloud-verified PR checks.
 
 How it works:
 1. GitHub Actions issues a short-lived OIDC token
 2. Skylos verifies the token against GitHub's OIDC issuer
-3. Skylos resolves the project by matching the GitHub `repository` claim to the project's `repo_url`
+3. Cloud verifies the repository identity and GitHub App binding, then resolves the project, using the project subpath when supplied
 4. the scan uploads with no `SKYLOS_TOKEN` secret
 
 ### Important repo-binding rule
 
-OIDC uploads only work when one GitHub repo maps to one Skylos project.
+OIDC requires a unique project for the verified repository and the supplied
+project subpath. A monorepo can have projects such as `apps/api` and
+`apps/web`; Cloud's generated App workflow sends each root separately.
 
-If no project matches the repo URL, upload fails.
-If multiple projects match the same repo URL, upload also fails.
+If no project matches, upload fails. If multiple projects still match after
+subpath routing, or the request omits a subpath and matches several projects,
+Cloud rejects the ambiguous binding.
+
+The CLI-generated workflow's `--scan-path` changes the scan directory, but
+its `skylos sync pull` step does not send a GitHub project-subpath header.
+Use the App's per-root workflow for Cloud policy sync in a monorepo with
+multiple projects.
 
 ## Token Resolution Order
 
@@ -198,11 +235,17 @@ The CLI could not find a usable token and is trying to connect interactively.
 
 ### OIDC fails even though `id-token: write` is set
 
-Check the project's repo URL in the dashboard. OIDC resolution depends on that binding.
+Check the project's repo URL, the GitHub App installation, and the event.
+An ordinary upload job must run on a push to the default branch. Cloud also
+accepts its own isolated PR publishing workflow; an arbitrary `pull_request`
+job is not that workflow.
 
 ### OIDC says the repo is ambiguous
 
-More than one project has the same `repo_url`. Remove the duplicate binding.
+Check that the request identifies the intended project subpath and that only
+one project matches that repository and subpath. For monorepos, use the
+App-generated per-root workflow; `--scan-path` alone does not route CLI
+policy sync.
 
 ### A token stopped working
 
