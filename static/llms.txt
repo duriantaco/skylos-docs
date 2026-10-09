@@ -1,8 +1,17 @@
 # Skylos Documentation
 
-> Documentation for Skylos, an open-source static analysis tool for Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, and Shell. Detects dead code, security vulnerabilities (SQL injection, SSRF, XSS, command injection, secrets), and code quality issues with framework-aware analysis.
+> Skylos is an open-source (Apache-2.0), local-first static analysis CLI and pull-request gate. It finds dead code, security issues, secrets, vulnerable dependencies, quality regressions and AI-code mistakes. The CLI runs without an account.
 
-Skylos is a Vulture alternative with 95% recall and 3x fewer false positives. Built-in awareness for Django, Flask, FastAPI, Pydantic, and pytest. Available as CLI, MCP server, VS Code extension, and GitHub Action.
+Available as a CLI, GitHub Action, MCP server and VS Code extension.
+
+## Key facts
+
+- Install: `pip install skylos` (Python 3.10+), then `skylos .` for dead code or `skylos . -a` for every analyzer. Container: `ghcr.io/duriantaco/skylos`.
+- Languages: dead code in 10 languages and security checks in 9, deepest in Python, TypeScript/JavaScript and Java. Go dead-code and security checks need the `skylos-go` engine, which the PyPI package does not include; the Docker image and GitHub Action do.
+- AI coding agents: `skylos done --base main` flags deleted or skipped tests, loosened CI test steps, silenced lint or type checks, and test-only special cases. It runs pytest itself; other runners need a `test_command`. `skylos agent install-hooks` checks Claude Code, Codex and Cursor edits locally.
+- CI: `skylos cicd init` writes a GitHub Actions pull-request gate; add `--no-upload` without Skylos Cloud.
+- MCP: `skylos mcp`. Without `SKYLOS_API_KEY`, only `analyze` works: five free calls per rolling 24 hours. Every other tool needs a free Skylos API key. Authenticated scans run locally but use Cloud authorization and server-configured credits: analyze 1; security 2; quality/architecture/health 1; secrets 1; provenance 2; remediate 10. Other tools use no Skylos credits; Enterprise has unlimited credits. Local CLI scans need no account and use no credits.
+- Pricing: the CLI is free. Skylos Cloud has a Free plan; one-time credit packs start at $9 for 50 credits.
 
 ## Getting Started
 
@@ -15,11 +24,20 @@ Skylos is a Vulture alternative with 95% recall and 3x fewer false positives. Bu
 
 - `skylos PATH`: scan source; dead code by default, every main source analyzer with `-a`.
 - `skylos verify [PATH]`: scan the selected source for AI-code mistakes; a separate Python behavior result compares supported working changes with Git HEAD.
+- `skylos done --base main`: check that a change is finished: tests run and pass, none deleted, skipped or weakened, no silenced checks; writes a receipt.
+- `skylos agent install-hooks [--codex|--cursor]`: check each coding-agent edit locally and hold "done" while new issues are open.
+- `skylos cicd init`: write a GitHub Actions pull-request gate (add `--no-upload` without Skylos Cloud).
 - `skylos preflight [ARTIFACT]`: statically check an exact local GPU artifact against `.skylos/gpu-targets.yml`; OCI input is identity-only and returns `UNKNOWN` in the CLI.
 - `skylos image scan IMAGE@sha256:<digest> --platform os/arch`: ask separately installed Trivy to scan a remote registry image; findings gate only with `--fail-on`.
 - `skylos suite [DIRECTORY]`: build one static, debt, defense, and provenance report; findings are report-only by default.
 - `skylos defend [DIRECTORY]`: report guardrails for recognized Python and TypeScript/JavaScript LLM integrations; threshold flags or policy enable gating.
 - `skylos clean [PATH] --dry-run`: preview Python import/function cleanup without writing.
+
+## Coding Agents
+
+- [Done Gate](https://docs.skylos.dev/done-gate): `skylos done` checks that a change is finished, with exit codes, settings, CI setup and limits
+- [Agent-Loop Hooks](https://docs.skylos.dev/agent-hooks): `skylos agent install-hooks` for Claude Code, Codex and Cursor
+- [Your First Gated PR](https://docs.skylos.dev/first-gated-pr): set up the Skylos Quality Gate and Skylos Done checks on GitHub
 
 ## Core Features
 
@@ -37,7 +55,7 @@ Skylos is a Vulture alternative with 95% recall and 3x fewer false positives. Bu
 - [CI/CD Integration](https://docs.skylos.dev/ci-cd): GitHub Actions, advisory quality checks, GitLab CI, Jenkins setup with quality gates
 - [GitHub Actions Security](https://docs.skylos.dev/github-actions-security): Workflow hardening and PR-time CI/CD supply-chain checks
 - [VS Code Extension](https://docs.skylos.dev/vscode): Real-time analysis in the editor
-- [MCP Server](https://docs.skylos.dev/mcp-server): Connect to Claude Desktop, Cursor, and AI assistants via Model Context Protocol
+- [MCP Server](https://docs.skylos.dev/mcp-server): Connect to Claude Desktop, Cursor, and AI assistants via Model Context Protocol; every tool except `analyze` needs a Skylos Cloud API key
 - [Claude Code Security](https://docs.skylos.dev/integrations/claude-code-security): Security ingestion for Claude Code
 
 ## Concepts
@@ -49,7 +67,7 @@ Skylos is a Vulture alternative with 95% recall and 3x fewer false positives. Bu
 ## Reference
 
 - [Rules Reference](https://docs.skylos.dev/rules-reference): All detection rules with IDs and severity
-- [Benchmarks](https://docs.skylos.dev/case-studies): Skylos vs Vulture on 9 top Python repos (350k+ stars)
+- [Case Studies](https://docs.skylos.dev/case-studies): Merged cleanup PRs with all outcomes, and the done-gate benchmark
 - [FAQ](https://docs.skylos.dev/faq): Common questions and troubleshooting
 
 ## Optional
@@ -57,10 +75,10 @@ Skylos is a Vulture alternative with 95% recall and 3x fewer false positives. Bu
 - [AI Features](https://docs.skylos.dev/ai-features): LLM-powered auto-fix and audit
 - [AI Hallucination Contracts](https://docs.skylos.dev/ai-contracts): Repo-specific generated-code contracts for `skylos verify . --contract PATH`
 - [Quality Gate](https://docs.skylos.dev/quality-gate): Threshold-based merge blocking
-- [Language Support](https://docs.skylos.dev/language-support): Scanner scope for Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, and Shell
+- [Language Support](https://docs.skylos.dev/language-support): Coverage by language (Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, C++, Shell), with the Go-engine and Dart notes
 - [TypeScript / JavaScript Support](https://docs.skylos.dev/typescript-support): TypeScript, JavaScript, and monorepo analysis
 - [Java Support](https://docs.skylos.dev/java-support): Java dead code, security, and quality analysis
-- [Go Support](https://docs.skylos.dev/go-support): Go module-aware dead code, selected security checks, and quality metrics
+- [Go Support](https://docs.skylos.dev/go-support): Go module-aware dead code, selected security checks, and quality metrics; dead code and security need the skylos-go engine
 - [Kotlin Support](https://docs.skylos.dev/kotlin-support): Kotlin dead code and shared secret scanning support
 - [PHP Support](https://docs.skylos.dev/php-support): PHP dead code and selected security checks
 - [Rust Support](https://docs.skylos.dev/rust-support): Rust dead code and selected security checks
@@ -69,6 +87,6 @@ Skylos is a Vulture alternative with 95% recall and 3x fewer false positives. Bu
 - [Shell Support](https://docs.skylos.dev/shell-support): Shell script security checks for command injection, SSRF, and path traversal
 - [中文文档](https://docs.skylos.dev/zh-cn/): Chinese entry point for core Skylos docs
 - [Cloud Dashboard](https://docs.skylos.dev/cloud): Skylos Cloud features
-- [Enterprise Trust](https://docs.skylos.dev/enterprise-trust): Security-team pilot posture, upload attribution, audit events, RBAC, and procurement roadmap
+- [Enterprise Trust](https://docs.skylos.dev/enterprise-trust): Security-team pilot posture, upload attribution, audit events, RBAC, SSO on request, and procurement roadmap
 - [Authentication](https://docs.skylos.dev/authentication): Browser login, project API keys, GitHub OIDC, and upload attribution
-- [Billing](https://docs.skylos.dev/billing): Credit packs and pricing
+- [Billing](https://docs.skylos.dev/billing): Plans, credit packs and what uses credits

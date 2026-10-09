@@ -65,6 +65,16 @@ const sidebars = {
         { type: 'doc', id: 'technical-debt', label: 'Technical Debt' },
       ],
     },
+    {
+      type: 'category',
+      label: 'Coding Agents',
+      className: 'sb-activity',
+      collapsible: false,
+      items: [
+        { type: 'doc', id: 'agent-hooks', label: 'Agent-Loop Hooks' },
+        { type: 'doc', id: 'done-gate', label: 'Done Gate' },
+      ],
+    },
 
     {
       type: 'category',
@@ -98,6 +108,7 @@ const sidebars = {
       className: 'sb-dog',
       collapsible: false,
       items: [
+        { type: 'doc', id: 'first-gated-pr', label: 'Your First Gated PR' },
         { type: 'doc', id: 'quality-gate', label: 'Quality Gate' },
         { type: 'doc', id: 'ci-cd', label: 'CI/CD Integration' },
         { type: 'doc', id: 'github-actions-security', label: 'GitHub Actions Security' },

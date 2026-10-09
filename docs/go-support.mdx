@@ -1,10 +1,19 @@
 ---
 title: "Go Support"
-description: "Go dead code, selected security checks, and quality analysis support in Skylos."
+description: "Go dead code, selected security checks, and quality analysis in Skylos. Dead code and security need the skylos-go engine (Docker image or Action)."
 ---
 
 Skylos analyzes Go projects with a module-aware Go engine and tree-sitter-backed
 quality checks.
+
+:::note Go engine required
+The PyPI package does not include the `skylos-go` engine. Without it, Go
+dead-code and security checks don't run and the scan is reported incomplete
+(exit 2); Go quality checks still run. The container image
+`ghcr.io/duriantaco/skylos` and the Skylos GitHub Action include the engine.
+`skylos doctor` shows whether it is available, and `SKYLOS_GO_BIN` points
+Skylos at a separately built engine.
+:::
 
 ## File Coverage
 

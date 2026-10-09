@@ -1,0 +1,317 @@
+---
+title: "Done Gate (skylos done)"
+description: "Check that a change, often an AI agent's, is finished: tests run and pass, none deleted, skipped or weakened, no silenced checks, with a receipt."
+---
+
+`skylos done` decides whether a change is finished, with evidence. It runs
+the tests itself, compares the tests and test settings with the base, looks
+for edits to Skylos's own settings, for added secrets and made-up imports, for
+code written to pass particular tests instead of being right, and for
+linters, type checkers, scanners and CI checks the change silenced, then
+writes a receipt.
+
+It gives no opinions and writes no style comments: each check passes or
+fails with evidence, the way CI does.
+
+```bash
+skylos done                     # uncommitted changes, compared with HEAD
+skylos done --session SESSION   # all changes since the agent session began
+skylos done --base origin/main  # a pull request, compared with its merge base
+skylos done receipt             # print the latest receipt again
+```
+
+Exit codes: `0` pass, `1` a blocking check failed or did not finish, `2`
+Skylos could not run (for example, the base is not fetched).
+
+`skylos done` is available from Skylos 4.43.2. Later releases added checks:
+the session baseline and changed-line test checks (4.44.0), JavaScript and
+TypeScript tests (4.45.0), special-cased code and the `skylos cicd init` Done
+job (4.46.0), and silenced checks (4.47.0).
+
+This page is a summary. The full reference, with every pattern each check
+recognises, is
+[docs/done-gate.md in the Skylos repository](https://github.com/duriantaco/skylos/blob/v4.47.2/docs/done-gate.md)
+(Skylos 4.47.2).
+
+## Checks
+
+| Check | Rules | Blocks by default | What it checks |
+|:--|:--|:--|:--|
+| Tests pass when Skylos runs them | [SKY-A113](/rules-reference#sky-a113--tests-fail-when-skylos-runs-them) | yes | Skylos runs `test_command` and reads the JUnit XML; a test that fails twice fails the check, and running out of time is "unfinished", never "pass". |
+| No tests deleted, skipped or weakened | [SKY-A110](/rules-reference#sky-a110--test-deleted), [SKY-A111](/rules-reference#sky-a111--test-newly-skipped), [SKY-A112](/rules-reference#sky-a112--test-settings-loosened), SKY-A101 (advice) | yes | Python and JavaScript/TypeScript tests that existed at the base and are gone, newly skipped or focused, left with no countable assertion, or whose test settings and CI test steps were loosened. |
+| Skylos settings and hooks left alone | [SKY-A114](/rules-reference#sky-a114--skylos-settings-or-hooks-changed) | yes | Edits to `protected_paths`, to `[tool.skylos]` in pyproject.toml, or to a CI workflow that runs Skylos. |
+| No secrets added | SKY-S101 | yes | Secrets on added lines; a suppression comment added in the same change does not count. |
+| Every package and import is real | SKY-D222, SKY-D225, SKY-D223 (advice) | advise | Added imports and dependencies resolve to real, declared packages. |
+| Tests check the changed lines | [SKY-A120](/rules-reference#sky-a120--changed-line-not-checked-by-tests) | advise | Each changed line in non-test Python code is run by a test, and a test fails when Skylos changes that line on purpose. |
+| Code doesn't special-case the tests | [SKY-A115](/rules-reference#sky-a115--test-answer-hard-coded-in-code), [SKY-A116](/rules-reference#sky-a116--code-detects-the-test-run), [SKY-A117](/rules-reference#sky-a117--comparison-rigged-to-always-pass) | yes | Added code that answers a test's exact input with its expected value, detects the test runner, reads the tests' own files, or rigs a comparison. |
+| Linters, type checkers, scanners and CI not silenced | [SKY-A119](/rules-reference#sky-a119--linter-or-scanner-settings-weakened), [SKY-A121](/rules-reference#sky-a121--ci-check-weakened), [SKY-A118](/rules-reference#sky-a118--inline-suppression-added) | advise | Weakened linter, type-checker and scanner settings, CI checks that may now fail or no longer run, and inline suppressions added to code. |
+
+A deleted test is reported as a **feature removal** (advice) instead of a
+deletion when the change also removed the code or text the test checked.
+Renaming a module or function, deleting an unrelated module, or rewording a
+message does not qualify: a deleted test whose code is still there blocks.
+
+A test that is moved or renamed with the same body is not reported. A test
+renamed and edited, rewritten in place, or merged into another is advice. A
+test overwritten in place by a test of something else, while the code the old
+test exercised is still there, blocks. Pasting a passing copy of a surviving
+test in place of a deleted one is still a deletion.
+
+## Settings
+
+Settings live in `[tool.skylos.done]` and are read from the **base commit**,
+never from the working tree: for `--base origin/main` from the tip of
+`origin/main`; for `--session` from HEAD when the session began; otherwise
+from current HEAD. A session cannot loosen its own gate by committing new settings.
+
+```toml
+[tool.skylos.done]
+test_command = "pytest -q"        # run without a shell; default: pytest, if found
+test_budget_seconds = 300         # 10 to 3600
+max_stop_blocks = 3               # 1 to 10; local loop escape, never a passing verdict
+protected_paths = [                # default: Skylos settings and agent hook files
+  ".skylos/", ".claude/settings.json", ".claude/settings.local.json",
+  ".codex/hooks.json", ".codex/config.toml", ".cursor/hooks.json",
+]
+# junit_xml = "reports/junit.xml" # for non-pytest commands that write JUnit
+
+[tool.skylos.done.checks]
+tests_pass = "block"              # block | advise | shadow | off
+test_tampering = "block"
+gate_tampering = "block"
+secrets = "block"
+unknown_imports = "advise"
+changed_lines_checked = "advise"
+test_special_casing = "block"
+silenced_checks = "advise"
+```
+
+`changed_lines_budget_seconds` (default 120, 10 to 1800) bounds the
+changed-lines check separately from `test_budget_seconds`.
+
+Modes: `block` decides the verdict; `advise` is shown but never blocks;
+`shadow` is recorded on the receipt but not shown; `off` does not run.
+
+Skipping a check configured to block, including `--no-tests`, produces an
+`incomplete` verdict. Turn a check off in the trusted base configuration to
+disable it intentionally. A skipped or unfinished blocking check cannot pass.
+
+Skylos runs tests automatically only for pytest. For pytest, Skylos adds its
+own `--junitxml` and removes `PYTEST_ADDOPTS` and `PYTEST_PLUGINS` from the
+test environment. For other runners, set `test_command` and have the runner
+write JUnit XML to `junit_xml`, for example
+`npx vitest run --reporter=default --reporter=junit --outputFile.junit=reports/junit.xml`
+or Jest with the `jest-junit` reporter: exit zero alone is not enough
+evidence that tests ran. Known blocking static findings stop the expensive
+test run until they are fixed.
+
+## In the agent loop
+
+Commit the Done configuration before starting the agent, then install hooks
+(see [Agent-Loop Hooks](/agent-hooks)):
+
+```bash
+skylos agent install-hooks --claude --project
+# Or --codex / --cursor. Reinstall to add the prompt baseline to older hooks.
+```
+
+1. On prompt submission, `skylos hook session-start` captures the starting
+   checkout, including staged, unstaged and nonignored untracked files. Earlier
+   user changes become the baseline rather than changes blamed on the agent.
+2. Existing post-edit checks provide feedback on each edit. The session baseline
+   remains fixed across later prompts and commits made by the agent.
+3. At Stop, Done compares the entire current tree with that baseline. Shell
+   edits and committed edits count even if no post-edit hook saw them. It runs
+   cheap tampering and secret checks before the configured tests.
+4. A failed or incomplete check returns up to ten reasons and a recheck command.
+   After `max_stop_blocks` on the same checkout and policy, the local hook lets
+   the agent stop with a warning. The receipt stays failed or incomplete and
+   another unchanged Stop does not rerun the tests. Changed source earns a new
+   retry budget.
+
+Only a committed `[tool.skylos.done]` table enables Done test execution in
+hooks. Repositories without it keep their existing hook behavior. Missing or
+corrupt baselines never silently reset. This is local feedback: an agent with
+filesystem access can modify local state, so a required CI job is the
+independent check that decides the merge.
+
+Cursor also limits this hook to ten automatic follow-ups across the whole
+conversation. Done's `max_stop_blocks` applies to an unchanged working tree;
+editing the tree gives Done a fresh retry budget but does not reset Cursor's
+conversation counter. After Cursor reaches its limit, continue manually or
+start a new conversation. Reaching that limit never makes the receipt pass.
+
+## Tests check the changed lines (SKY-A120)
+
+AI agents often write tests that pass without checking anything the change
+does. This check (Skylos 4.44.0 and newer) asks two questions about every
+changed, executable line in non-test Python code:
+
+1. **Does any test run it?** The test run is traced, mapping each changed line
+   to the tests that execute it. A line no test runs is reported, grouped per
+   function: `No test runs shop/billing.py:26-28 (in refund).`
+2. **Does any test notice if it is wrong?** Skylos makes one deliberate change
+   to the line (flip a comparison, swap `and`/`or`, negate a condition, return
+   a default value, and similar) and reruns only the tests that run the line.
+   If they all still pass: `No test fails if shop/billing.py:14 changes > to >=.
+   Add an assertion that would.`
+
+The changed code is loaded in memory inside the test process; the working
+tree is never modified. The check needs pytest, runs only when every test
+passed, runs at most 20 mutants within `changed_lines_budget_seconds`, and
+reports lines past either limit as "not checked". Some lines are not worth a
+test, so it advises by default; the receipt's `unverified` list tells a
+reviewer where to look.
+
+## Code doesn't special-case the tests (SKY-A115, A116, A117)
+
+An agent that cannot make a test pass can change the tests (the checks above)
+or change the code so that it recognises the test instead of doing the work.
+This check (Skylos 4.46.0 and newer) reads only lines the change added to
+non-test Python and JavaScript/TypeScript files. It blocks hard-coded test
+answers that match an existing test's input and expected value, production
+code that asks whether a test runner is running or reads the tests' own files,
+and comparison methods rigged to always pass. Weaker signals, such as small
+input-answer pairs that could be a real edge case, are advice.
+
+The check is static and literal, so inputs recognised in a roundabout way,
+special cases deep in the call stack, and tests whose data is built at run
+time can still get past. See
+[the full reference](https://github.com/duriantaco/skylos/blob/v4.47.2/docs/done-gate.md#code-doesnt-special-case-the-tests-sky-a115-a116-a117)
+for the exact rules.
+
+## Linters, type checkers, scanners and CI not silenced (SKY-A118, A119, A121)
+
+The tests are one gate; linters, type checkers and scanners are others. An
+agent that cannot make one of them pass can tell it to look away instead of
+fixing the code: an inline `# noqa`, a rule turned off, a directory excluded,
+`strict` turned off, `|| true` on the CI step. This check (Skylos 4.47.0 and
+newer) compares the base and the head the same way for every tool; only the
+change counts.
+
+It advises by default. A team that wants the gate can set
+`silenced_checks = "block"` at the base: weakened settings (SKY-A119) and CI
+(SKY-A121) then block, and inline suppressions (SKY-A118) stay advice. See
+[the full reference](https://github.com/duriantaco/skylos/blob/v4.47.2/docs/done-gate.md#linters-type-checkers-scanners-and-ci-not-silenced-sky-a118-a119-a121)
+for the tools and patterns it reads.
+
+## In CI
+
+`skylos cicd init` (Skylos 4.46.0 and newer) writes a GitHub Actions workflow
+with a **Skylos Done** job when it finds your tests. See
+[Your First Gated PR](/first-gated-pr) for the full setup. The generated job
+looks like this:
+
+```yaml
+  done:
+    if: github.event_name == 'pull_request'
+    name: Skylos Done
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - run: python -I -m pip install "skylos>=4.46.0"
+      - name: Install project test dependencies
+        run: python -I -m pip install -e . pytest
+      - name: Run tests and check the change is finished
+        run: skylos done --base "origin/$GITHUB_BASE_REF"
+```
+
+- Run it on `pull_request`, never `pull_request_target`: the tests run the
+  pull request's code.
+- `fetch-depth: 0` makes the merge base available, and checking out the pull
+  request head makes the receipt name that commit.
+- Make the job a required status check so agents without hooks are covered too.
+- Pin the verifier to a reviewed release that includes Done, and protect the
+  workflow itself. Separate Python environments prevent package collisions;
+  they do not isolate processes running under the same user. Enforcing
+  filesystem, credential and network boundaries needs the CI runner or an
+  external sandbox.
+
+## Receipt
+
+Each run writes `.skylos/receipts/<head>-<base>.json` and
+`.skylos/receipts/latest.json` (the directory ignores itself in Git). In
+GitHub Actions the receipt is also appended to the job summary.
+
+To store it in Skylos Cloud, attach it to a code-scan upload of the same
+commit:
+
+```bash
+skylos done --base origin/main
+skylos . --upload --done-receipt .skylos/receipts/latest.json
+```
+
+The upload refuses a receipt for another commit, one that includes
+uncommitted changes, or one whose checkout changed after it was written.
+
+Cloud records these results as claims from the uploading CLI. A Cloud
+signature authenticates the stored report and uploader identity; it does
+not prove that the reported test execution happened. GitHub OIDC identifies
+the uploading workflow separately from the receipt's claimed check results.
+
+The done receipt contains check summaries and finding locations, without
+source snippets.
+
+## Accepting a deliberate test removal
+
+The local CLI has no per-change override, on purpose: anything the change
+itself could set (a comment, a config edit in the same change) an agent could
+set too, and `[tool.skylos.done]` is read from the base, never from the
+change. A human who means to remove a test has these options:
+
+- Skylos Cloud: on a failed scan whose done receipt blocks, "Merge anyway"
+  with a reason (3 to 1,000 characters) by someone with the `override:gates`
+  permission (Workspace or Enterprise plan). The override is audited and lifts
+  the failed receipt in Cloud's verdict and GitHub check; agent policy rules
+  still block.
+- Lower the policy at the base: set `test_tampering = "advise"` in
+  `[tool.skylos.done.checks]` and commit it to the base branch first. It
+  applies to every change until it is set back.
+- Outside Skylos: whoever can bypass the required status check in branch
+  protection.
+
+## Benchmark
+
+`skylos done` has been measured on published coding-agent runs with published
+labels, including what it does not catch: it did not catch edits to test data
+files. The method, results and caveats are in
+[docs/done-gate-benchmark.md](https://github.com/duriantaco/skylos/blob/v4.47.2/docs/done-gate-benchmark.md).
+
+## Limits
+
+What still gets past the test checks, because assertion counting is static:
+
+- tautologies the counter cannot see, such as a value compared with a copy of
+  itself;
+- assertions on mocks or stubs of the code under test instead of the code;
+- changed expected values (`toBe(400)` to `toBe(200)`), which are advice at most;
+- failures swallowed in ways the counter does not follow, such as a promise
+  `.catch(() => {})` or a helper in another file.
+
+Not yet supported:
+
+- Per-test accounting for JavaScript/TypeScript runs is only as good as the
+  JUnit XML the runner writes, and changed-line checks (SKY-A120) are
+  Python-only.
+- JS/TS tests generated in loops or shared helpers count once, as written;
+  skips on tests with computed titles are not reported.
+- A test rewritten beyond recognition in the same place is still reported as
+  deleted; a different, passing test written in the exact place of a deleted
+  one is accepted as its rewrite with advice.
+- Weakened assertions are advice; only a test left with no countable
+  assertion blocks.
+- `skylos done init`, automatic test selection and passing-result caching.
+- Authenticated organization-policy sync into local Done checks and automatic
+  session-receipt upload to Cloud.
+- Rerunning a failing test on the base to call it pre-existing.
+- Counting computed parametrize cases. A computed case list is trusted while
+  the change leaves alone everything that builds it; otherwise the test check
+  is unfinished.

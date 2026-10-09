@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: "Install Skylos via pip. Static analysis and dead code detection for Python 3.10+, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, and Shell."
+description: "Install Skylos with pip (Python 3.10+) or run the container image. Optional extras, Dart support, and the skylos-go engine for Go projects."
 ---
 
 import Tabs from '@theme/Tabs';
@@ -40,8 +40,29 @@ Install all published optional extras:
 pip install "skylos[all]"
 ```
 
-The published extras are defined in the Skylos `pyproject.toml`. At the time of
-writing they are `web`, `llm`, `test`, and `all`.
+Install Dart support (Skylos 4.47.2 and newer):
+
+```bash
+pip install "skylos[dart]"
+```
+
+The Dart parser has no prebuilt wheels, so installing `skylos[dart]` (or
+`skylos[all]`) needs a C compiler. Without it, a scan that includes `.dart`
+files reports `SKY-ANALYSIS-INCOMPLETE` and exits 2. Skylos 4.47.1 installs the
+Dart parser with every install, so `pip install skylos` on 4.47.1 needs a C
+compiler too.
+
+The published extras are defined in the Skylos `pyproject.toml`. In Skylos
+4.47.2 they are `llm`, `lint`, `test`, `verdict`, `dart`, and `all`.
+
+## Go Projects
+
+The PyPI package does not include the `skylos-go` engine. Without it, Go
+dead-code and security checks don't run: only Go quality checks run, the scan
+is reported incomplete, and the CLI exits 2. For Go projects, use the
+[container image](#container-image) or the Skylos GitHub Action, which both
+include the engine. `skylos doctor` shows whether the engine is available; set
+`SKYLOS_GO_BIN` to use a separately built engine.
 
 ## Container Image
 

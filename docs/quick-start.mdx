@@ -126,7 +126,7 @@ OIDC, tokens, annotations, and branch protection.
 | Container vulnerability scan | `skylos image scan IMAGE@sha256:<digest> --platform linux/amd64` | [CLI Reference](/cli-reference#skylos-image-scan) |
 | Runtime agent behavior test | `skylos agent init && skylos agent test --allow-contract-endpoint` | [Agent Behavior Testing](/agent-behavior-testing) |
 | Cloud dashboard upload | `skylos suite . --upload` | [CLI to Dashboard](/cloud-workflow) |
-| MCP server for AI assistants | `python -m skylos_mcp.server` | [MCP Server](/mcp-server) |
+| MCP server for AI assistants | `skylos mcp` | [MCP Server](/mcp-server) |
 
 `image scan` requires Trivy to be installed separately on `PATH`. It forces
 Trivy's remote image source, so the registry must be reachable and any required

@@ -1,10 +1,19 @@
 ---
 title: "Dart Support"
-description: "Dart dead code and selected security analysis support in Skylos."
+description: "Dart and Flutter dead code and selected security checks in Skylos. From 4.47.2, install the skylos[dart] extra, which needs a C compiler."
 ---
 
 Skylos analyzes Dart source with tree-sitter parsing for dead code and selected
 security checks. This includes Dart and Flutter codebases.
+
+:::note Installing Dart support
+From Skylos 4.47.2, Dart support is the optional `skylos[dart]` extra
+(`pip install "skylos[dart]"`). Its parser builds from source and needs a C
+compiler. Without it, scans that include `.dart` files report
+`SKY-ANALYSIS-INCOMPLETE` and exit 2; `skylos doctor` shows whether Dart
+support is installed. Skylos 4.47.1 installs the Dart parser with every
+install, so `pip install skylos` on 4.47.1 needs a C compiler.
+:::
 
 ## File Coverage
 

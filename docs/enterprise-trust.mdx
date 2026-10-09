@@ -1,6 +1,6 @@
 ---
 title: "Enterprise Trust"
-description: "Security, governance, auditability, and procurement posture for Skylos Cloud."
+description: "Security, governance, audit and procurement posture for Skylos Cloud: what is available today, SAML SSO on request, and what is still on the roadmap."
 ---
 
 Skylos is built as a local-first scanner with optional Cloud governance. The CLI runs analysis locally or in CI. Skylos Cloud stores scan results, project policy, suppressions, audit history, and team workflow state.
@@ -17,7 +17,7 @@ Use this page when a security team asks:
 
 Skylos Cloud is ready for a security-team pilot and controlled enterprise evaluation.
 
-It is not yet positioned as a completed regulated-procurement package for teams that require SSO, SCIM, a completed SOC 2 report, DPA automation, status-page commitments, SIEM streaming, and formal SLA paperwork before a pilot can start.
+It is not yet positioned as a completed regulated-procurement package for teams that require SCIM, a completed SOC 2 report, DPA automation, status-page commitments, SIEM streaming, and formal SLA paperwork before a pilot can start.
 
 | Area | Current status |
 |---|---|
@@ -29,11 +29,13 @@ It is not yet positioned as a completed regulated-procurement package for teams 
 | Audit event coverage for mutating routes | Available |
 | Audit export foundations | Available |
 | Upload attribution | Available |
-| SSO / SAML | Roadmap |
-| SCIM provisioning | Roadmap |
+| SAML SSO | Set up on request; workspace owners can require SSO or two-factor for the dashboard. CLI, CI and API tokens are machine credentials and are not subject to it |
+| SCIM provisioning and enterprise OIDC SSO | Roadmap |
 | SOC 2 report | Roadmap |
-| DPA and subprocessor portal | Roadmap |
-| Public status page / SLA | Roadmap |
+| Subprocessor list | On [skylos.dev/trust](https://skylos.dev/trust) |
+| Public DPA | Roadmap |
+| Status page | [skylos.dev/status](https://skylos.dev/status) (does not test sign-in or scans) |
+| SLA | Roadmap |
 | SIEM streaming | Roadmap |
 
 ## Local-First Data Model
@@ -150,25 +152,20 @@ That means enterprise customers should evaluate Skylos using a shared-responsibi
 | secure handling of scan results | deciding which repos and branches upload findings |
 | incident response process | reporting suspected security issues quickly |
 
-## What To Say In Enterprise Evaluations
+## Summary
 
-Use precise language:
-
-> Skylos is ready for a security-team pilot. It is local-first, has Cloud governance, project-key attribution, RBAC, audit coverage for mutating governance workflows, and export foundations. For full regulated procurement, SSO, SCIM, SOC 2, DPA automation, public status/SLA, and SIEM streaming are on the enterprise roadmap.
-
-Do not claim that Skylos is SOC 2 certified, SAML-ready, SCIM-ready, or SIEM-streaming-ready until those controls are implemented and verified.
+Skylos Cloud is ready for a security-team pilot: local-first scanning, Cloud governance, project-key and OIDC upload attribution, role-based access, audit events for governance changes, and SAML SSO on request. Skylos is not SOC 2 certified and does not offer SCIM, dedicated tenancy, private networking or data-residency guarantees today.
 
 ## Roadmap Controls
 
 The highest-value enterprise controls still to add are:
 
-1. SAML SSO with enforced workspace login.
-2. SCIM deprovisioning and group mapping.
-3. Formal SOC 2 readiness program and report.
-4. DPA, subprocessor list, and security contact workflow.
-5. Public status page and incident communication process.
-6. SIEM audit log streaming.
-7. Enterprise support and SLA terms.
+1. SCIM provisioning and enterprise OIDC SSO.
+2. Formal SOC 2 readiness program and report.
+3. Public DPA and formal subprocessor notice process.
+4. Hosted status provider with incident history.
+5. SIEM audit log streaming.
+6. Enterprise support and SLA terms.
 
 ## Related Docs
 

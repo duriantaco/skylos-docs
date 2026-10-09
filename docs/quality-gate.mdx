@@ -1,313 +1,177 @@
 ---
 title: "Quality Gate"
-description: "Block new issues without stalling development. The industry-standard ratchet workflow with role-based governance."
+description: "Configure Skylos CLI thresholds, gate only changed or new findings with diff or baseline, and require independent GitHub checks for Cloud governance."
 ---
 
-## What this is
+## Local gate and Cloud gate
 
-Skylos Quality Gate is a **ratchet**: it does **not** punish you for legacy tech debt. It only blocks the changes that make things worse.
+The local CLI gate evaluates the findings in the scan against your configured
+limits and returns an exit status. Skylos Cloud applies project policy to
+uploaded findings and can publish a GitHub check. These are separate decisions.
 
-> "We ignore your existing 500 bugs. We only block you if you add Bug #501."
+A local full scan counts existing findings too. To gate a change, choose
+`--diff` or `--baseline` explicitly. Cloud's `zero-new` policy evaluates new,
+unsuppressed findings against its baseline; see [Project Policy](/project-policy).
 
-That means you can ship features *and* steadily improve code quality over time.
+## Run the local gate
 
----
-
-## Key concepts
-
-### The Ratchet
-
-Skylos compares the current scan against a baseline (usually your `main` branch).
-
-- **Legacy issues**: already existed → shown, but don't block
-- **New issues**: introduced by your change → can block the gate
-
-### Governance actions
-
-When a new issue appears, Skylos supports three resolution paths:
-
-1. **Fix** (preferred): change code and re-run the scan  
-2. **Suppress a specific finding** (adult workflow): mark *one* finding as False Positive / Accept Risk so it stops blocking  
-3. **Emergency Override** (last resort): unblock the *entire* scan with a logged reason (for hotfixes)
-
----
-
-## Who does what (roles)
-
-### Developer
-- Runs Skylos locally before pushing
-- Fixes issues when possible
-- If blocked, uses the dashboard link to resolve (or escalates)
-
-### Tech Lead / Security Lead
-- Reviews *new* findings introduced by PRs
-- Uses **per-finding suppression** for true false positives (with a reason, optional expiry)
-- Keeps overrides rare and justified
-
-### CTO / Admin
-- Defines policy (strict mode, who can override/suppress, audit requirements)
-- Enables "no-bypass" rules for production branches
-- Reviews audit logs and recurring suppressions
-
----
-
-## Free vs Pro/Enterprise
-
-| Capability | Free (Local) | Pro / Enterprise (Cloud) |
-|---|---|---|
-| Ratchet baseline | ✅ Local history / local baseline | ✅ Cloud baseline on `main` (team-wide) |
-| Blocking behavior | ✅ CLI exits non-zero (fail the step) | ✅ CLI can **wait/poll** for approval (unblocks instantly) |
-| Override method | `--force` (manual / insecure) | Dashboard override button (audit logged) |
-| Per-finding suppression | Limited / local-only | ✅ Persistent + team-governed + audited |
-| Strict mode | ❌ Anyone can bypass | ✅ Admin can disable `--force` |
-| CI/CD integration | Basic fail/pass | ✅ GitHub checks / commit status turns green on approval |
-
----
-
-## The workflow (at a glance)
-
-Run Skylos as a gate before your deploy/test command. If the scan fails, the
-step exits non-zero and later CI steps do not run:
-```bash
-skylos . --danger --secrets --quality --ai-defects --gate
-```
-```mermaid
-flowchart LR
-    A[Start Deploy/CI Step] --> B[Skylos Scan]
-    B --> C{New issues?}
-    C -->|No| D[Run Your Command]
-    C -->|Yes| E[BLOCK]
-    E --> F{Resolution}
-    F -->|Fix code| B
-    F -->|Suppress finding| G[Recompute Gate]
-    F -->|Emergency Override| G
-    G --> H{Gate passed?}
-    H -->|Yes| D
-    H -->|No| E
-
-    style D fill:#2ed573,color:#fff
-    style E fill:#ff6b6b,color:#fff
-    style G fill:#2ed573,color:#fff
-```
-
----
-
-## Quickstart
-
-### 1) Install
 ```bash
 pip install skylos
-```
-
-### 2) Run locally (recommended before every push)
-```bash
-skylos . --danger --secrets --quality --ai-defects
-```
-
-If you're gating a deploy/test step, run Skylos first and only run deploy after
-the gate passes:
-```bash
 skylos . --danger --secrets --quality --ai-defects --gate
-./deploy.sh
 ```
 
----
+`--gate` evaluates the analyzers enabled in that invocation. It does not enable
+every analyzer by itself. `-a` enables the full scan, including dependency CVEs;
+dependency checks can query public registries and OSV.
+
+In noninteractive use, an exceeded limit returns exit `1`. An incomplete scan
+returns exit `2`, including when `--force` is present. Passing the finding gate
+means the findings are within its limits; it does not mean there are no findings.
+
+### Configuration
+
+Configure the local limits in `pyproject.toml`:
+
+```toml
+[tool.skylos.gate]
+fail_on_critical = true
+max_critical = 0
+max_high = 5
+max_security = 10
+max_quality = 10
+max_ai_defects = 10
+max_secrets = 0
+max_dependency_vulnerabilities = 0
+max_reliability = 0
+strict = false
+# max_dead_code = 0             # opt in; no dead-code count limit by default
+```
+
+These are the standard count limits. A count equal to its limit passes; a count
+above the limit fails. For example, three HIGH security findings can pass
+`max_high = 5`, provided no other limit is exceeded. Set `max_high = 0` to block
+any HIGH security finding. `max_security` counts all security findings, not only
+HIGH ones. Separate limits apply to secrets, quality, AI defects, dependency
+vulnerabilities and reliability. If `max_ai_defects` is omitted, it uses
+`max_quality`. Quality rules designated as advisory remain report-only.
+
+## Gate changed lines
+
+For a pull request, fetch the base reference and scan the changed lines:
+
+```bash
+git fetch origin main
+skylos . --danger --secrets --quality --ai-defects --diff origin/main --gate
+```
+
+Use your repository's default branch if it is not `main`. Findings outside the
+selected diff are filtered out; this is useful when existing debt should not
+block a new change. `--diff-base origin/main` instead selects whole changed
+files. Neither option establishes that the unchanged code is safe.
+
+## Gate only new findings with a baseline
+
+Record the findings you have already reviewed, then use that baseline on later
+scans:
+
+```bash
+skylos baseline .
+skylos . --danger --secrets --quality --ai-defects --baseline --gate
+```
+
+`skylos baseline .` records existing findings in `.skylos/baseline.json`.
+`--baseline` filters matching findings from subsequent scans. New findings still
+count against the gate limits. To include dependency CVEs in the saved baseline,
+use `skylos baseline . --sca` and enable `--sca` on subsequent scans.
+
+Treat the baseline as a reviewed policy input. Replacing it with the current
+findings can hide the very regression you intended to block. A local baseline
+and a Cloud baseline are separate.
+
+## Strict mode and force
+
+`--strict` fails when gate-relevant findings remain, regardless of the count
+limits. In the terminal it also disables the interactive offer to continue
+past a failed gate:
+
+```bash
+skylos . --danger --secrets --quality --ai-defects --strict
+```
+
+`--force` explicitly bypasses the local finding-gate failure, even alongside
+`--strict`. This behavior is the same on Free, Workspace and Enterprise. A
+paid plan does not turn the local CLI into a control an agent cannot bypass.
+An incomplete scan still exits `2`.
+
+Use a required CI check to enforce the reviewed command and protect the workflow
+and configuration that define it. See [Your First Gated PR](/first-gated-pr).
 
 ## Release Reliability Gates
 
-`--gate` evaluates the analyzers enabled in that invocation; it does not turn
-every analyzer on by itself. `--danger` enables deployment/runtime contract
-analysis as well as Security, while exact `--select` rules enable only the
-families they need.
-
 Reliability has an independent threshold, `max_reliability`, which defaults to
-`0`. It does not consume `max_security` or alter the Security count.
+`0`. It does not consume `max_security` or alter the Security count. `--danger`
+enables deployment/runtime contract analysis as well as Security; exact
+`--select` rules enable the analyzer families they need.
 
 ```bash
-# Prove the external Kubernetes deployment path
+# Check the external Kubernetes deployment path
 skylos . --select SKY-DEP001,SKY-DEP002,SKY-DEP003 --gate
 
 # Check GPU source/build intent against the declared target fleet
 skylos . --select SKY-GPU001,SKY-GPU002,SKY-GPU003 --gate
 ```
 
-The GPU gate automatically retains `SKY-GPU000`. A missing, invalid, deleted,
-or incomplete required GPU contract therefore blocks instead of silently
-passing. See [Release Reliability](./release-reliability) for setup.
+The GPU gate retains `SKY-GPU000`. A missing, invalid, deleted or incomplete
+required GPU contract blocks. See [Release Reliability](/release-reliability)
+for setup.
 
 That rule gate does not inspect a built binary. After the build, run
-`skylos preflight build/app`; its independent gate contract is exit `0` for
-`PASS`, `1` for a proved incompatibility, and `2` for `UNKNOWN` or invalid
-input.
+`skylos preflight build/app`; its independent contract returns `0` for `PASS`,
+`1` for a proved incompatibility, and `2` for `UNKNOWN` or invalid input.
 
----
+## Cloud governance and required checks
 
-## What a failure looks like
+Connect a project to Skylos Cloud when you want a shared baseline, persistent
+review decisions and GitHub checks. Cloud's gate modes are:
 
-If Skylos detects **new violations**, it blocks and prints an action link:
-```text
-QUALITY GATE FAILED
-  1 New Violation introduced
-   - app.py:23  SKY-D211  SQL Injection (string-built query)
+| Mode | Blocks when |
+|:---|:---|
+| `zero-new` | Any new, unsuppressed finding remains |
+| `category` | A new-finding count exceeds a category limit |
+| `severity` | A new-finding count exceeds a severity limit |
+| `both` | Either category or severity limits are exceeded |
 
-Action required:
-  https://app.skylos.dev/scans/123-abc
-```
+Free supports `zero-new`; Workspace and Enterprise support advanced modes.
+Free also supports PR checks and up to 25 suppressions per project. Workspace
+and Enterprise add audited overrides and other governance features; see
+[Billing & Credits](/billing) and [Project Policy](/project-policy).
 
-### What happens next depends on your tier
+An authorized reviewer can record a decision on a finding or, where policy and
+permissions allow it, override a failed scan with a reason. Cloud recomputes its
+verdict and updates an eligible GitHub check. Other policy requirements can
+still block the check. The CLI does not wait for approval or resume a deployment
+when the dashboard decision changes.
 
-* **Free**: CLI exits with a failure code (your script stops)
-* **Pro/Enterprise**: CLI can **wait/poll** until the scan becomes approved
+For enforcement, require the intended GitHub check in a branch ruleset and
+review who can bypass that ruleset. A local `--force` is not a Cloud override,
+and a laptop upload does not establish a Cloud-verified GitHub check. See
+[Authentication](/authentication) for upload attribution and
+[Your First Gated PR](/first-gated-pr) for setup.
 
----
+## CI example
 
-## How to resolve (the "adult" way)
+The simplest setup is `skylos cicd init --no-upload`, which generates a
+pull-request Quality Gate and adds Done when it discovers your tests. Require
+those checks in GitHub; adding the workflow alone does not make them required.
 
-### Option A — Fix the code (preferred)
+For an existing workflow, run the gate before dependent steps:
 
-1. Open the scan
-2. Click the finding to see the snippet and context
-3. Fix the code
-4. Re-run:
-```bash
-skylos . --danger --secrets --quality --ai-defects --gate
-```
-
-5. Gate passes when there are **0 new unsuppressed** findings
-
-### Option B — Suppress a specific finding (False Positive / Accept Risk)
-
-Use this when the scanner is wrong *or* you accept the risk temporarily (hotfix pressure, mitigating controls exist, etc).
-
-**Developer flow**
-
-1. Click the scan link
-2. Select the blocking finding
-3. Click **Suppress**
-4. Choose a reason type:
-   * **False Positive** (scanner is incorrect)
-   * **Accept Risk** (known risk accepted temporarily)
-5. Add a reason (and optionally an expiry like "30 days")
-
-**Result**
-
-* That *specific* finding stops blocking the gate
-* The scan updates immediately
-* In Pro/Enterprise, your CLI wakes up and continues
-
-### Option C — Emergency Override (last resort)
-
-Use only when you must ship and can't triage properly.
-
-1. Click **Emergency Override**
-2. Enter a reason (required)
-
-**Result**
-
-* Entire scan becomes "passed"
-* Audit log records who approved it and why
-
----
-
-## Strict Mode (Enterprise)
-
-Strict Mode disables local bypass flags so production controls can't be sidestepped.
-
-* If Strict Mode is on:
-  * `--force` is rejected
-  * Approval must happen via dashboard governance
-
----
-
-## Configuration
-
-### pyproject.toml
-```toml
-[tool.skylos.gate]
-enabled = true
-max_reliability = 0
-
-# Free/local environments can allow manual bypass.
-# In Pro/Enterprise, strict mode is managed by the dashboard project settings.
-strict = false
-```
-
-Any Reliability finding blocks by default. This threshold is evaluated
-separately from Security.
-
-### Recommended policy defaults
-
-**For `main` / production deploys**
-
-* Strict Mode: **ON**
-* Allow override: **CTO/Security Lead only**
-* Require suppression reasons: **ON**
-* Prefer suppression over override: **ON**
-* Optional: suppression expiry default 30–90 days
-
-**For feature branches**
-
-* Strict Mode: optional
-* Allow suppression for false positives: **ON**
-* Allow override: optional (but track it)
-
----
-
-## CI/CD example (GitHub Actions)
 ```yaml
-name: Production Deploy
-
-on:
-  push:
-    branches: ["main"]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    env:
-      SKYLOS_TOKEN: ${{ secrets.SKYLOS_TOKEN }}
-      SKYLOS_API_URL: ${{ secrets.SKYLOS_API_URL }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Skylos
-        run: pip install skylos
-
-      - name: Quality Gate
-        run: skylos . --danger --secrets --quality --ai-defects --gate
-
-      - name: Deploy
-        run: ./deploy.sh
+- name: Skylos Quality Gate
+  run: skylos . --danger --secrets --quality --ai-defects --diff origin/main --gate
 ```
 
-### Pro workflow behavior
-
-* If the gate fails, the job can **wait** for dashboard approval
-* When a lead suppresses/overrides, the PR/check turns green and the job continues
-
----
-
-## FAQ
-
-### "Will this block me because my repo already has 500 issues?"
-
-No. The ratchet only blocks **new** issues introduced by your change.
-
-### "When should we suppress vs override?"
-
-* **Suppress** when it's a real false positive or a controlled accepted risk.
-* **Override** only when you must ship and can't triage (rare).
-
-### "What's the biggest mistake teams make?"
-
-Using override as the default. It defeats the point of the gate. Suppression is the safe release valve.
-
----
-
-## Recommended rollout plan
-
-1. Turn on the ratchet in "warn mode" for 1–2 weeks (non-blocking)
-2. Enable blocking on `main`
-3. Enable Strict Mode for production
-4. Train leads on suppression vs override
-5. Track suppressions with expiry to force periodic re-review
+Fetch the base reference first and use full checkout history as shown in the
+[first gated PR guide](/first-gated-pr). Avoid `--force`, `|| true` and
+`continue-on-error` in an enforcing job. Pin the verifier and protect the
+workflow. The Cloud-upload job is optional and has separate setup requirements.

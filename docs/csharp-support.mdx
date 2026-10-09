@@ -14,7 +14,7 @@ normal Skylos workflow without requiring MSBuild, Roslyn, or the .NET SDK.
 | Extensions | `.cs` |
 | Dead code | Classes, methods, and direct references |
 | Security | Selected ASP.NET/request input to process, SQL, HTTP, redirect, and filesystem sinks |
-| Quality | No dedicated C# quality rules yet |
+| Quality | Unreachable statements after `return`, `throw`, `break` or `continue` in a direct block; not full control-flow analysis |
 
 ## Dead Code Detection
 

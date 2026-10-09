@@ -1,25 +1,32 @@
 ---
 title: "MCP Server"
-description: "Connect Skylos to Claude Desktop, Cursor, and other AI assistants via the Model Context Protocol"
+description: "Connect Skylos to Claude Desktop, Cursor and other MCP clients. Without an API key only analyze runs; other tools need a free Skylos API key."
 ---
 
 ## What is the Skylos MCP Server?
 
-The Skylos MCP server exposes Skylos's full static analysis engine as a set of tools that AI assistants can call directly. Instead of copy-pasting code into a chat window, you can ask Claude (or any MCP-compatible client) to scan your project — and it runs the real Skylos engine under the hood.
+The Skylos MCP server exposes Skylos's static analysis engine as a set of tools that AI assistants can call directly. Instead of copy-pasting code into a chat window, you can ask Claude (or any MCP-compatible client) to scan your project, and it runs the real Skylos engine on your machine.
 
 ```
 You: "Scan my project for security issues"
 Claude -> calls security_scan("./my-project")
-     -> Skylos runs full taint analysis, dangerous-call detection, etc.
+     -> Skylos runs taint analysis, dangerous-call detection, etc.
      -> Returns structured findings
 Claude: "I found 3 issues: SQL injection on line 42, SSRF on line 87, ..."
 ```
 
-This is not a summarizer or wrapper — it runs the same analysis as `skylos . --danger` on the CLI.
+This is not a summarizer or wrapper: it runs the same analysis as `skylos . --danger` on the CLI.
+
+:::info API key
+Without an API key, only `analyze` works: five calls per rolling 24-hour window, without credits.
+Every other tool needs a free Skylos API key. Authenticated MCP scans run locally but can use
+Skylos Cloud credits; see the prices below. Local CLI scans need no key and use no credits.
+See [Authentication (API Key)](#authentication-api-key).
+:::
 
 ## What Skylos Detects
 
-Skylos is a hybrid static analysis tool for Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, and Shell. Through MCP, your AI assistant gets access to:
+Coverage varies by language; see [Language Support](/language-support). Through MCP, your AI assistant gets access to:
 
 | Capability | What It Finds | Rule IDs |
 |------------|---------------|----------|
@@ -29,7 +36,7 @@ Skylos is a hybrid static analysis tool for Python, TypeScript, JavaScript, Java
 | **Quality** | Cyclomatic complexity, deep nesting, async blocking, god classes | SKY-Q301–Q501 |
 | **Logic Bugs** | Mutable defaults, bare except, dangerous comparisons, inconsistent returns | SKY-L001–L006 |
 | **Supply Chain** | Hallucinated dependencies, undeclared imports, real packages called with invented APIs, and npm/Go versions that do not exist | SKY-D222–D225 |
-| **Remediation** | Auto-fix issues via LLM, validate with tests, revert if broken | — |
+| **Remediation** | Plans or applies LLM-generated fixes, then re-scans to confirm each finding is gone | — |
 
 For the full rules reference, see [Rules Reference](/rules-reference).
 
@@ -40,6 +47,8 @@ For the full rules reference, see [Rules Reference](/rules-reference).
 ```bash
 pip install skylos
 ```
+
+The `skylos mcp` command needs Skylos 4.45.0 or newer. On older versions, use `python -m skylos_mcp.server` in place of `skylos mcp`.
 
 ### Claude Desktop
 
@@ -53,48 +62,8 @@ Add to your Claude Desktop config:
 {
   "mcpServers": {
     "skylos": {
-      "command": "python",
-      "args": ["-m", "skylos_mcp.server"]
-    }
-  }
-}
-```
-
-Restart Claude Desktop. You should see "skylos" listed in the tools menu (hammer icon).
-
-### Cursor / VS Code with MCP
-
-If your editor supports MCP servers, add the same configuration to your editor's MCP settings. The command is the same:
-
-```bash
-python -m skylos_mcp.server
-```
-
-### Virtual Environment
-
-If Skylos is installed in a virtual environment, point to the venv Python:
-
-```json
-{
-  "mcpServers": {
-    "skylos": {
-      "command": "/path/to/venv/bin/python",
-      "args": ["-m", "skylos_mcp.server"]
-    }
-  }
-}
-```
-
-### Authentication (API Key)
-
-To use all tools and track credit usage, add your API key:
-
-```json
-{
-  "mcpServers": {
-    "skylos": {
-      "command": "python",
-      "args": ["-m", "skylos_mcp.server"],
+      "command": "skylos",
+      "args": ["mcp"],
       "env": {
         "SKYLOS_API_KEY": "your-api-key-here"
       }
@@ -103,31 +72,64 @@ To use all tools and track credit usage, add your API key:
 }
 ```
 
-Get your API key from [skylos.dev/dashboard/settings](https://skylos.dev/dashboard/settings).
+Restart Claude Desktop. You should see "skylos" listed in the tools menu.
 
-**Without an API key**, the MCP server still works but in limited mode:
-- Only the `analyze` tool is available
-- Limited to 5 calls per day
-- `security_scan`, `quality_check`, `secrets_scan`, and `remediate` require authentication
+### Cursor / VS Code with MCP
 
-**With an API key**, all tools are available:
+If your editor supports MCP servers, add the same configuration to your editor's MCP settings. The command is the same:
+
+```bash
+skylos mcp
+```
+
+### Virtual Environment
+
+If Skylos is installed in a virtual environment, point to the `skylos` command in that venv:
+
+```json
+{
+  "mcpServers": {
+    "skylos": {
+      "command": "/path/to/venv/bin/skylos",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+### Authentication (API Key)
+
+Every tool except `analyze` needs an API key. Create one in Skylos Cloud at [skylos.dev/dashboard/settings](https://skylos.dev/dashboard/settings) (a Free account works) and pass it to the server as `SKYLOS_API_KEY`, as in the Claude Desktop example above.
+
+**Without an API key**, only `analyze` works, five calls per rolling 24-hour window. Every other tool returns an authentication error. The local CLI needs no key: `skylos verify <file>` and `skylos agent install-hooks` run without an account.
+
+**With an API key**, tools are subject to your balance, rate limit and any required LLM provider
+configuration. The current standard Skylos Cloud prices are:
 
 | Tool | Credits | Notes |
 |------|---------|-------|
-| `analyze` | **Free** | Runs locally |
-| `security_scan` | **Free** | Runs locally |
-| `quality_check` | **Free** | Runs locally |
-| `secrets_scan` | **Free** | Runs locally |
-| `verify_change` | **Free** | Runs locally; returns narrow AI-code trust findings for changed code |
-| `verify_agent` | **Free** | Runs locally; verifies AI-agent guardrails with scores, failed checks, OWASP coverage, gate verdict, and attestation digest |
-| `remediate` | **10** | AI-powered fix generation |
+| `analyze` | 1 | Dead code. Free without a key within the five-call limit |
+| `security_scan` | 2 | Security findings |
+| `quality_check` | 1 | Quality and logic findings |
+| `architecture_check` | 1 | Coupling, cohesion and circular dependencies |
+| `health_score` | 1 | Overall grade across dead code, security, secrets and quality |
+| `secrets_scan` | 1 | Hard-coded secrets (values redacted) |
+| `verify_change` | None | AI-code trust findings for a changed file or line range |
+| `validate_code_change` | None | Checks a unified diff for security regressions and made-up dependencies |
+| `verify_agent` | None | Deterministic AI-agent guardrail verification |
+| `provenance_scan` | 2 | Attributes changed files to AI agents, bots or humans from Git history |
+| `generate_fix` | None | Removal patch for dead code |
+| `learn_triage` / `get_triage_suggestions` | None | Records and suggests triage decisions |
+| `get_security_context` | None | Summary of frameworks, auth, headers and policy |
+| `verify_dead_code` | None | LLM review of dead-code findings; needs your own LLM provider key |
+| `remediate` | **10** | LLM-generated fixes; needs your own LLM provider key |
 
-Analysis tools (`analyze`, `security_scan`, `quality_check`, `secrets_scan`,
-`verify_change`, and `verify_agent`) run entirely on your machine — they don't cost credits.
-Only the `remediate` tool, which uses LLM-powered fix generation, costs 10
-credits per call.
+Analysis runs on your machine. Authenticated calls use Skylos Cloud to validate the key and
+deduct credits for priced tools. Cloud configures the prices; check your balance with
+`skylos credits`. A Free workspace can use retained trial credits, but a priced call can fail
+when its balance is too low. LLM-provider charges are separate from Skylos credits.
 
-**Enterprise plans** have unlimited credits — no per-call charges.
+**Enterprise plans** have unlimited credits.
 
 See [Billing & Credits](/billing) for pricing and credit packs.
 
@@ -135,9 +137,9 @@ See [Billing & Credits](/billing) for pricing and credit packs.
 
 | Plan | Rate Limit |
 |------|-----------|
-| No API key | 5 calls/day (`analyze` only) |
+| No API key | 5 calls per rolling 24 hours (`analyze` only) |
 | Free | 50 calls/hour |
-| Pro | 500 calls/hour |
+| Workspace | 500 calls/hour |
 | Enterprise | 5,000 calls/hour |
 
 ### Custom Results Directory
@@ -148,8 +150,8 @@ By default, analysis results are stored in `~/.skylos/mcp_results/`. Override wi
 {
   "mcpServers": {
     "skylos": {
-      "command": "python",
-      "args": ["-m", "skylos_mcp.server"],
+      "command": "skylos",
+      "args": ["mcp"],
       "env": {
         "SKYLOS_API_KEY": "your-api-key",
         "SKYLOS_MCP_RESULTS_DIR": "/path/to/results"
@@ -163,7 +165,7 @@ By default, analysis results are stored in `~/.skylos/mcp_results/`. Override wi
 
 ### `analyze`
 
-Scans for dead code — unused functions, imports, classes, variables, and parameters.
+Scans for dead code: unused functions, imports, classes, variables, and parameters. This is the only tool that works without an API key (five calls per rolling 24 hours).
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -179,7 +181,7 @@ Scans for dead code — unused functions, imports, classes, variables, and param
 
 ### `security_scan`
 
-Runs the full security scanner — taint analysis, dangerous function detection, and vulnerability checks.
+Runs the security scanner: taint analysis, dangerous function detection, and vulnerability checks.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -207,7 +209,7 @@ Runs the full security scanner — taint analysis, dangerous function detection,
 
 ### `quality_check`
 
-Analyzes code quality — complexity, nesting, structure, and logic patterns.
+Analyzes code quality: complexity, nesting, structure, and logic patterns.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -233,7 +235,7 @@ Detects hardcoded credentials and sensitive data.
 
 **Example prompt**: "Find any hardcoded secrets in my project"
 
-**Returns**: All SKY-S101 findings — API keys, tokens, passwords, and private keys with the file, line number, and detected provider.
+**Returns**: All SKY-S101 findings (API keys, tokens, passwords, and private keys) with the file, line number, and detected provider. Secret values are redacted.
 
 **Scanned file types**: `.py`, `.pyi`, `.pyw`, `.env`, `.yaml`, `.yml`, `.json`, `.toml`, `.ini`, `.cfg`, `.conf`, `.ts`, `.tsx`, `.js`, `.jsx`, `.go`, `.java`, `.php`, `.rs`
 
@@ -276,7 +278,6 @@ entries inside dependency sections such as `dependencies`, `devDependencies`,
 
 ---
 
-
 ### `verify_agent`
 
 Statically verifies AI-agent guardrails before deployment. It inventories LLM integrations, runs the same deterministic defense checks as `skylos defend`, and returns defense/ops scores, failed checks with remediation, OWASP coverage summary, an optional gate verdict, and an attestation digest.
@@ -291,9 +292,11 @@ Statically verifies AI-agent guardrails before deployment. It inventories LLM in
 
 **Returns**: Compact JSON with `tool: "verify_agent"`, `defense_score`, `ops_score`, `failed_checks`, `owasp`, `gate`, and `attestation`. The verification is deterministic static analysis, not another model reviewing the code.
 
+---
+
 ### `remediate`
 
-End-to-end remediation: scan for issues, generate LLM-based fixes, validate each fix by running your test suite, and optionally apply them.
+Plans or applies LLM-generated fixes for findings. Over MCP it does not run your tests: review the plan, and run your tests yourself after applying fixes. Costs 10 credits per call.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -301,22 +304,21 @@ End-to-end remediation: scan for issues, generate LLM-based fixes, validate each
 | `max_fixes` | int | 5 | Maximum number of fixes to attempt |
 | `dry_run` | bool | true | If true, shows plan without applying. Set to false to apply fixes. |
 | `model` | string | "gpt-4.1" | LLM model for fix generation |
-| `test_cmd` | string | null | Custom test command (default: auto-detect pytest/unittest) |
+| `test_cmd` | string | null | Not supported over MCP; passing it returns an error |
 | `severity` | string | null | Minimum severity filter: `critical`, `high`, `medium`, `low` |
 
-**Example prompt**: "Fix the top 3 security issues in my project, but don't apply yet — show me the plan"
+**Example prompt**: "Fix the top 3 security issues in my project, but don't apply yet. Show me the plan."
 
-**Returns**: Remediation plan with status for each finding (fixed, skipped, test_failed, not_resolved). Security remediation also re-scans after a fix and can include generated regression-test proof metadata, such as the rule family, source file, and candidate test file.
+**Returns**: Remediation plan with a status for each finding (for example `fixed`, `skipped`, `failed` or `not_resolved`). After applying a fix, Skylos re-scans the file and reverts the fix if the finding is still there. Security remediation can include generated regression-test proof metadata, such as the rule family, source file, and candidate test file.
 
 :::caution
-Set `dry_run=false` only when you're ready to modify files. Fixes that break tests are automatically reverted.
+Set `dry_run=false` only when you're ready to modify files. Skylos does not run your tests over MCP, so run them yourself before you keep the changes.
 :::
 
 **Safety guardrails**:
-- Dry run by default — nothing changes unless you explicitly set `dry_run=false`
-- Fixes that break tests are automatically reverted
+- Dry run by default: nothing changes unless you explicitly set `dry_run=false`
 - Low-confidence fixes are skipped
-- After applying a fix, Skylos re-scans to confirm the finding is actually resolved
+- After applying a fix, Skylos re-scans to confirm the finding is resolved, and reverts the fix if it is not
 - For supported security findings such as `SKY-D211`, Skylos can attach a targeted regression-test candidate after the fix is verified
 - Maximum fixes capped at `max_fixes` to prevent runaway changes
 
@@ -393,8 +395,10 @@ You: "Apply the fixes"
 [Calls remediate(path="./backend", severity="critical", dry_run=false, max_fixes=2)]
 
 Results:
-- api/users.py: Fixed (tests pass, finding resolved)
-- data/loader.py: Fixed (tests pass, finding resolved)
+- api/users.py: Fixed (finding resolved on re-scan)
+- data/loader.py: Fixed (finding resolved on re-scan)
+
+Run your test suite before keeping these changes.
 ```
 
 ### Checking for secrets before deploy
@@ -416,7 +420,7 @@ Recommendation: Move these to environment variables or a secrets manager.
 
 ```
 ┌─────────────────────┐      stdio/SSE      ┌──────────────────────┐
-│  Claude Desktop /   │ ◄──────────────────► │  skylos_mcp.server   │
+│  Claude Desktop /   │ ◄──────────────────► │  skylos mcp          │
 │  Cursor / Any MCP   │    MCP Protocol      │  (FastMCP)           │
 │  Client             │                      │                      │
 └─────────────────────┘                      └──────────┬───────────┘
@@ -443,35 +447,39 @@ Recommendation: Move these to environment variables or a secrets manager.
 ```
 
 1. **MCP client** (Claude Desktop, Cursor, etc.) connects to the Skylos server via stdio
-2. **Tool calls** are routed to Skylos's core `analyzer.analyze()` function — the same engine used by the CLI
+2. **Tool calls** are routed to Skylos's core `analyzer.analyze()` function, the same engine used by the CLI
 3. **Results** are stored in-memory and on disk (`~/.skylos/mcp_results/`) for later retrieval via resources
-4. **Remediation** uses Skylos's LLM orchestrator to generate, apply, test, and verify fixes
+4. **Remediation** uses Skylos's LLM orchestrator to generate and apply fixes, then re-scans to confirm each finding is resolved. It does not run tests over MCP.
 
-The MCP server runs 100% locally. Your code never leaves your machine (unless you use the `remediate` tool, which sends code snippets to your configured LLM provider for fix generation).
+Analysis runs on your machine; see [Privacy](#privacy) for the network calls the server makes.
 
 ## Troubleshooting
 
 ### Server not appearing in Claude Desktop
 
 1. Verify the config file path is correct for your OS
-2. Check that `python -m skylos_mcp.server` works from your terminal
+2. Check that `skylos mcp` starts from your terminal (it waits for MCP messages on stdin; stop it with Ctrl+C)
 3. Restart Claude Desktop after editing the config
 4. Check Claude Desktop logs for connection errors
 
-### "Module not found" error
+### "Command not found" or "Module not found" error
 
-Skylos must be installed in the Python that the config points to:
+Skylos must be installed where the config points:
 
 ```bash
-# Check which python
-which python
+# Check which skylos
+which skylos
 
 # Install skylos there
 python -m pip install skylos
 
-# Or use absolute path in config
-/Users/you/venv/bin/python -m skylos_mcp.server
+# Or use the absolute path in the config
+/Users/you/venv/bin/skylos mcp
 ```
+
+### A tool returns an authentication error
+
+Every tool except `analyze` needs `SKYLOS_API_KEY` in the MCP server's environment. Create a key at [skylos.dev/dashboard/settings](https://skylos.dev/dashboard/settings) and add it to the `env` block of the server config.
 
 ### Analysis returns empty results
 
@@ -484,13 +492,15 @@ python -m pip install skylos
 - Ensure an LLM API key is set: `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`
 - Check that the model name is valid (e.g., `gpt-4.1`, `claude-sonnet-4-20250514`)
 - For local LLMs, configure `SKYLOS_LLM_BASE_URL` in the environment
+- Check your credit balance with `skylos credits`; `remediate` costs 10 credits
 
 ## Privacy
 
-- **Static analysis**: Runs 100% locally. No data leaves your machine.
-- **Secrets scanning**: 100% local. Detected secrets are never transmitted.
-- **Remediation**: Sends code snippets to your configured LLM provider (OpenAI, Anthropic, or local). Use a local LLM (Ollama) for full privacy.
-- **Results storage**: Stored locally at `~/.skylos/mcp_results/`. No telemetry or data collection.
+- **Source code** stays on your machine for every scan tool. Results are stored locally at `~/.skylos/mcp_results/`.
+- **Skylos Cloud:** with `SKYLOS_API_KEY` set, the server contacts skylos.dev to validate the key and to deduct credits for tools that use them.
+- **Package registries:** dependency checks send package names to PyPI, npm and the Go module proxy.
+- **LLM providers:** `remediate` and `verify_dead_code` send code snippets to your configured LLM provider (OpenAI, Anthropic, or local). Use a local LLM (Ollama) to keep them on your machine.
+- **Secrets scanning:** detected secret values are redacted in results.
 
 ## References
 

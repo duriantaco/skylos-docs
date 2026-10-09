@@ -2,8 +2,8 @@ import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 
 const config: Config = {
-  title: 'Skylos — Dead Code Detection, Vibe Coding Guardrails & SAST',
-  tagline: 'Find dead code, vibe coding defects, prompt injection, and security vulnerabilities. Framework-aware static analysis with 98% recall and 3x fewer false positives than Vulture.',
+  title: 'Skylos Docs',
+  tagline: 'Open-source static analysis for dead code, security issues, secrets and AI-code mistakes, with pull-request gates and checks for coding agents.',
   favicon: 'img/favicon-96x96.png',
 
   url: 'https://docs.skylos.dev',
@@ -42,9 +42,10 @@ const config: Config = {
         name: 'Skylos',
         applicationCategory: 'DeveloperApplication',
         operatingSystem: 'Windows, macOS, Linux',
-        offers: { '@type': 'Offer', price: '9', priceCurrency: 'USD' },
-        description: 'Dead code detection, vibe coding guardrails, prompt injection scanning, and SAST for Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, and Shell. Framework-aware analysis with AI-powered fixes.',
-        url: 'https://github.com/duriantaco/skylos',
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+        license: 'https://www.apache.org/licenses/LICENSE-2.0',
+        description: 'Open-source (Apache-2.0), local-first static analysis CLI and pull-request gate: dead code, security issues, secrets, vulnerable dependencies, quality regressions and AI-code mistakes.',
+        url: 'https://skylos.dev',
         downloadUrl: 'https://pypi.org/project/skylos/',
       }),
     },
@@ -60,6 +61,8 @@ const config: Config = {
       '@easyops-cn/docusaurus-search-local',
       {
         hashed: true,
+        docsRouteBasePath: '/',
+        indexBlog: false,
         language: ['en', 'zh'],
         highlightSearchTermsOnTargetPage: true,
         explicitSearchResultPath: true,
@@ -84,13 +87,11 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           routeBasePath: '/',
-          editUrl: 'https://github.com/duriantaco/skylos/tree/main/docs/',
+          editUrl: 'https://github.com/duriantaco/skylos-docs/tree/main/',
         },
-        blog: {
-          showReadingTime: true,
-          blogTitle: 'Skylos Blog',
-          blogDescription: 'Dead code detection, vibe coding, AI supply chain security, and developer tools insights.',
-          blogSidebarCount: 5,
+        blog: false,
+        sitemap: {
+          ignorePatterns: ['/search', '/search/**'],
         },
         theme: {
           customCss: './src/css/custom.css',
@@ -125,12 +126,17 @@ const config: Config = {
     },
 
     navbar: {
-      title: 'Skylos User Docs',
+      title: 'Skylos Docs',
       logo: {
         alt: 'Skylos Logo',
         src: 'img/favicon-96x96.png',
       },
       items: [
+        {
+          href: 'https://skylos.dev/',
+          label: 'skylos.dev',
+          position: 'left',
+        },
         {
           type: 'docSidebar',
           sidebarId: 'tutorialSidebar',
@@ -139,7 +145,7 @@ const config: Config = {
         },
         {
           to: '/case-studies',
-          label: 'Benchmarks',
+          label: 'Case studies',
           position: 'right',
         },
         {
@@ -196,6 +202,16 @@ const config: Config = {
           ],
         },
         {
+          title: 'Product',
+          items: [
+            { label: 'skylos.dev', href: 'https://skylos.dev/' },
+            { label: 'Compare', href: 'https://skylos.dev/compare' },
+            { label: 'Use cases', href: 'https://skylos.dev/use-cases' },
+            { label: 'Blog', href: 'https://skylos.dev/blog' },
+            { label: 'Workspace governance', href: 'https://skylos.dev/workspace-governance' },
+          ],
+        },
+        {
           title: 'Community',
           items: [
             { label: 'GitHub', href: 'https://github.com/duriantaco/skylos' },
@@ -212,6 +228,7 @@ const config: Config = {
             { label: 'Changelog', href: 'https://github.com/duriantaco/skylos/releases' },
             { label: 'Contributing', href: 'https://github.com/duriantaco/skylos/blob/main/CONTRIBUTING.md' },
             { label: 'License', href: 'https://github.com/duriantaco/skylos/blob/main/LICENSE' },
+            { label: 'llms.txt', href: 'https://docs.skylos.dev/llms.txt' },
           ],
         },
       ],

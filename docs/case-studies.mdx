@@ -1,140 +1,76 @@
 ---
 sidebar_position: 18
-title: "Benchmarks & Case Studies"
-description: "Skylos vs Vulture benchmark on 9 top Python repos (350k+ stars). 95% recall vs 70%, 3x fewer false positives. Manually verified results."
+title: "Case Studies"
+description: "Skylos-assisted dead-code cleanup PRs in open-source projects with every outcome, plus the done-gate benchmark and what it does not catch."
 ---
 
 # Case Studies
 
-Skylos was benchmarked against **Vulture** on 9 of the most popular Python repositories on GitHub — 350k+ combined stars. Every finding was **manually verified** against the source code.
+## Cleanup PRs in open-source projects
 
-## Results Summary
+Between March and July 2026 we opened 26 Skylos-assisted pull requests in 22 open-source
+projects. Candidates came from Skylos static analysis, and many were also triaged with
+`skylos agent verify`, which uses an LLM. Maintainers merged 10 dead-code cleanup PRs into the
+default branch of 9 open-source projects, and they are still in place. One more, in Flagsmith, was
+merged into a maintainer's staging branch, but the change did not reach main. These are maintainer
+decisions on cleanup PRs, not endorsements or adoption of Skylos.
 
-| Repository | Stars | Dead Items | Skylos TP | Skylos FP | Vulture TP | Vulture FP |
-|:---|---:|---:|---:|---:|---:|---:|
-| [requests](https://github.com/psf/requests) | 53k | 6 | 6 | 35 | 6 | 58 |
-| [click](https://github.com/pallets/click) | 17k | 7 | 7 | 8 | 6 | 6 |
-| [starlette](https://github.com/encode/starlette) | 10k | 1 | 1 | 4 | 1 | 2 |
-| [rich](https://github.com/Textualize/rich) | 51k | 13 | 13 | 14 | 10 | 8 |
-| [httpx](https://github.com/encode/httpx) | 14k | 0 | 0 | 6 | 0 | 59 |
-| [flask](https://github.com/pallets/flask) | 69k | 7 | 7 | 12 | 6 | 260 |
-| [pydantic](https://github.com/pydantic/pydantic) | 23k | 11 | 11 | 93 | 10 | 112 |
-| [fastapi](https://github.com/fastapi/fastapi) | 82k | 6 | 6 | 30 | 4 | 102 |
-| [tqdm](https://github.com/tqdm/tqdm) | 30k | 1 | 0 | 18 | 1 | 37 |
-| **Total** | | **52** | **51** | **220** | **44** | **644** |
+Checked on GitHub on 9 October 2026.
 
-| Metric | Skylos | Vulture |
-|:---|:---|:---|
-| **Recall** | **98.1%** (51/52) | 84.6% (44/52) |
-| **False Positives** | **220** | 644 |
+| Outcome | PRs |
+|:---|---:|
+| Merged into the default branch and still in place: dead-code cleanup | 10 (9 projects) |
+| Merged into a maintainer's staging branch only; the change did not reach main | 1 |
+| Merged: other fix (mutable default arguments) | 1 |
+| Merged, then reverted by the maintainer | 1 |
+| Closed by a maintainer | 4 |
+| Closed by us | 7 |
+| Still open | 2 |
+| **Total** | **26** |
 
-Skylos finds **7 more dead items** with **3x fewer false positives**.
+The 10 dead-code cleanups that were merged into the default branch and are still in place:
 
-## Why These Repos?
+| Project | Pull request | Merged | Files | Lines removed |
+|:---|:---|:---|---:|---:|
+| Black | [psf/black#5041](https://github.com/psf/black/pull/5041) | 2026-03-11 | 3 | 24 |
+| Black | [psf/black#5052](https://github.com/psf/black/pull/5052) | 2026-03-29 | 3 | 36 |
+| pypdf | [py-pdf/pypdf#3685](https://github.com/py-pdf/pypdf/pull/3685) | 2026-03-16 | 1 | 4 |
+| mitmproxy | [mitmproxy/mitmproxy#8136](https://github.com/mitmproxy/mitmproxy/pull/8136) | 2026-03-18 | 8 | 44 |
+| NetworkX | [networkx/networkx#8572](https://github.com/networkx/networkx/pull/8572) | 2026-03-18 | 5 | 31 |
+| Optuna | [optuna/optuna#6547](https://github.com/optuna/optuna/pull/6547) | 2026-03-23 | 5 | 37 |
+| beets | [beetbox/beets#6473](https://github.com/beetbox/beets/pull/6473) | 2026-03-30 | 4 | 38 |
+| pdm | [pdm-project/pdm#3774](https://github.com/pdm-project/pdm/pull/3774) | 2026-04-30 | 8 | 47 |
+| isort | [PyCQA/isort#2525](https://github.com/PyCQA/isort/pull/2525) | 2026-04-30 | 1 | 3 |
+| react-error-boundary | [bvaughn/react-error-boundary#243](https://github.com/bvaughn/react-error-boundary/pull/243) | 2026-06-20 | 7 | 102 |
 
-Each repository stress-tests dead code detection differently:
+Together: 45 files, 7 lines added, 366 lines removed.
 
-| Repository | What It Tests |
-|:---|:---|
-| **requests** | `__init__.py` re-exports, Sphinx conf, pytest classes |
-| **click** | IO protocol methods (`io.RawIOBase` subclasses), nonlocal closures |
-| **starlette** | ASGI interface params, polymorphic dispatch, public API methods |
-| **rich** | `__rich_console__` protocol, sentinel vars via `f_locals`, metaclasses |
-| **httpx** | Transport/auth protocol methods, zero dead code (pure FP test) |
-| **flask** | Jinja2 template globals, Werkzeug protocol methods, extension hooks |
-| **pydantic** | Mypy plugin hooks, hypothesis `@resolves`, `__getattr__` config |
-| **fastapi** | 100+ OpenAPI spec model fields, Starlette base class overrides |
-| **tqdm** | Keras/Dask callbacks, Rich column rendering, pandas monkey-patching |
+The other 16 pull requests and their outcomes are listed in
+[REAL_WORLD_RESULTS.md](https://github.com/duriantaco/skylos/blob/main/REAL_WORLD_RESULTS.md),
+including the reverted one, the four a maintainer closed, and the Flagsmith PR
+([Flagsmith/flagsmith#6953](https://github.com/Flagsmith/flagsmith/pull/6953)): a maintainer merged
+it into a staging branch so CI could run, and the follow-up PR to main
+([#6955](https://github.com/Flagsmith/flagsmith/pull/6955)) was closed unmerged.
 
-No repo was excluded for having unfavorable results.
+What they taught us:
 
-## Deep Dives
+- Public API is not dead code, even when nothing in the repository calls it.
+- A stale branch can make dead code live again. Re-check on current main the day you submit.
+- Run the project's own formatter and linters before opening the pull request.
 
-### Flask (69k stars)
+## Done-gate benchmark
 
-**Ground truth**: 1 unused function, 2 unused variables, 4 unused classes
+`skylos done` was measured on published coding-agent runs with published labels: runs that
+cheated to pass tests, and honest runs. The write-up gives the pinned dataset, the harness, the
+results for each check, and the limits, including what the gate does not catch: it did not catch
+edits to test data files. The check for code that special-cases tests was developed against this
+data, so its results are in-sample.
 
-Vulture produces **260 false positives** on Flask because it flags every Jinja2 template global, Werkzeug protocol method, and Flask extension hook. Skylos recognizes Flask/Werkzeug patterns and reduces this to 12 FP.
+Read it at
+[docs/done-gate-benchmark.md](https://github.com/duriantaco/skylos/blob/v4.47.2/docs/done-gate-benchmark.md)
+(Skylos 4.47.2). See [Done Gate](/done-gate) for what the gate checks.
 
-Key challenges:
-- Decorator-based route registration (`@app.route`)
-- Public API extensions via `__init__.py`
-- Pytest fixture injection
-- Test config variables loaded via `app.config.from_object`
+## Retired: the March 2026 Vulture comparison
 
-### FastAPI (82k stars)
-
-**Ground truth**: 4 unused variables, 2 unused imports
-
-Vulture flags **102 false positives** — mainly OpenAPI spec model fields (Pydantic `BaseModel` attributes like `maxLength`, `exclusiveMinimum`). Skylos understands these as schema definitions.
-
-Key challenges:
-- Starlette interface requirements (`req`, `receive`, `send` parameters)
-- Pydantic model fields used by OpenAPI spec generation
-- Re-exports and compatibility layers
-
-### Pydantic (23k stars)
-
-**Ground truth**: 2 unused functions, 7 unused variables, 2 unused classes
-
-Key challenges:
-- mypy plugin hooks
-- `__getattr__` dynamic dispatch for config access
-- `TYPE_CHECKING` imports
-- Deprecated exports and version-specific code
-- Hypothesis plugin registration
-
-### httpx (14k stars)
-
-**Ground truth**: 0 dead items — a clean codebase with zero dead code.
-
-This is a pure false positive test. Vulture reports **59 FP**, Skylos reports **6 FP**. Every flagged item is actually used through transport/auth protocol methods, IntEnum members, or conditional imports.
-
-### Rich (51k stars)
-
-**Ground truth**: 1 unused function, 9 unused variables, 2 unused classes
-
-Key challenges:
-- `__rich_console__` protocol methods
-- Sentinel variables accessed via `locals()` introspection
-- Jupyter protocol methods (`_repr_html_`, `_repr_mimebundle_`)
-- Logging handler protocol (`emit`)
-
-### Requests (53k stars)
-
-**Ground truth**: 5 unused functions, 1 unused variable
-
-Key challenges:
-- Public API re-exports through `__init__.py`
-- Sphinx `conf.py` variables (consumed by execfile)
-- Test fixtures and pytest classes
-- `__init__.py` re-export chains
-
-### tqdm (30k stars)
-
-**Ground truth**: 1 unused function (deprecated, scheduled for removal in v5.0)
-
-Key challenges:
-- Framework callbacks (logging.Handler.emit, Dask/Keras/Rich)
-- IPython/Jupyter protocol methods
-- Thread protocol methods (daemon, run)
-- Backward-compatibility re-exports
-
-Skylos misses the 1 dead function because it suppresses `__init__.py` definitions as potential re-exports — a deliberate conservative tradeoff.
-
-## Where Skylos Loses (Honestly)
-
-- **click** (8 vs 6 FP): IO protocol methods on `io.RawIOBase` subclasses
-- **starlette** (4 vs 2 FP): Instance method calls across files not fully resolved
-- **tqdm** (0 vs 1 TP): Skylos misses 1 dead function in `__init__.py`
-
-We include repos where Vulture beats Skylos.
-
-## Reproduce
-
-```bash
-cd real_life_examples/{repo}
-python3 ../benchmark_{repo}.py
-```
-
-Full methodology and per-repo breakdowns in the [skylos-demo](https://github.com/duriantaco/skylos-demo) repository.
+We removed our earlier 9-repository comparison with Vulture because its target commits and tool
+versions were not pinned, so it can't be reproduced.
