@@ -8,18 +8,22 @@ description: "Skylos-assisted dead-code cleanup PRs in open-source projects with
 
 ## Cleanup PRs in open-source projects
 
-Between March and July 2026 we opened 26 Skylos-assisted pull requests in 22 open-source
-projects. Candidates came from Skylos static analysis, and many were also triaged with
+This ledger covers 26 Skylos-assisted cleanup and quality pull requests in 22 open-source
+projects between March and July 2026. Candidates came from Skylos static analysis, and many were also triaged with
 `skylos agent verify`, which uses an LLM. Maintainers merged 10 dead-code cleanup PRs into the
-default branch of 9 open-source projects, and they are still in place. One more, in Flagsmith, was
+default branch of 9 open-source projects, excluding the known
+[Glances revert](https://github.com/nicolargo/glances/commit/f72edef56a9759b5824fead73bd0462d5298df51).
+One more, in Flagsmith, was
 merged into a maintainer's staging branch, but the change did not reach main. These are maintainer
 decisions on cleanup PRs, not endorsements or adoption of Skylos.
 
-Checked on GitHub on 9 October 2026.
+Merge and closure states and branch destinations were checked on GitHub on 9 October 2026.
+These counts record pull-request outcomes, excluding the known Glances revert. We have not
+performed a fresh audit of whether every removed symbol remains absent from the current default branches.
 
 | Outcome | PRs |
 |:---|---:|
-| Merged into the default branch and still in place: dead-code cleanup | 10 (9 projects) |
+| Merged into the default branch: dead-code cleanup, excluding the known revert | 10 (9 projects) |
 | Merged into a maintainer's staging branch only; the change did not reach main | 1 |
 | Merged: other fix (mutable default arguments) | 1 |
 | Merged, then reverted by the maintainer | 1 |
@@ -28,7 +32,7 @@ Checked on GitHub on 9 October 2026.
 | Still open | 2 |
 | **Total** | **26** |
 
-The 10 dead-code cleanups that were merged into the default branch and are still in place:
+The 10 default-branch dead-code cleanup merges counted above:
 
 | Project | Pull request | Merged | Files | Lines removed |
 |:---|:---|:---|---:|---:|
