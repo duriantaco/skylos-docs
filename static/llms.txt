@@ -10,7 +10,7 @@ Available as a CLI, GitHub Action, MCP server and VS Code extension.
 - Languages: dead code in 10 languages and security checks in 9, deepest in Python, TypeScript/JavaScript and Java. Go dead-code and security checks need the `skylos-go` engine, which the PyPI package does not include; the Docker image and GitHub Action do.
 - AI coding agents: `skylos done --base main` flags deleted or skipped tests, loosened CI test steps, silenced lint or type checks, and test-only special cases. It runs pytest itself; other runners need a `test_command`. `skylos agent install-hooks` checks Claude Code, Codex and Cursor edits locally.
 - CI: `skylos cicd init` writes a GitHub Actions pull-request gate; add `--no-upload` without Skylos Cloud.
-- MCP: `skylos mcp`. Without `SKYLOS_API_KEY`, only `analyze` works: five free calls per rolling 24 hours. Every other tool needs a free Skylos API key. Authenticated scans run locally but use Cloud authorization and server-configured credits: analyze 1; security 2; quality/architecture/health 1; secrets 1; provenance 2; remediate 10. Other tools use no Skylos credits; Enterprise has unlimited credits. Local CLI scans need no account and use no credits.
+- MCP: `skylos mcp`. Without `SKYLOS_API_KEY`, only `analyze` works: five free calls per rolling 24 hours. Every other tool needs a free Skylos API key. MCP scans run locally and use no Skylos credits, but authenticated calls contact Cloud to authorize the tool. MCP remediation costs 10 credits; LLM-provider charges are separate. Enterprise has unlimited credits. Local CLI scans need no account and use no credits.
 - Pricing: the CLI is free. Skylos Cloud has a Free plan; one-time credit packs start at $9 for 50 credits.
 
 ## Getting Started
@@ -24,7 +24,7 @@ Available as a CLI, GitHub Action, MCP server and VS Code extension.
 
 - `skylos PATH`: scan source; dead code by default, every main source analyzer with `-a`.
 - `skylos verify [PATH]`: scan the selected source for AI-code mistakes; a separate Python behavior result compares supported working changes with Git HEAD.
-- `skylos done --base main`: check that a change is finished: tests run and pass, none deleted, skipped or weakened, no silenced checks; writes a receipt.
+- `skylos done --base main`: run the branch's tests and check for existing tests deleted, newly skipped or left without countable assertions, loosened test settings, edited Skylos settings and added secrets. Fewer assertions and silenced checks advise by default; writes a receipt.
 - `skylos agent install-hooks [--codex|--cursor]`: check each coding-agent edit locally and hold "done" while new issues are open.
 - `skylos cicd init`: write a GitHub Actions pull-request gate (add `--no-upload` without Skylos Cloud).
 - `skylos preflight [ARTIFACT]`: statically check an exact local GPU artifact against `.skylos/gpu-targets.yml`; OCI input is identity-only and returns `UNKNOWN` in the CLI.
@@ -35,7 +35,7 @@ Available as a CLI, GitHub Action, MCP server and VS Code extension.
 
 ## Coding Agents
 
-- [Done Gate](https://docs.skylos.dev/done-gate): `skylos done` checks that a change is finished, with exit codes, settings, CI setup and limits
+- [Verify an AI Coding Agent's Branch](https://docs.skylos.dev/done-gate): `skylos done` checks that a change is finished, with exit codes, settings, CI setup and limits
 - [Agent-Loop Hooks](https://docs.skylos.dev/agent-hooks): `skylos agent install-hooks` for Claude Code, Codex and Cursor
 - [Your First Gated PR](https://docs.skylos.dev/first-gated-pr): set up the Skylos Quality Gate and Skylos Done checks on GitHub
 

@@ -8,6 +8,12 @@ description: "Install Skylos, run your first local scan, and add an open-source 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
+Skylos is an open-source (Apache-2.0) static analysis CLI for Python, with
+narrower checks for TypeScript/JavaScript, Java and other languages. It finds
+dead code, security issues and hard-coded secrets, and `skylos done` checks
+whether a branch, often an AI coding agent's, is really finished. Install it
+with `pip install skylos`, then run `skylos .`.
+
 This guide covers the fastest path from installation to a useful local scan.
 Skylos works as a local CLI first; cloud upload, LLM review, and CI gates are
 optional layers you can add later.
@@ -140,6 +146,18 @@ skylos . --trace
 This runs your test suite and records which functions were actually called, eliminating false positives from dynamic code.
 
 See [Smart Tracing](/smart-tracing) for details.
+
+## Checking An AI Coding Agent's Branch
+
+To check that a coding agent really finished a branch before you merge it:
+
+```bash
+skylos done --base main
+```
+
+See [Verify an AI Coding Agent's Branch](/done-gate) for what blocks and what
+only advises, and [Agent-Loop Hooks](/agent-hooks) to run checks while the
+agent works.
 
 ## Step 4: Add CI Or Cloud Later
 

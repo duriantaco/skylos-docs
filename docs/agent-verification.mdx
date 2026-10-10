@@ -1,9 +1,13 @@
 ---
-title: "Agent Verification"
-description: "Pre-deployment AI agent verification with skylos discover and skylos defend: evidence reports, SARIF, CI gates, OWASP coverage, and reproducible attestation."
+title: "LLM App Guardrail Verification (skylos defend)"
+description: "Check the guardrails in an LLM app or AI agent you are building, before you deploy it, with skylos discover and skylos defend: OWASP mapping, CI gates, attestation."
 ---
 
-# Pre-Deployment Agent Verification
+# Verify LLM App Guardrails Before Deployment (skylos defend)
+
+:::tip Checking an AI coding agent's work instead?
+This page is about the guardrails inside LLM applications and agents that you build and ship. To check whether a coding agent such as Claude Code, Codex or Cursor really finished the work on a branch (tests not deleted, skipped or weakened), use `skylos done`: see [Verify an AI Coding Agent's Branch](/done-gate).
+:::
 
 Statically inspect an AI agent's guardrails before it ships. `skylos discover`
 inventories recognized LLM integrations in Python and TypeScript/JavaScript;

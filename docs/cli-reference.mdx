@@ -311,8 +311,9 @@ skylos defend . --fail-on critical
 
 `defend` checks the implementation of an AI agent. It does not validate the
 current code edit like `verify`, inspect a built GPU artifact like `preflight`,
-or exercise a running endpoint like `skylos agent test`. See [Agent
-Verification](./agent-verification).
+or exercise a running endpoint like `skylos agent test`, and it is not the
+check for a coding agent's branch (`skylos done`). See [LLM App
+Guardrails](./agent-verification).
 
 Findings are report-only and exit `0` unless `--fail-on`, `--min-score`, or an
 explicit policy requests a gate. Upload and requested gate failures exit `1`.
@@ -554,7 +555,7 @@ skylos credits
 
 Output:
 ```
-My Org (pro plan)
+My Org (Workspace plan)
 Balance: 1,040 credits
 
 Recent activity:
@@ -564,7 +565,7 @@ Recent activity:
 Buy credits: https://skylos.dev/dashboard/billing
 ```
 
-The CLI prints the internal plan id: `pro` is the Workspace plan. Enterprise
+`Workspace` is the display name of the internal `pro` plan. Enterprise
 workspaces show "Unlimited credits" instead of a balance.
 
 Requires `skylos login` first. See [Billing & Credits](/billing) for pricing.

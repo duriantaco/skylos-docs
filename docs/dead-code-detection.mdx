@@ -1,10 +1,40 @@
 ---
 title: "Dead Code Detection"
-description: "Detect unused functions, imports, classes, and variables in Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, and C#. Framework-aware dead code detection for Django, FastAPI, Flask, Spring, React, Next.js, Flutter, and Pydantic."
+description: "Find unused functions, imports, classes and variables in Python, with framework awareness for Django, Flask, FastAPI and pytest. Other languages get narrower checks."
 ---
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
+
+Skylos finds unused functions, classes, imports, variables and parameters by
+building a reference graph of the whole project and scoring each definition
+that nothing references. Dead code is the default scan: run `skylos .`, or
+`skylos . --format json` for scripts and agents. Python has the deepest
+coverage.
+
+## Language Depth
+
+| Language | Dead-code coverage |
+|:---|:---|
+| Python | Deepest: framework-aware (Django, Flask, FastAPI, Pydantic, pytest), optional runtime tracing |
+| TypeScript / JavaScript | Yes: package-graph reachability, React and Next.js conventions |
+| Java | Yes: parser-backed, conservative static-member proof |
+| PHP, Rust, Kotlin, Dart | Yes, narrower. Dart needs `pip install "skylos[dart]"` from 4.47.2 |
+| Go | Needs the separately built `skylos-go` engine (Docker image or GitHub Action); the PyPI package runs only Go quality checks |
+| C#, C++ | Partial. C++ covers unused file-local functions only |
+| Shell | None (Shell gets security checks only) |
+
+Details: [Language Support](/language-support).
+
+## Skylos, Vulture And deadcode
+
+| Tool | Choose it if |
+|:---|:---|
+| [deadcode](https://github.com/albertas/deadcode) | You want autofix with fine-grained ignore rules, and its maintenance status and AGPL-3.0 license work for you |
+| [Vulture](https://github.com/jendrikseipp/vulture) | You want a dedicated, MIT-licensed dead-code finder with confidence scores and an exit code that can fail CI |
+| Skylos | You want framework-aware detection, a cleanup command you can preview, and security and CI checks in the same tool |
+
+Side-by-side results on the same code: [Deadcode vs Vulture vs Skylos](https://skylos.dev/compare/deadcode-vs-vulture-vs-skylos).
 
 ## The Hidden Cost of Dead Code
 
@@ -447,17 +477,13 @@ exit `0`; scans with findings exit `1` unless `--force` is used.
 
 ---
 
-## Real-World Impact
+## Real-World Results
 
-### Case Study: E-commerce Platform
-
-A 200K LOC Python codebase ran Skylos and found:
-
-- **47 unused functions** (3,200 lines of dead code)
-- **156 unused imports** (faster startup, smaller bundles)
-- **12 unused classes** (legacy models never migrated)
-
-**Result:** 15% reduction in codebase size, faster CI builds, easier onboarding for new developers.
+Maintainers merged 10 Skylos-assisted dead-code cleanup PRs into the default
+branch of 9 open-source projects, including Black, NetworkX, Optuna, mitmproxy
+and pypdf. [Case Studies](/case-studies) lists every PR in the ledger,
+including the ones that were closed, reverted or never reached the default
+branch. These are maintainer decisions on cleanup PRs, not endorsements.
 
 ---
 
@@ -465,3 +491,10 @@ A 200K LOC Python codebase ran Skylos and found:
 
 - [Framework Awareness](/framework-awareness) - See all supported frameworks and patterns
 - [CI/CD Integration](/ci-cd) - Automate dead code detection in your pipeline
+
+## Related guides on skylos.dev
+
+- [How to detect dead code in Python](https://skylos.dev/use-cases/detect-dead-code-python): step-by-step walkthrough
+- [Deadcode vs Vulture vs Skylos](https://skylos.dev/compare/deadcode-vs-vulture-vs-skylos): choosing a Python dead-code tool
+- [Django dead code](https://skylos.dev/use-cases/django-dead-code): unused views, helpers and methods
+- [Does Ruff detect dead code?](https://skylos.dev/blog/ruff-dead-code): what Ruff finds and what it misses

@@ -1,7 +1,18 @@
 ---
-title: "Done Gate (skylos done)"
-description: "Check that a change, often an AI agent's, is finished: tests run and pass, none deleted, skipped or weakened, no silenced checks, with a receipt."
+title: "Verify an AI Coding Agent's Branch (skylos done)"
+sidebar_label: "Verify an Agent's Branch"
+description: "Verify an AI coding agent's branch with skylos done: run tests and check for deleted or skipped tests, removed assertions and loosened test settings."
 ---
+
+To verify an AI coding agent's work before you merge it, run
+`skylos done --base main` on the agent's branch. The done gate re-runs your
+tests and fails if they fail, or if existing tests were deleted, newly skipped
+or left without countable assertions, test settings were loosened,
+Skylos settings were edited, secrets were added, or code special-cases the
+tests. Silenced linters, scanners and CI checks are reported as advice by
+default. It works for Claude Code, Codex, Cursor or any other agent, and for
+human branches too. Fewer assertions or changed expected values are advice
+when the test still has a countable assertion.
 
 `skylos done` decides whether a change is finished, with evidence. It runs
 the tests itself, compares the tests and test settings with the base, looks
@@ -303,9 +314,9 @@ Not yet supported:
   Python-only.
 - JS/TS tests generated in loops or shared helpers count once, as written;
   skips on tests with computed titles are not reported.
-- A test rewritten beyond recognition in the same place is still reported as
-  deleted; a different, passing test written in the exact place of a deleted
-  one is accepted as its rewrite with advice.
+- Some rewritten tests remain advice when Skylos cannot establish that the
+  previous tested subject was lost. A replacement that tests something else
+  while the old subject still exists blocks when the static check can identify it.
 - Weakened assertions are advice; only a test left with no countable
   assertion blocks.
 - `skylos done init`, automatic test selection and passing-result caching.
@@ -315,3 +326,7 @@ Not yet supported:
 - Counting computed parametrize cases. A computed case list is trusted while
   the change leaves alone everything that builds it; otherwise the test check
   is unfinished.
+
+## Related guides on skylos.dev
+
+- [AI agent says tests pass? Check for deleted or skipped tests](https://skylos.dev/use-cases/verify-ai-agent-done): the problem this gate solves, with examples

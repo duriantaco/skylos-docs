@@ -264,13 +264,10 @@ See [CI/CD Integration](/ci-cd) for full examples.
 
 ### How fast is Skylos?
 
-| Codebase Size | Time |
-|---------------|------|
-| 10K lines | < 2 seconds |
-| 100K lines | < 10 seconds |
-| 1M lines | < 60 seconds |
-
-Security scanning (`--danger`) adds ~20% overhead.
+Scan time depends on the number and size of files, language mix, enabled checks,
+hardware and other running processes. Reference verification and large JSON
+reports can add substantial work. Measure the commands you plan to use on your
+own repository; line count alone does not predict runtime.
 
 ### How can I make it faster?
 
@@ -298,7 +295,8 @@ Skylos requires valid Python syntax. Verify with `python -m py_compile path/to/f
 
 ### AI features not working
 
-Verify your API key is set (`echo $OPENAI_API_KEY`), the key is valid, and you have available credits/quota.
+Verify your provider API key is configured and valid, and that your model provider
+has available quota. Avoid printing the key into terminal logs.
 
 ---
 

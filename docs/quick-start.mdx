@@ -1,6 +1,6 @@
 ---
 title: "Quick Start"
-description: "Get started with Skylos in under 2 minutes. Install the open-source SAST, dead code detector, AI code security scanner, and CI/CD PR gate for Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, and Shell."
+description: "Install Skylos with pip, scan a Python project for dead code, then add security, secrets and quality checks and a GitHub Actions pull-request gate."
 ---
 
 # Quick Start
@@ -121,7 +121,8 @@ OIDC, tokens, annotations, and branch protection.
 |:---|:---|:---|
 | Technical debt hotspots | `skylos debt .` | [Technical Debt](/technical-debt) |
 | AI-assisted review | `skylos agent scan .` | [AI Features](/ai-features) |
-| Pre-deployment agent verification | `skylos defend . --format md` | [Agent Verification](/agent-verification) |
+| Check an LLM app's guardrails before deployment | `skylos defend . --format md` | [LLM App Guardrails](/agent-verification) |
+| Check an AI coding agent's branch | `skylos done --base main` | [Verify an Agent's Branch](/done-gate) |
 | Built GPU artifact check | `skylos preflight build/app` | [Release Reliability](/release-reliability#built-artifact-preflight) |
 | Container vulnerability scan | `skylos image scan IMAGE@sha256:<digest> --platform linux/amd64` | [CLI Reference](/cli-reference#skylos-image-scan) |
 | Runtime agent behavior test | `skylos agent init && skylos agent test --allow-contract-endpoint` | [Agent Behavior Testing](/agent-behavior-testing) |

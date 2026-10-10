@@ -19,8 +19,8 @@ This is not a summarizer or wrapper: it runs the same analysis as `skylos . --da
 
 :::info API key
 Without an API key, only `analyze` works: five calls per rolling 24-hour window, without credits.
-Every other tool needs a free Skylos API key. Authenticated MCP scans run locally but can use
-Skylos Cloud credits; see the prices below. Local CLI scans need no key and use no credits.
+Every other tool needs a free Skylos API key. MCP scans run locally and use no Skylos credits.
+MCP remediation costs 10 credits. Local CLI scans need no key and use no credits.
 See [Authentication (API Key)](#authentication-api-key).
 :::
 
@@ -103,21 +103,21 @@ Every tool except `analyze` needs an API key. Create one in Skylos Cloud at [sky
 
 **Without an API key**, only `analyze` works, five calls per rolling 24-hour window. Every other tool returns an authentication error. The local CLI needs no key: `skylos verify <file>` and `skylos agent install-hooks` run without an account.
 
-**With an API key**, tools are subject to your balance, rate limit and any required LLM provider
-configuration. The current standard Skylos Cloud prices are:
+**With an API key**, tools are subject to your rate limit and any required LLM provider
+configuration. Scans use no Skylos credits; remediation needs a sufficient balance:
 
 | Tool | Credits | Notes |
 |------|---------|-------|
-| `analyze` | 1 | Dead code. Free without a key within the five-call limit |
-| `security_scan` | 2 | Security findings |
-| `quality_check` | 1 | Quality and logic findings |
-| `architecture_check` | 1 | Coupling, cohesion and circular dependencies |
-| `health_score` | 1 | Overall grade across dead code, security, secrets and quality |
-| `secrets_scan` | 1 | Hard-coded secrets (values redacted) |
+| `analyze` | None | Dead code. Works without a key within the five-call limit |
+| `security_scan` | None | Security findings |
+| `quality_check` | None | Quality and logic findings |
+| `architecture_check` | None | Coupling, cohesion and circular dependencies |
+| `health_score` | None | Overall grade across dead code, security, secrets and quality |
+| `secrets_scan` | None | Hard-coded secrets (values redacted) |
 | `verify_change` | None | AI-code trust findings for a changed file or line range |
 | `validate_code_change` | None | Checks a unified diff for security regressions and made-up dependencies |
 | `verify_agent` | None | Deterministic AI-agent guardrail verification |
-| `provenance_scan` | 2 | Attributes changed files to AI agents, bots or humans from Git history |
+| `provenance_scan` | None | Attributes changed files to AI agents, bots or humans from Git history |
 | `generate_fix` | None | Removal patch for dead code |
 | `learn_triage` / `get_triage_suggestions` | None | Records and suggests triage decisions |
 | `get_security_context` | None | Summary of frameworks, auth, headers and policy |
@@ -125,9 +125,9 @@ configuration. The current standard Skylos Cloud prices are:
 | `remediate` | **10** | LLM-generated fixes; needs your own LLM provider key |
 
 Analysis runs on your machine. Authenticated calls use Skylos Cloud to validate the key and
-deduct credits for priced tools. Cloud configures the prices; check your balance with
-`skylos credits`. A Free workspace can use retained trial credits, but a priced call can fail
-when its balance is too low. LLM-provider charges are separate from Skylos credits.
+authorize the tool; remediation also deducts credits. Check your balance with `skylos credits`.
+A Free workspace can use retained trial credits for remediation, which can fail when the balance
+is too low. LLM-provider charges are separate from Skylos credits.
 
 **Enterprise plans** have unlimited credits.
 
@@ -496,7 +496,8 @@ Every tool except `analyze` needs `SKYLOS_API_KEY` in the MCP server's environme
 
 ## Privacy
 
-- **Source code** stays on your machine for every scan tool. Results are stored locally at `~/.skylos/mcp_results/`.
+- **Analysis** runs locally. Static scan tools do not directly upload source code to Skylos Cloud. Results are stored locally at `~/.skylos/mcp_results/`.
+- **MCP client:** returned findings and generated code patches are sent to your MCP client. It may forward them to its model provider according to its privacy settings.
 - **Skylos Cloud:** with `SKYLOS_API_KEY` set, the server contacts skylos.dev to validate the key and to deduct credits for tools that use them.
 - **Package registries:** dependency checks send package names to PyPI, npm and the Go module proxy.
 - **LLM providers:** `remediate` and `verify_dead_code` send code snippets to your configured LLM provider (OpenAI, Anthropic, or local). Use a local LLM (Ollama) to keep them on your machine.

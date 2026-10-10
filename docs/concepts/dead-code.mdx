@@ -1,6 +1,6 @@
 ---
 title: "What is Dead Code?"
-description: "Understanding the hidden cost of unused code in your codebase"
+description: "What dead code is, why it builds up in Python projects, why removing it is hard, and how to find and remove it safely."
 ---
 
 Dead code is code that exists in your codebase but **never executes**. It might be an unused function, an import you forgot to remove, or a variable that's assigned but never read.
@@ -339,3 +339,9 @@ skylos clean . --apply --comment-out --types import,function --confidence 80
   ### [Vibe Coding & AI Debt](/concepts/vibe-coding)
     Why AI assistants create dead code
   
+
+## Related guides on skylos.dev
+
+- [How to detect dead code in Python](https://skylos.dev/use-cases/detect-dead-code-python)
+- [Is there a Knip for Python?](https://skylos.dev/blog/knip-for-python): unused code, files and dependencies
+- [Cleanup PRs we sent to open-source projects](https://skylos.dev/blog/dead-code-detection-oss-cleanup-prs): what maintainers merged and rejected

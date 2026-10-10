@@ -25,13 +25,6 @@ const config: Config = {
     //   },
     // },
     {
-      tagName: 'meta',
-      attributes: {
-        name: 'keywords',
-        content: 'dead code detection, python static analysis, typescript static analysis, javascript static analysis, java static analysis, go static analysis, php static analysis, rust static analysis, dart static analysis, shell script security, SAST, unused code finder, security scanner, code quality, vulture alternative, django dead code, fastapi dead code, typescript dead code, MCP server, vibe coding, AI generated code, prompt injection detection, AI supply chain security, phantom function, hallucinated dependency, copilot code review',
-      },
-    },
-    {
       tagName: 'script',
       attributes: {
         type: 'application/ld+json',
@@ -88,10 +81,15 @@ const config: Config = {
           sidebarPath: './sidebars.ts',
           routeBasePath: '/',
           editUrl: 'https://github.com/duriantaco/skylos-docs/tree/main/',
+          // Dates come from git history; on Vercel set VERCEL_DEEP_CLONE=true
+          // so a shallow clone doesn't give every page the same date.
+          showLastUpdateTime: true,
         },
         blog: false,
         sitemap: {
-          ignorePatterns: ['/search', '/search/**'],
+          // /overview and /introduction are older 'What is Skylos?' pages that
+          // duplicate the home page and are not in the sidebar (noindex).
+          ignorePatterns: ['/search', '/search/**', '/overview', '/introduction'],
         },
         theme: {
           customCss: './src/css/custom.css',
@@ -101,7 +99,7 @@ const config: Config = {
   ],
 
   themeConfig: {
-    image: 'img/skylos-social-card.png',
+    image: 'img/skylos-docs-card.png',
     colorMode: {
       respectPrefersColorScheme: true,
     },

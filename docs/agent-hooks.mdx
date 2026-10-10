@@ -16,9 +16,10 @@ makes it, instead of waiting for CI:
 - **When the agent says it is done**, Skylos blocks the stop while issues the
   agent added in this session are still open.
 
-Everything runs locally. It needs no account, no Docker and no API key. The
-only network calls are package-registry lookups, and only for install commands
-and new imports.
+The hooks run locally and need no account, no Docker and no API key. Their
+own direct network calls are package-registry lookups for install commands
+and new imports. When the stop hook runs `skylos done`, the repository's test
+command can make its own network calls.
 
 `skylos agent install-hooks` is available from Skylos 4.40.0. The prompt
 baseline hook (`session-start`) that lets [`skylos done`](/done-gate) check a
@@ -384,3 +385,8 @@ the stop hook also runs your tests, so it takes as long as your test command.
   as a follow-up message.
 - It doesn't use Cursor's generic `preToolUse`/`postToolUse` events, or Codex
   MCP-tool hooks. Only the events listed above are used.
+
+## Related guides on skylos.dev
+
+- [Claude Code hooks for security (Codex and Cursor too)](https://skylos.dev/use-cases/ai-coding-agent-hooks): when to use the hooks and what they block
+- [AI coding agent security checklist](https://skylos.dev/blog/ai-coding-agent-security-checklist)

@@ -56,7 +56,7 @@ const sidebars = {
         { type: 'doc', id: 'smart-tracing', label: 'Smart Tracing' },
         { type: 'doc', id: 'security-analysis', label: 'Security' },
         { type: 'doc', id: 'release-reliability', label: 'Release Reliability' },
-        { type: 'doc', id: 'agent-verification', label: 'Agent Verification' },
+        { type: 'doc', id: 'agent-verification', label: 'LLM App Guardrails' },
         { type: 'doc', id: 'agent-behavior-testing', label: 'Agent Behavior Testing' },
         { type: 'doc', id: 'ai-defense', label: 'AI Defense' },
         { type: 'doc', id: 'ai-defects', label: 'AI Defects' },
@@ -72,7 +72,7 @@ const sidebars = {
       collapsible: false,
       items: [
         { type: 'doc', id: 'agent-hooks', label: 'Agent-Loop Hooks' },
-        { type: 'doc', id: 'done-gate', label: 'Done Gate' },
+        { type: 'doc', id: 'done-gate', label: 'Verify an Agent\'s Branch' },
       ],
     },
 

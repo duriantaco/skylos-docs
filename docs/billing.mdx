@@ -30,10 +30,11 @@ or subscriptions, and later packs only add credits. Credits never expire.
 
 - Local CLI scans, with every analyzer and output format.
 - Scan uploads, PR checks and the merge gate.
-- MCP `analyze` without an API key, limited to five calls per rolling 24-hour window.
+- MCP scans, including dead code, security, quality, architecture, health, secrets and provenance.
 
-MCP tools run locally, but authenticated calls use Skylos Cloud for authorization and credit
-deduction. A free API key does not make every MCP scan credit-free. See [MCP Server](/mcp-server).
+MCP tools run locally. They need a free Skylos API key except `analyze`, which works without
+one for five calls per rolling 24-hour window. Authenticated tools still contact Skylos Cloud
+to validate the key and authorize the call. See [MCP Server](/mcp-server).
 
 ## What uses credits
 
@@ -44,17 +45,11 @@ deduction. A free API key does not make every MCP scan credit-free. See [MCP Ser
 | Run AI issue triage | 5 |
 | Run MCP remediation (`remediate`) | 10 |
 | Generate a compliance report | 500 |
-| MCP `analyze` with an API key | 1 |
-| MCP `security_scan` | 2 |
-| MCP `quality_check`, `architecture_check` or `health_score` | 1 |
-| MCP `secrets_scan` | 1 |
-| MCP `provenance_scan` | 2 |
 
 Comparing scans, AI issue triage and AI fix PRs need the Workspace plan plus credits. The
 dashboard confirms the price before these actions run.
 
-MCP prices above are the current standard prices configured by Skylos Cloud. Other MCP tools
-use no Skylos credits; LLM tools can also incur charges from your own model provider.
+Other MCP tools use no Skylos credits. LLM tools can also incur charges from your own model provider.
 
 ## Credit packs
 
@@ -91,8 +86,7 @@ balance and history.
 
 ## At zero credits
 
-Uploads, PR checks and local CLI scans keep working. Credit-priced MCP scans and other actions
-that cost credits stop with
+Uploads, PR checks, local CLI scans and MCP scans keep working. Actions that cost credits stop with
 "Insufficient credits" and a link to Billing. For example, the MCP `remediate` tool returns:
 
 ```
@@ -111,7 +105,7 @@ pack. After a purchase, Workspace has no time limit. Refunding the last paid pac
 paid access; another completed pack keeps it on.
 
 **Can Free workspaces retain credits?**
-Yes. Unused trial credits remain after the trial ends and can pay for credit-priced MCP calls.
+Yes. Unused trial credits remain after the trial ends and can pay for MCP remediation.
 Buying any new pack enables Workspace.
 
 **Do scan uploads cost credits?**

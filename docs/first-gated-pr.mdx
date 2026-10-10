@@ -170,7 +170,7 @@ gh pr create --fill
 gh pr checks --watch
 ```
 
-Expected: **Skylos Quality Gate** fails with `1 critical security issue(s)`
+Expected: **Skylos Quality Gate** fails with `1 critical security issue`
 (SKY-D212, command injection through `shell=True`), the line gets an inline
 comment, and GitHub shows **Merging is blocked**. That is your first
 Skylos-gated pull request. Clean up:
@@ -193,8 +193,11 @@ Pull request checks do not depend on it.
    approve the install.
 3. If you generated the workflow with `--no-upload`, run `skylos cicd init`
    again on a new branch to add the upload job, and open a pull request with
-   that change. It overwrites the workflow file, so reapply any edits you made
-   to the `Install project test dependencies` step. Skylos Done reports edits to a workflow that runs Skylos
+   that change. On Skylos 4.47.2 and newer, replacing a different workflow asks
+   for confirmation and saves the previous file as `.github/workflows/skylos.yml.bak`
+   (numbered `.bak2`, `.bak3`, and so on if a backup already exists);
+   unattended runs need `--force`. Compare the backup and reapply any custom
+   `Install project test dependencies` steps before committing. Skylos Done reports edits to a workflow that runs Skylos
    (SKY-A114), so a person reviews and merges it; add yourself to the ruleset's
    bypass list to do that.
 4. Push to your default branch (or merge any pull request). The **Skylos Cloud
