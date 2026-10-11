@@ -169,6 +169,20 @@ probabilities that deletion is safe. A normal static scan does not run tests.
 | **Location** | `file:line` where the issue occurs |
 | **Symbol** | The function or scope containing the vulnerable code, when supplied in the message |
 
+When a finding records static evidence, Rich and Pretty output show its
+**source**, **sink**, path and missing guards. For example, a SQL-injection
+finding can connect `request.args` to a database `execute` call and identify
+missing parameterized binding. A **partial static analysis** label means the
+recorded path does not cover every surrounding control or call. Inspect the
+code before deciding whether the input can reach the sink in your deployment.
+
+Terminal evidence is shortened for readability. Save JSON to retain the
+complete recorded finding; absent evidence stays absent:
+
+```bash
+skylos . --danger --format json -o security.json
+```
+
 ---
 
 ## Reliability
@@ -308,6 +322,12 @@ rows expose each measured value and location:
 | `repeated 12× (max 3)` | A string literal appears 12 times. Extract to a named constant |
 | `Mutable default argument` | A logic issue like `def foo(x=[])` — no threshold, just a pattern violation |
 
+Argument-count and boolean-input advice for Python `test_*` functions in
+conventional test files includes a pytest qualification: **if pytest supplies
+these inputs**, the signature may describe fixtures or parametrization. Check
+that context before refactoring. The finding, measured count, severity and
+gate contribution remain available; this wording does not suppress the rule.
+
 ---
 
 ## Dependency Vulnerabilities (`--sca`)
@@ -324,11 +344,32 @@ package/version, vulnerability identifier, severity, reachability and fix:
 
 | Column | Meaning |
 |--------|---------|
-| **Package** | The dependency and its installed version |
+| **Package** | The dependency and exact version recorded in a supported manifest or lockfile |
 | **Vuln ID** | The CVE or advisory identifier |
 | **Severity** | Risk level: Critical > High > Medium > Low |
 | **Reachability** | Static evidence of a path to vulnerable code: **Reachable**, **Unreachable** in the analyzed graph, or **Inconclusive**. This is not proof of runtime exploitation or universal unreachability |
-| **Fix** | The patched version to upgrade to |
+| **Fix** | An advisory-backed upgrade hint when available; review compatibility before upgrading |
+
+Read **Coverage** and **Dependency inventory** even when no vulnerabilities
+are listed. The terminal reports supported lockfiles read, packages queried
+and unresolved manifest versions when the scan records them, with next steps
+for incomplete queries. For example, **0 packages queried, 4 manifest versions
+unresolved** means no
+exact package versions were checked. Dependency risk remains unknown.
+
+Skylos inventories supported lockfiles and exact direct manifest pins. It does
+not resolve version ranges or install dependencies. A supported lockfile can
+provide recorded transitive versions, but it does not prove the lock is fresh
+or matches the deployed environment. Keep parsing, query and category
+completion separate when reviewing the JSON receipt:
+
+```bash
+skylos . --sca --format json -o dependencies.json
+```
+
+See the [supported inventories and coverage contract](https://github.com/duriantaco/skylos/blob/main/docs/dependency-scanning.md#supported-inventories).
+`skylos sbom` exports the available inventory offline; it does not import an
+SBOM or replace vulnerability queries.
 
 ---
 

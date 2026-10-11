@@ -1,9 +1,14 @@
 ---
 title: "CLI to Dashboard Workflow"
-description: "The verified end-to-end flow from the local Skylos CLI to Skylos Cloud."
+description: "Local scanning, stored evidence and team review in Skylos Cloud."
 ---
 
 This is the operational guide for the cloud workflow. It reflects the current `skylos` CLI and `skylos-cloud` app behavior.
+
+The assessment and evidence behavior below requires compatible CLI and Cloud
+releases. A source-branch implementation does not establish that a hosted
+deployment already includes it. Older receipts retain unknown or unavailable
+fields; rerun after the matching release is available.
 
 Use this page when you want to answer:
 - Which command should I run?
@@ -212,6 +217,91 @@ Cloud's Gate still evaluates project policy, including newness, categories,
 severity and suppressions. Advice grouping changes presentation only. A pass
 does not remove unresolved risks, and the local CLI gate and Cloud gate remain
 separate decisions.
+
+### Inspect And Export Evidence
+
+Open a finding to review recorded source-to-sink evidence or a security-control
+regression's before/after context. Static paths describe what the analyzer
+recorded. Missing guards, incomplete analysis and missing historical evidence
+remain limitations to investigate.
+
+Authorized Workspace members can download findings as **JSON** or **CSV**
+without spending credits. JSON includes bounded, recognized security evidence,
+taint paths, callgraph verification evidence and AI-verification votes when
+stored. It also preserves finding type, reported severity and gate severity,
+plus available scan revision, CLI version and coverage. CSV provides concise
+evidence columns. Missing fields stay null; exporting does not verify an
+exploit, test execution or a safe fix.
+
+JSON includes stored snippets by default. API callers can omit code-bearing
+fields with `include_snippets=false`:
+
+```text
+GET /api/scans/{id}/export?format=json&include_snippets=false
+```
+
+This removes snippets and flow/route code, but does not scrub finding messages
+or evidence descriptions. Review an export before sharing it. Project exports
+over 10,000 findings are refused; choose one scan rather than receiving a
+silently truncated file.
+
+### Explain An Issue's Priority
+
+Open an issue and select **Explain priority**. This requires
+Workspace access and permission to spend credits. An explanation costs five
+credits; Enterprise includes it. The action sends saved snippets and scanner
+evidence to OpenAI. It considers up to five distinct locations from the latest
+20 stored occurrences and shows the sample and total counts. Historical
+occurrences can appear in that sample.
+
+The result separates cited observations, interpretation, unknowns and a next
+check. **UNKNOWN** means there is insufficient context for a priority. Citation
+locations and quotes must match a supplied occurrence, but the AI's inferred
+impact still needs review. The action does not change severity, status,
+suppression, gate results or fix verification.
+
+Provider failures and invalid answers restore the recorded deduction. If
+restoration cannot be confirmed, the UI says so. A lost connection leaves the
+outcome unknown; check it before retrying.
+
+### Compare Two Scans
+
+Select two saved scans from the same project in **Scans**. Comparison costs
+two credits when available to your role and plan. New and unchanged findings
+remain visible. Missing findings have separate outcomes:
+
+| Outcome | Interpretation |
+|---|---|
+| **No longer reported** | The finding is absent under matching, known scan context and completed coverage. Review the change; absence does not verify a fix. |
+| **Unconfirmed** | The finding is absent, but scanner version, project root, policy, coverage or scope is missing or different, or suppressions affected a scan. |
+| **Not checked** | The newer scan did not complete the relevant check. |
+
+An eligible disappearance requires the same known CLI version, analyzer,
+project root and stored policy receipt, complete repository scope and relevant
+coverage, with no applied suppressions. Diff scans and incomplete scans cannot
+establish this outcome. The separate fix-results workflow still requires
+review evidence; comparison alone does not mark a fix verified.
+
+### Retain A Public Preview
+
+After an anonymous public-repository scan, select **Download preview JSON**
+to save the displayed result locally. It records the canonical repository,
+exact scanned commit, recorded scanner version, static checks, limits and
+counts when available. Finding type and Unknown severity remain visible.
+Older responses with missing provenance retain null fields.
+
+The preview covers enabled dead-code, security, secrets, quality and AI-defect
+checks within its resource limits. It excludes dependency SCA, tests, runtime
+and LLM verification, repository configuration and the Cloud gate. The receipt
+discloses omitted findings when truncated; downloading does not retrieve them.
+Source files and snippets are excluded and secret finding descriptions are
+redacted. Source links use the recorded commit.
+
+**Connect this repo in Cloud** carries the preview revision through setup.
+When started, a new Cloud scan uses the current branch. Get started shows
+whether the saved scan uses the same revision, a different one or an
+unconfirmed revision.
+A matching commit does not establish matching versions, coverage or a fix.
 
 ## 5. Configure the Project in the Dashboard
 
