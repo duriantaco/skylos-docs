@@ -1,15 +1,29 @@
 ---
 title: "Quality Gate"
-description: "Block new issues without stalling development. The industry-standard ratchet workflow with role-based governance."
+description: "Enforce configured finding limits separately from Risk, Maintainability and Dead code, with local and Cloud policy scope made explicit."
 ---
 
 ## What this is
 
-Skylos Quality Gate is a **ratchet**: it does **not** punish you for legacy tech debt. It only blocks the changes that make things worse.
+Skylos evaluates the findings in the selected scan scope against your
+configured limits. A full local scan can fail on existing findings. A diff or
+baseline comparison can focus the result on changes, and Cloud can apply
+project policy for newness, categories, severity and suppressions. Local and
+Cloud gate decisions remain separate.
 
-> "We ignore your existing 500 bugs. We only block you if you add Bug #501."
+The **Gate** decision is separate from **Risk, Maintainability and Dead code**
+in the scan assessment. A passing gate can permit HIGH findings when its
+limits allow them. Those findings retain their severity; a pass does not
+convert them into a clean result. See
+[Understanding the Output](/guides/understanding-output#read-the-assessment).
 
-That means you can ship features *and* steadily improve code quality over time.
+Findings typed **Advice** still count when they are in an enforced quality
+bucket. Grouping or `--expand-advice` changes presentation, not the gate.
+Changed-code metrics under `code_health` and default architecture I/A/D
+metrics under `architecture_metrics.advisories` retain their existing
+report-only policy. Setting `[tool.skylos.architecture] enforce_iad = true`
+makes the I/A/D rules eligible for quality enforcement. Type itself never
+grants a policy exemption.
 
 ---
 
@@ -17,10 +31,11 @@ That means you can ship features *and* steadily improve code quality over time.
 
 ### The Ratchet
 
-Skylos compares the current scan against a baseline (usually your `main` branch).
+When using a baseline or Cloud newness policy, Skylos compares the current
+scan with that baseline (usually your `main` branch).
 
-- **Legacy issues**: already existed → shown, but don't block
-- **New issues**: introduced by your change → can block the gate
+- **Existing issues**: already existed; whether they block depends on scope and policy
+- **New issues**: introduced by your change; evaluated against configured limits
 
 ### Governance actions
 
@@ -74,9 +89,9 @@ skylos . --danger --secrets --quality --ai-defects --gate
 ```mermaid
 flowchart LR
     A[Start Deploy/CI Step] --> B[Skylos Scan]
-    B --> C{New issues?}
-    C -->|No| D[Run Your Command]
-    C -->|Yes| E[BLOCK]
+    B --> C{Within configured limits?}
+    C -->|Yes| D[Run Your Command]
+    C -->|No| E[BLOCK]
     E --> F{Resolution}
     F -->|Fix code| B
     F -->|Suppress finding| G[Recompute Gate]
@@ -144,7 +159,8 @@ input.
 
 ## What a failure looks like
 
-If Skylos detects **new violations**, it blocks and prints an action link:
+If the applicable findings exceed the configured limits, the gate fails.
+A Cloud-connected failure can provide an action link:
 ```text
 QUALITY GATE FAILED
   1 New Violation introduced
@@ -173,7 +189,7 @@ Action required:
 skylos . --danger --secrets --quality --ai-defects --gate
 ```
 
-5. Gate passes when there are **0 new unsuppressed** findings
+5. Gate passes when applicable unsuppressed findings are within the configured limits.
 
 ### Option B — Suppress a specific finding (False Positive / Accept Risk)
 

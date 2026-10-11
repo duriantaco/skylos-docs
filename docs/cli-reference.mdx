@@ -364,6 +364,12 @@ emits JSON for valid reports when stdout is redirected.
 | `--format FORMAT` | Select `rich`, `pretty`, `json`, `llm`, `github`, `gitlab`, or `concise` output. `concise` prints IDE-clickable `file:line RULE_ID message` findings. |
 | `--output`, `-o <file>` | Write results to a file |
 | `--tree` | Display findings in a hierarchical tree format |
+| `--expand-advice` | Show every Advice location instead of grouping Advice by rule. JSON already retains all records. |
+
+New source scans use separate **Risk, Maintainability, Dead code and Gate**
+readouts, with explicit coverage, rather than an overall codebase grade.
+See [Understanding the Output](/guides/understanding-output) for finding
+types, measurements and complete JSON records.
 
 ### Concise IDE-Friendly Output
 
@@ -396,6 +402,11 @@ Clean scans print nothing and exit `0`. Scans with findings exit `1` unless
 `--select` is different: it both enables the matching analyzer family and
 restricts results to exact rule IDs. Unknown IDs are configuration errors and
 exit `2`.
+
+Ordinary display filters preserve the assessment and disclose its original
+analysis scope. Exact rule selection and diff scopes must not reuse a
+full-project assessment. Filtering, grouping and expansion do not relax gate
+limits.
 
 ```bash
 # Gate only GPU source/build intent

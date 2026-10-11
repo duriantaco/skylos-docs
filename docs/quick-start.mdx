@@ -75,6 +75,12 @@ The `-a` scan enables the main static checks:
 
 For exact rules, see [Rules Reference](/rules-reference).
 
+Read **Risk, Maintainability, Dead code, Gate** separately. Advice stays
+visible, grouped by rule; use `--expand-advice` for individual locations.
+Disabled checks are not assessed and failed checks are incomplete. New scans
+do not blend these into an A–F grade. See
+[Understanding the Output](/guides/understanding-output).
+
 Most source analysis is local. The dependency/SCA family may query OSV. Use
 explicit analyzer flags instead of `-a` when an offline run must exclude that
 network-backed family.

@@ -188,6 +188,31 @@ In practice, the cloud split looks like this:
 - CLI: runs analysis
 - Cloud: stores history, groups recurring findings, applies shared policy, manages suppressions, and exposes team workflows
 
+### Read Findings And Assessment
+
+Scans from compatible clients show **Risk, Maintainability, Dead code and
+Gate**, with coverage and counts by **Defect, Review and Advice**. New CLI
+uploads send `metadata.assessment`; Cloud stores the receipt as
+`stats.assessment`. It derives risk severity and built-in finding types from
+the canonical findings and rule catalog. Unknown or custom types default to
+Review. See [Understanding the Output](/guides/understanding-output).
+
+Finding lists show Defect and Review first, then group Advice by rule with an
+**Expand Advice** control. Groups describe the loaded page; pagination and
+full JSON or CSV exports retain access to the complete records. A limited
+public preview discloses truncation rather than implying its list is complete.
+
+Maintainability measurements are scanner-reported and show unavailable
+denominators when a matching inventory is absent. Older scans without the
+assessment receipt show unknown or not assessed instead of a clean result.
+Historical blended grades are labelled **Legacy**, not presented as new
+assessment scores. Rerun with a compatible CLI to obtain the new measurements.
+
+Cloud's Gate still evaluates project policy, including newness, categories,
+severity and suppressions. Advice grouping changes presentation only. A pass
+does not remove unresolved risks, and the local CLI gate and Cloud gate remain
+separate decisions.
+
 ## 5. Configure the Project in the Dashboard
 
 The main project management surface is:

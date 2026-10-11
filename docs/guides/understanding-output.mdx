@@ -1,29 +1,153 @@
 ---
 title: "Understanding the Output"
-description: "What every column, number, and score means in Skylos scan results"
+description: "Read Risk, Maintainability, Dead code and Gate, with finding types, measured coverage and complete scan evidence."
 ---
 
-When you run Skylos, results are printed as tables grouped by category. This guide explains what every column means across all scan types.
+Skylos keeps four questions separate: **Risk, Maintainability, Dead code,
+Gate**. Finding tables provide the locations and evidence behind each readout.
+
+## Read The Assessment
+
+| Readout | Question | What it shows |
+|---|---|---|
+| **Risk** | What needs attention? | Highest unresolved severity and counts among correctness and risk findings. |
+| **Maintainability** | How widespread is the friction? | Advice counts, affected units where measurable, and measured values against their limits. |
+| **Dead code** | What may be removable? | Candidate counts, confidence and evidence to review before deletion. |
+| **Gate** | What does our policy allow? | PASS or FAIL against configured limits when evaluated; otherwise not evaluated. |
+
+New source scans do not average these into a numeric score or A–F grade.
+One critical secret remains critical when the rest of the repository has no
+findings, and adding unrelated code cannot dilute it. Correctness findings
+from quality rules participate in Risk. Dead-code candidates have their own
+readout and Advice contributes to Maintainability.
+
+For example, a report can show **Risk: HIGH**, **Maintainability: 30 affected
+Python functions out of 200 measured**, **Dead code: 4 candidates**, and
+**Gate: PASS**. This means the configured gate permitted those findings; it
+does not make the HIGH risk disappear. Review the findings and the actual
+limits separately.
+
+The independent `skylos debt` and `skylos defend` scores keep their own
+contracts. Historical codebase grades describe the earlier scoring model;
+they should not be compared with the new assessment as one continuous score.
+
+### Spread And Excess
+
+Maintainability reports measurements rather than an uncalibrated letter:
+
+- **Spread:** 30 of 200 measured Python functions exceed a complexity limit:
+  15%. The denominator contains only the eligible functions checked for that
+  rule and language, not every line or language in the repository.
+- **Excess:** complexity 11 against limit 10 is 1.1× the limit; complexity 45
+  is 4.5×. The readout distinguishes an isolated small excess from a large one.
+- A code unit is counted once within a rule when measuring spread, while
+  every finding and its evidence remain available.
+- When a rule has no complete unit inventory, Skylos shows its counts and an
+  unavailable denominator. It does not invent a percentage. Language support
+  and measurement depth vary; see [Language Support](/language-support).
+- If no eligible functions were checked, the readout says so; it does not
+  present a reassuring 0% or a 0/0 percentage.
+
+Function inventories currently cover the following checks when quality
+analysis completes:
+
+| Language | Checks with function denominators |
+|---|---|
+| Python | Cyclomatic and cognitive complexity, nesting, argument count, function length |
+| TypeScript / JavaScript | Cyclomatic complexity, nesting, argument count, function length |
+
+Other rules and languages retain their counts and evidence, with unavailable
+denominators where no matching inventory exists. Per-rule exclusions apply
+to measurements too: TS/JS test callbacks excluded from the function-length
+check are excluded from that denominator.
+
+These proportions describe maintainability observations. They are not defect
+probabilities, accuracy measurements or permission to refactor automatically.
+
+### Coverage And Scope
+
+Disabled checks are **not assessed**. Failed or unavailable checks are
+**incomplete**. Known findings from completed checks remain visible when
+another check fails. Zero findings only describes the checks and scope that
+completed; it does not certify a repository safe.
+
+Missing or unrecognized severities remain **Unknown**. When known urgent
+findings coexist with unknown severities, Risk retains the known urgency and
+discloses the unknown count.
+
+The default `skylos .` checks dead code. It cannot give a clean Security or
+Quality result for checks that were not enabled. Use `-a` for the main analyzer
+families, or explicit flags for the checks you need.
+
+Grouping, expansion and ordinary severity/category/file display filters do
+not change the assessment or the gate. The readout discloses that it describes
+all analyzed findings when a display filter hides rows. An exact rule selection
+or a diff changes the findings scope and must not reuse a full-project assessment.
+
+JSON and JSON-CI retain complete finding records for the chosen scope. New
+source scans expose `assessment` version `1` instead of a new numeric `grade`.
+Analysis errors and coverage limitations remain available alongside it.
+
+## Finding Type And Severity
+
+| Type | Meaning | Examples |
+|---|---|---|
+| **Defect** | A concrete correctness pattern that still needs contextual verification | Mutable defaults, blocking async calls, discarded async results |
+| **Review** | A potential risk requiring context | Possible SSRF, dead-code candidates, unbounded ORM queries, unsafe type assertions |
+| **Advice** | Maintainability or tooling conventions | Complexity, function length, duplicate literals, missing annotations |
+
+Type describes the purpose of a check; severity describes impact. A **Review**
+finding can be **CRITICAL**. Neither the label nor a confidence percentage
+proves a production incident or authorizes a fix.
+
+Terminal reports list Defect and Review individually, then group Advice by
+rule with counts and affected files. All Advice remains visible by default.
+Expand it when reviewing individual locations:
+
+```bash
+skylos . -a
+skylos . -a --expand-advice
+skylos . -a --format json -o report.json
+```
+
+MCP and deterministic LLM replies list Defect and Review in full and summarize
+Advice by rule. MCP callers can request `expand_advice` or read the full saved
+scan resource returned with the reply. JSON keeps every Advice record.
+Advice still counts against applicable gate limits; grouping is not a gate
+exemption. Existing code-health and architecture exemptions remain separate
+policies; see [Quality Gate](/quality-gate).
+
+Individual Rich rows use **Type, Severity, Rule, Message and Location**.
+At narrow widths, severity or location can wrap into the Message cell. The
+examples below show the evidence to look for within each finding family.
 
 ## Dead Code (default)
 
 ```
 ─────────────────── Unused Functions ───────────────────
- #   Name                    Location                 Conf
- 1   old_handler             app.py:16                 90%
- 2   maybe_used              utils.py:42               60%
+ Type    Rule      Message                         Location
+ Review  SKY-U001  old_handler; confidence 90%      app.py:16
+ Review  SKY-U001  maybe_used; confidence 60%       utils.py:42
 ```
 
 | Column | Meaning |
 |--------|---------|
-| **Name** | The unused function, import, class, or variable |
+| **Type** | Dead-code candidates require Review before removal |
+| **Rule** | The specific unused-code check, such as `SKY-U001` |
+| **Name** | The unused function, import, class, or variable, shown in the message |
 | **Location** | `file:line` where it's defined |
-| **Conf** | Confidence score (0–100%) — how certain Skylos is that this code is truly unused |
+| **Conf** | Analyzer confidence (0–100%) based on static liveness signals; inspect the evidence before removing code |
 
-**Confidence thresholds:**
-- **90–100%:** Safe to delete
-- **60–89%:** Review first — might be called dynamically (e.g. via `getattr`, decorators)
-- **Below 60%:** Likely a false positive
+**Confidence is a review signal:**
+
+- **90–100%:** Higher-confidence candidate; inspect dynamic calls, public APIs
+  and the evidence before deleting.
+- **60–89%:** More uncertainty; review framework entrypoints, decorators and
+  dynamic access such as `getattr`.
+- **Below 60%:** Weaker static evidence; the configured threshold may omit it.
+
+These are analyzer confidence values, not independently calibrated
+probabilities that deletion is safe. A normal static scan does not run tests.
 
 ---
 
@@ -31,20 +155,19 @@ When you run Skylos, results are printed as tables grouped by category. This gui
 
 ```
 ───────────────────── Security Issues ─────────────────────
- #  Issue                    Severity   Message                              Location          Symbol
- 1  SQL injection            Critical   SQL injection: tainted input         api/db.py:45      handle_query
-    SKY-D211
- 2  Command injection        High       Command injection (shell=True)       utils/run.py:23   execute_cmd
-    SKY-D212
+ Type    Severity  Rule      Message                          Location
+ Review  CRITICAL  SKY-D211   SQL injection: tainted input     api/db.py:45
+ Review  HIGH      SKY-D212   Command injection (shell=True)   utils/run.py:23
 ```
 
 | Column | Meaning |
 |--------|---------|
-| **Issue** | The vulnerability type with its rule ID (e.g. SKY-D211). The rule ID links to a specific check |
+| **Type** | Whether the finding describes a Defect or needs contextual Review |
+| **Rule** | The vulnerability check and rule ID, such as `SKY-D211` |
 | **Severity** | Risk level: **Critical** > **High** > **Medium** > **Low** |
 | **Message** | What was found and why it's dangerous |
 | **Location** | `file:line` where the issue occurs |
-| **Symbol** | The function or scope containing the vulnerable code |
+| **Symbol** | The function or scope containing the vulnerable code, when supplied in the message |
 
 ---
 
@@ -92,7 +215,8 @@ Reliability is activated by `--danger` / `-a`, or automatically when an exact
 Reliability rule is requested with `--select`. `--category reliability` is a
 display filter; it does not enable the analyzer by itself.
 
-Reliability does not inflate `danger_count` or the Security grade. Gates use
+Reliability does not inflate `danger_count`. Its unresolved Defect or Review
+findings participate in Risk without being relabelled as Security. Gates use
 the independent `max_reliability` threshold, which defaults to `0`. See
 [Release Reliability](../release-reliability) for the Kubernetes and GPU
 contracts.
@@ -138,43 +262,47 @@ and blocking posture.
 
 ```
 ──────────────────────── Secrets ────────────────────────
- #  Provider  Message                    Preview           Location
- 1  aws       AWS Access Key detected    AKIA****EXAMPLE   config.py:12
- 2  stripe    Stripe Live Key detected   sk_live_****xyz   payments.py:8
+ Type    Severity  Rule      Message                        Location
+ Review  CRITICAL  SKY-S101   AWS Access Key detected        config.py:12
+ Review  CRITICAL  SKY-S101   Stripe Live Key detected       payments.py:8
 ```
 
 | Column | Meaning |
 |--------|---------|
-| **Provider** | The service the secret belongs to (e.g. AWS, Stripe, GitHub) or "generic" for high-entropy strings |
+| **Type** | Review the credential evidence without exposing its full value |
+| **Provider** | The service the secret belongs to (e.g. AWS, Stripe, GitHub) or "generic" for high-entropy strings, supplied in the message |
 | **Message** | Description of the detected credential |
-| **Preview** | A masked snippet of the secret |
+| **Preview** | A masked snippet of the secret, supplied in the message |
 | **Location** | `file:line` where the secret was found |
 
 ---
 
 ## Quality (`--quality`)
 
+Advice is grouped by rule by default. With `--expand-advice`, individual
+rows expose each measured value and location:
+
 ```
 ────────────────────────── Quality Issues ──────────────────────────
- #   Type        Name                  Detail                           Location
- 1   Complexity  process_order         Complexity: 18 (max 10)          orders.py:45
- 2   Nesting     validate_input        Deep nesting: depth 6            validators.py:23
- 3   Structure   generate_report       Line count: 142, 142 lines       reports.py:10
- 4   Quality     "lokal"               repeated 12× (max 3)             PDF_in_Akte.py:588
+ Type    Rule      Message                         Location
+ Advice  SKY-Q301  Complexity 18 (limit 10)         orders.py:45
+ Advice  SKY-Q302  Nesting depth 6 (limit 3)        validators.py:23
+ Advice  SKY-C304  Function 142 lines (limit 50)    reports.py:10
 ```
 
 | Column | Meaning |
 |--------|---------|
-| **Type** | The category: Complexity, Nesting, Structure, Quality (duplicate literals, coupling, cohesion), Logic |
-| **Name** | The function, class, or string literal that triggered the finding. String literals are shown in quotes |
-| **Detail** | The measured value and the threshold |
+| **Type** | Defect, Review or Advice; separate from severity and check category |
+| **Rule** | Complexity, Nesting, Structure, Logic, or another rule check |
+| **Name** | The function, class, or string literal that triggered the finding, supplied in the message |
+| **Detail** | The measured value and threshold, supplied in the message |
 | **Location** | `file:line` where the finding starts |
 
 **Understanding the Detail column:**
 
 | Example | What it means |
 |---------|--------------|
-| `Complexity: 18 (max 10)` | 18 branches/loops in the function, but the limit is 10. Simplify by extracting helpers |
+| `Complexity: 18 (max 10)` | Cyclomatic complexity is 18 independent paths against limit 10. Review the control flow and test cases |
 | `Deep nesting: depth 6` | Code is 6 levels deep. Flatten with early returns or guard clauses |
 | `Line count: 142, 142 lines` | Function is 142 lines long. Break into smaller functions |
 | `repeated 12× (max 3)` | A string literal appears 12 times. Extract to a named constant |
@@ -183,6 +311,9 @@ and blocking posture.
 ---
 
 ## Dependency Vulnerabilities (`--sca`)
+
+These findings are **Review** records. Their evidence includes the affected
+package/version, vulnerability identifier, severity, reachability and fix:
 
 ```
 ────────── Dependency Vulnerabilities (SCA) ──────────
@@ -196,12 +327,15 @@ and blocking posture.
 | **Package** | The dependency and its installed version |
 | **Vuln ID** | The CVE or advisory identifier |
 | **Severity** | Risk level: Critical > High > Medium > Low |
-| **Reachability** | Whether your code actually calls the vulnerable code path: **Reachable** (confirmed risk), **Unreachable** (safe to deprioritize), or **Inconclusive** |
+| **Reachability** | Static evidence of a path to vulnerable code: **Reachable**, **Unreachable** in the analyzed graph, or **Inconclusive**. This is not proof of runtime exploitation or universal unreachability |
 | **Fix** | The patched version to upgrade to |
 
 ---
 
 ## Circular Dependencies
+
+Cycles are **Review** records. Their message contains the dependency chain,
+cycle length and any suggested break point:
 
 ```
 ──────────────── Circular Dependencies ────────────────

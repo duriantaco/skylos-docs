@@ -123,7 +123,13 @@ $env:OPENAI_API_KEY="sk-..."
 
 The CLI outputs findings as tables, grouped by category. Each table includes a legend explaining what the columns mean.
 
-- **Dead Code** (default): Unused functions, imports, classes, and variables. Each finding has a **Conf** (confidence) score — higher means safer to remove.
+Read four questions separately: **Risk, Maintainability, Dead code, Gate**.
+Rows carry **Defect**, **Review** or **Advice**, independently of severity.
+Advice stays visible in rule groups; add `--expand-advice` for every location.
+New scans use measured coverage and separate readouts instead of an overall
+A–F grade. See [Understanding the Output](/guides/understanding-output).
+
+- **Dead Code** (default): Unused functions, imports, classes, and variables. Each finding has a **Conf** (confidence) score; inspect its evidence, dynamic usage and public APIs before removing it.
 - **Security** (`--danger`): Vulnerabilities like SQL injection and command injection. Shows **Issue**, **Severity**, and the **Symbol** (function) where it occurs.
 - **Secrets** (`--secrets`): Hardcoded credentials. Shows the **Provider** (e.g. AWS, Stripe) and a masked **Preview**.
 - **Quality** (`--quality`): Complexity, nesting, duplicate literals, and structural issues. Shows the measured value vs. the configured threshold (e.g. `Complexity: 18 (max 10)`).

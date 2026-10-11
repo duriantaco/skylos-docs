@@ -1,6 +1,6 @@
 ---
 title: "Code Quality"
-description: "Measure and enforce maintainability before it becomes technical debt"
+description: "Review correctness risks and visible maintainability Advice, with affected units, measured thresholds and explicit gate policy."
 ---
 
 import Tabs from '@theme/Tabs';
@@ -9,6 +9,27 @@ import TabItem from '@theme/TabItem';
 :::info
 **Enable quality checks:** `skylos . --quality`
 :::
+
+## Defect, Review And Advice
+
+Quality checks include different kinds of findings:
+
+| Type | Example | What to do |
+|---|---|---|
+| **Defect** | Mutable default argument, blocking async call | Verify the correctness pattern and its effect in context. |
+| **Review** | Unbounded ORM query, unsafe type assertion | Inspect the surrounding behavior and evidence. |
+| **Advice** | Complexity, length, nesting, missing annotations | Use the measurements to decide where maintenance work helps. |
+
+Advice stays visible, grouped by rule. `skylos . --quality --expand-advice`
+shows every location; JSON retains all records. Type does not replace severity
+and does not exempt a finding from your configured gate.
+
+The scan assessment separates **Risk, Maintainability, Dead code, Gate**.
+Correctness and risk findings retain their highest unresolved severity.
+Maintainability shows Advice spread and threshold excess, with no blended
+codebase grade or uncalibrated maintainability letter. See
+[Understanding the Output](/guides/understanding-output#read-the-assessment)
+for coverage, scope and measurement details.
 
 ## What Counts As Good Coding Practice
 
@@ -28,22 +49,18 @@ Taste-only preferences should not become default rules. They can still be enforc
 
 ## Why Quality Metrics Matter
 
-Complex code isn't just hard to read—it's statistically more likely to contain bugs.
-```mermaid
-xychart-beta
-    title "Defect Probability vs Complexity"
-    x-axis "Cyclomatic Complexity" [5, 10, 15, 20, 25, 30]
-    y-axis "Defect Probability %" 0 --> 100
-    line [5, 15, 35, 55, 75, 90]
-```
+Metrics make maintenance work concrete. Cyclomatic complexity measures
+independent paths; nesting describes depth; function length describes size.
+Crossing a configured limit is an observation, not proof of a defect.
 
-Research shows that functions with complexity above 10 have significantly higher defect rates. At 20+, the function is nearly impossible to test exhaustively.
+Compare both the spread and the excess. If 30 of 200 measured Python functions
+exceed a complexity limit of 10, the spread is 15%. Complexity 11 is 1.1× that
+limit; complexity 45 is 4.5×. Review the larger outliers and functions you are
+already changing rather than treating every warning as equally urgent.
 
-| Complexity | Risk Level | Description |
-|------------|------------|-------------|
-| 1-10 | **Low risk** | Easy to understand, test, and maintain |
-| 11-20 | **Moderate risk** | Consider refactoring when touching this code |
-| 21+ | **High risk** | Likely contains bugs, very hard to test |
+The denominator must match the rule and language actually measured. When
+that inventory is unavailable, Skylos reports counts without a guessed
+percentage. Adding unrelated TypeScript files cannot improve a Python metric.
 
 ---
 

@@ -131,6 +131,21 @@ credits per call.
 
 See [Billing & Credits](/billing) for pricing and credit packs.
 
+### Findings And Assessment
+
+The scan tools use the same **Defect, Review and Advice** types as the CLI.
+They return Defect and Review in full and group Advice by rule by default.
+Pass `expand_advice: true` for every Advice record, or read the full saved
+scan resource URI returned with the reply. The stored report retains all
+findings and evidence; compact replies do not discard Advice.
+
+`health_score` keeps its tool name for compatibility but new results provide
+**Risk, Maintainability, Dead code and Gate**, with explicit coverage, rather
+than an overall numeric or A–F grade. Disabled checks are not assessed and
+failed checks are incomplete. The independent `verify_agent` defense and
+operations scores keep their existing meanings. See
+[Understanding the Output](/guides/understanding-output#read-the-assessment).
+
 ### Rate Limits
 
 | Plan | Rate Limit |
