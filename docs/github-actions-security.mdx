@@ -55,6 +55,7 @@ Skylos focuses on CI/CD patterns that are high-signal in code review.
 | Secret exposure | `secrets: inherit`, `toJSON(secrets)`, dynamic secret lookup, broad secret env scope |
 | Release risk | OIDC jobs invoking repo-controlled build or release scripts |
 | Artifact and package risk | lax artifact uploads, package installs that run lifecycle scripts, missing timeouts |
+| AI agents in CI | claude-code-action, codex-action, run-gemini-cli, ai-inference or agent CLIs that untrusted issues, comments or fork pull requests can steer |
 
 See [Rules Reference](/rules-reference#github-actions--cicd-security) for the
 full rule list.
@@ -118,6 +119,71 @@ jobs:
 
 The SHA values above are examples. Pin actions to the full commit SHA you have
 reviewed.
+
+## AI Agents In Workflows
+
+AI coding agents in GitHub Actions follow instructions in the text they read.
+On events that anyone can start, that text is attacker-written. Skylos reports
+the combination that makes this exploitable, and names the path:
+
+```yaml
+name: Issue triage
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          allowed_non_write_users: "*"
+          claude_args: --allowedTools "Bash,Read,Write,Edit"
+          prompt: "Triage: ${{ github.event.issue.title }}"
+```
+
+```text
+SKY-D351 CRITICAL issues (anyone who can open an issue) → claude-code-action
+(the prompt interpolates github.event.issue.title) with allowed_non_write_users: "*",
+which lets any account past the action's write-access check; the agent has shell
+commands (Bash in --allowedTools) and secrets ANTHROPIC_API_KEY; ...
+SKY-D352 HIGH ...
+SKY-D353 HIGH ...
+```
+
+| Rule | Reports |
+|---|---|
+| `SKY-D350` | No actor gate in front of an agent that has no built-in check (run-gemini-cli, claude-code-base-action, ai-inference, agent CLIs) |
+| `SKY-D351` | The action's built-in write-access check widened with `"*"` |
+| `SKY-D352` | Any-command shell access on an untrusted trigger |
+| `SKY-D353` | Event text interpolated into the prompt |
+| `SKY-D354` | An agent action or CLI version with a published advisory |
+
+What Skylos checks before reporting:
+
+- **Who can start it.** Event types that need triage access (`labeled`,
+  `assigned`) are trusted. `if:` conditions on the job, its `needs` chain and
+  the step are evaluated per event: `author_association` of the triggering
+  account in OWNER, MEMBER or COLLABORATOR, an exact actor, a same-repository
+  pull request check, or an earlier collaborator-permission check all gate the
+  agent. claude-code-action, codex-action and the opencode action check write
+  access themselves unless that check is widened.
+- **Whether attacker text reaches the agent.** The action loads the triggering
+  thread, the prompt or an earlier step passes event text, the agent has a tool
+  that reads issues or pull requests, or the job checks out the pull request's
+  code. A fixed prompt over the base branch is not reported.
+- **What the agent can do.** Shell, tools that change things, read-only tools,
+  or none. Agents with no tools are not reported. Gemini CLI 0.39.1 and later
+  ignores workspace settings and turns off YOLO approval unless
+  `GEMINI_CLI_TRUST_WORKSPACE` is set, so those runs count as read-only.
+- **What the job holds.** Secrets, write scopes, undeclared token permissions
+  or `id-token: write`.
+
+A fixed `environment:` name is mentioned in the message rather than treated
+as a gate: required reviewers are a repository setting the scan cannot see.
 
 ## Release And Deploy Jobs
 

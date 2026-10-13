@@ -141,6 +141,11 @@ and output contract.
 | `SKY-A119` | Linter or Scanner Settings Weakened | HIGH | Linter, type-checker and scanner configuration (`skylos done`) | Previously enabled checks or strictness reduced, checked source excluded, or findings allow-listed; advises by default |
 | `SKY-A120` | Changed Line Not Checked by Tests | MEDIUM | Python with pytest (`skylos done`) | A changed executable line in non-test code is not run by tests, or its tests still pass after a deliberate mutation; advises by default |
 | `SKY-A121` | CI Check Weakened | HIGH | GitHub Actions, GitLab CI (`skylos done`) | Required checks become optional, stop running, lose merge triggers, or leave required job dependencies; advises by default |
+| `SKY-A122` | AI Reviewer Settings Changed | MEDIUM | Any repository (`skylos done`, diff-aware scans) | The change edits a file an AI code reviewer reads its instructions or settings from (CodeRabbit, Copilot, Cursor Bugbot, Greptile, Gemini, Qodo, Macroscope, Bito, Ellipsis); names each changed setting and which branch the reviewer reads; advises by default |
+| `SKY-A125` | Scanner Suppression Marker Added | MEDIUM | Any language with comments (`skylos done`, diff-aware scans) | An added comment tells a code-scanning platform to stop reporting (DeepSource `skipcq`, Qodana `noinspection`, Qlty, CodeScene, CodeQL, Checkov, Trivy, KICS; `NOSONAR`/`nosemgrep` where SKY-A118 does not read); advises by default |
+| `SKY-A135` | Code Left Unused by the Change | MEDIUM | Languages the dead-code engine covers (`skylos done`) | A function, method, class or JS/TS file that production code used at the base has no production caller at the head, often in a file the change did not touch; names the line that called it; advises by default |
+| `SKY-A136` | New Code Nothing Calls | LOW | Languages the dead-code engine covers (`skylos done`) | A function, method, class or JS/TS file the change added that nothing calls; advises by default |
+| `SKY-A137` | New Code Only Tests Call | LOW | Languages the dead-code engine covers (`skylos done`) | A symbol or JS/TS file the change added whose only callers are tests; always advice unless listed in `branch_orphans_block_rules` |
 | `SKY-L012` | Phantom Function Call | CRITICAL | Python | Call to a security helper that is never defined or imported |
 | `SKY-L023` | Phantom Decorator | CRITICAL | Python | Security decorator that is never defined or imported |
 | `SKY-D222` | Hallucinated Dependency | CRITICAL | Python | Imported package does not exist on PyPI |
@@ -226,6 +231,11 @@ These rules scan `.github/workflows/*.yml`, `.github/workflows/*.yaml`,
 | `SKY-D311` | Lax Artifact Upload Policy | MEDIUM | `actions/upload-artifact` omits `if-no-files-found: error` |
 | `SKY-D312` | JavaScript Install Scripts In CI | HIGH | `npm`, `pnpm`, `yarn`, or `bun` install runs lifecycle scripts without `--ignore-scripts` |
 | `SKY-D313` | Missing Privileged Job Timeout | MEDIUM | Privileged or release-like job has no `timeout-minutes` |
+| `SKY-D350` | AI Agent On Untrusted Trigger Without Actor Gate | CRITICAL | An issue, comment or fork pull request reaches an AI agent step with secrets or a write token, and nothing checks the triggering account's access |
+| `SKY-D351` | AI Agent Write-Access Check Widened | CRITICAL | `allowed_non_write_users: "*"`, `allowed_bots: "*"` or `allow-users: "*"` lets any account past the action's own check |
+| `SKY-D352` | AI Agent With Shell On Untrusted Trigger | HIGH | The agent can run any shell command in a workflow that untrusted text reaches |
+| `SKY-D353` | Untrusted Text In AI Agent Prompt | HIGH | Issue, comment or pull request text is interpolated into the agent's prompt |
+| `SKY-D354` | AI Agent Action With Published Advisory | HIGH | The pinned agent action or CLI version is affected by a published GitHub security advisory |
 
 #### GitLab CI/CD Security
 
@@ -1383,7 +1393,118 @@ and settings changes affecting only test files remain advice. Changing this
 setting in the same change cannot loosen the current check.
 
 
+
 ---
+
+### SKY-A122 · AI Reviewer Settings Changed
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | Any repository |
+| **What** | The change edits a file an AI code reviewer reads its instructions or settings from |
+
+Covered files include `.coderabbit.yaml`, `.coderabbit.config.ts`, root
+`REVIEW.md`, `.cursor/BUGBOT.md`, `.cursor/config/bugbot.yaml`,
+`greptile.json`, `.greptile/`, `.gemini/styleguide.md`, `.gemini/config.yaml`,
+`.pr_agent.toml`, root `best_practices.md`, `.macroscope/`,
+`.github/copilot-instructions.md`, `.github/instructions/**/*.instructions.md`,
+`.github/skills/`, `.bito.yaml` and `.ellipsis/code-review.yaml`. Several
+reviewers (Copilot, CodeRabbit, Macroscope, Bito) read these from the pull
+request's own head, so a pull request can change how it is reviewed.
+
+The message names each changed setting. Changes that narrow the review come
+first: exclusions added, review turned off, a higher comment threshold, a
+quieter profile, approval turned on, or added "do not flag", "ignore" or
+"approve" instructions. In root `AGENTS.md`/`GEMINI.md` and `CLAUDE.md`, only
+added lines aimed at the reviewer count. Edits to comments, whitespace,
+formatting, key order or reformatted files with the same settings are not
+reported.
+
+### SKY-A125 · Scanner Suppression Marker Added
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | Any language with comments |
+| **What** | An added comment tells a code-scanning platform to stop reporting |
+
+Covers DeepSource `skipcq`, JetBrains/Qodana `noinspection`, Qlty
+`qlty-ignore`, CodeScene `@codescene(disable...)`, CodeQL `codeql[...]`/`lgtm[...]`,
+Checkov `checkov:skip=`, Trivy `trivy:ignore:`/`tfsec:ignore:` and KICS
+`kics-scan`, plus `NOSONAR`/`nosemgrep` in languages `SKY-A118` does not read.
+The message says what stops being reported (line, next statement, function,
+resource block or file) and whether a reason is given.
+
+Not reported: markers `SKY-A118` covers, markers in strings or documentation,
+prose mentions without the directive form, markers moved or kept on an edited
+line, and generated or vendored files.
+
+#### Guardrail Tampering Policy
+
+`SKY-A122` and `SKY-A125` share the `guardrail_tampering` check, which advises
+by default. To make them block, set this in the trusted base:
+
+```toml
+[tool.skylos.done.checks]
+guardrail_tampering = "block"
+```
+
+---
+
+### SKY-A135 · Code Left Unused by the Change
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | Languages the dead-code engine covers: Python, JavaScript/TypeScript, Java (private and package-private members), Kotlin (private members), Go (unexported, with the `skylos-go` engine) and others |
+| **What** | A symbol production code used at the base has no production caller at the head |
+
+`skylos done` runs the dead-code engine on the base and the head with test
+files left out, so a symbol that only tests still call counts as unused. The
+message names the removed or changed line that called it, for example
+`` `price_label` (not touched by this change) lost its last caller when
+app/checkout.py:6 changed ``, and says when only tests call it now. Code
+already unused at the base, code moved with its callers and renames whose
+callers were updated are not reported. Delete the code, or call it again.
+
+### SKY-A136 · New Code Nothing Calls
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | As SKY-A135 |
+| **What** | A function, method, class or JS/TS file the change added that nothing calls |
+
+Entry points, framework roots, exported public API and recognized dispatch
+are alive. A definition moved or renamed from elsewhere in the change is not
+new. Names that appear in a file the analyzer could not parse, or in a
+template or configuration file, are not judged.
+
+### SKY-A137 · New Code Only Tests Call
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | As SKY-A135 |
+| **What** | A symbol the change added whose only callers are test files |
+
+The message names the test that calls it. Call it from production code,
+export it if it is public API, or remove it with its test.
+
+#### Branch Orphans Policy
+
+The three rules share the `branch_orphans` check, which advises by default.
+With `branch_orphans = "block"` in the trusted base, `SKY-A135` and
+`SKY-A136` block; `branch_orphans_block_rules` changes that list:
+
+```toml
+[tool.skylos.done]
+branch_orphans_block_rules = ["SKY-A135", "SKY-A136"]
+
+[tool.skylos.done.checks]
+branch_orphans = "block"
+```
 
 ### SKY-D222 · Hallucinated Dependency
 
@@ -2419,6 +2540,61 @@ hung workers cannot run indefinitely.
 | **Languages** | GitHub Actions YAML |
 | **What** | Privileged or release-like job has no `timeout-minutes` |
 | **Risk** | Hung or abused jobs can consume runner time indefinitely |
+
+---
+
+### SKY-D350 · AI Agent On Untrusted Trigger Without Actor Gate
+
+| | |
+|---|---|
+| **Severity** | CRITICAL with shell access, HIGH with tools that change things, MEDIUM with read-only tools |
+| **Languages** | GitHub Actions YAML |
+| **What** | An event any account can start (`issues`, `issue_comment`, `pull_request_target`, review and discussion events, `workflow_run` after pull request runs) reaches an AI agent step that reads attacker-written text, the job holds secrets or a write token, and no `author_association`, actor or permission check gates it. Covers run-gemini-cli, claude-code-base-action, ai-inference and `claude`, `codex exec`, `gemini` or `copilot` CLIs in `run:` blocks |
+| **Risk** | Anyone who can open an issue or comment can steer the agent and use its tools and credentials |
+
+---
+
+### SKY-D351 · AI Agent Write-Access Check Widened
+
+| | |
+|---|---|
+| **Severity** | CRITICAL with shell access, HIGH with tools that change things, MEDIUM with read-only tools |
+| **Languages** | GitHub Actions YAML |
+| **What** | claude-code-action `allowed_non_write_users: "*"` (with `github_token`) or `allowed_bots: "*"`, or codex-action `allow-users: "*"`, on an untrusted event |
+| **Risk** | The action's own write-access check no longer stops outsiders |
+
+---
+
+### SKY-D352 · AI Agent With Shell On Untrusted Trigger
+
+| | |
+|---|---|
+| **Severity** | HIGH when an untrusted event starts it, MEDIUM when a maintainer starts it on a thread others wrote |
+| **Languages** | GitHub Actions YAML |
+| **What** | `Bash` or `Bash(*)` in allowed tools, `--dangerously-skip-permissions`, codex `danger-full-access`, Gemini YOLO without a tool allowlist, or Copilot `--allow-all-tools` |
+| **Risk** | A prompt injection becomes commands on the runner with the job's secrets |
+
+---
+
+### SKY-D353 · Untrusted Text In AI Agent Prompt
+
+| | |
+|---|---|
+| **Severity** | HIGH when anyone can trigger it and the agent can act, otherwise MEDIUM |
+| **Languages** | GitHub Actions YAML |
+| **What** | `${{ github.event.issue.body }}`, comment or review body, pull request title, body or branch name, or `toJSON(github.event)` interpolated into a prompt input |
+| **Risk** | Whoever writes that text writes part of the agent's instructions |
+
+---
+
+### SKY-D354 · AI Agent Action With Published Advisory
+
+| | |
+|---|---|
+| **Severity** | HIGH for a critical advisory on a workflow with an untrusted event, otherwise MEDIUM or LOW |
+| **Languages** | GitHub Actions YAML |
+| **What** | claude-code-action 1.0.0 to 1.0.73 (GHSA-8q5r-mmjf-575q, CVE-2026-47751) or run-gemini-cli before 0.1.22 / `gemini_cli_version` before 0.39.1 (GHSA-wpqr-6v78-jr5g, CVE-2026-12537), by tag or known release commit |
+| **Risk** | The pinned release has a published fix that the workflow does not run |
 
 ---
 
