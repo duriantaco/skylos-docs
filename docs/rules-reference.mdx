@@ -4327,6 +4327,11 @@ message = f"Value: {value!s}"
 Use `!r` for `repr()` and `!a` for `ascii()`. The rule verifies builtin
 bindings and accounts for format specifiers before suggesting a rewrite.
 
+This is optional style advice. The finding remains in JSON with listing
+metadata; use `--all-advice` or explicitly select the rule to show it and
+include it in the gate. Explicit gate rule configuration also includes it;
+it stays out of the default gate otherwise.
+
 ---
 
 ### SKY-L039 · Except Clause That Only Re-Raises
