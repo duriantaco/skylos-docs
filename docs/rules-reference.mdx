@@ -236,6 +236,11 @@ These rules scan `.github/workflows/*.yml`, `.github/workflows/*.yaml`,
 | `SKY-D352` | AI Agent With Shell On Untrusted Trigger | HIGH | The agent can run any shell command in a workflow that untrusted text reaches |
 | `SKY-D353` | Untrusted Text In AI Agent Prompt | HIGH | Issue, comment or pull request text is interpolated into the agent's prompt |
 | `SKY-D354` | AI Agent Action With Published Advisory | HIGH | The pinned agent action or CLI version is affected by a published GitHub security advisory |
+| `SKY-D360` | Dependabot Insecure External Code Execution | HIGH | Dependabot may execute manifest code for bundler, mix, or pip while using private registries |
+| `SKY-D361` | Dependabot Cooldown Under Seven Days | LOW | Effective version-update cooldown is less than seven days |
+| `SKY-D362` | Decoded Secret Printed Unmasked | MEDIUM | A decoded structured secret reaches a value GitHub may print without masking its fields |
+| `SKY-D363` | Obfuscated Action Path Or Expression | MEDIUM | Action paths contain deceptive segments, or expressions obscure a constant or wrapped value |
+| `SKY-D364` | Long-Lived Publish Token | LOW–MEDIUM | PyPI or npm publishing uses a stored token where trusted publishing is available |
 
 #### GitLab CI/CD Security
 
@@ -484,6 +489,10 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-L033` | No-Effect Statement | LOW | Expression statement has no observable effect |
 | `SKY-L034` | Repeated Mutable Alias | MEDIUM | Sequence multiplication reuses mutable elements across repetitions |
 | `SKY-L035` | Blanket ESLint Disable | HIGH | A leading bare `/* eslint-disable */` turns off every ESLint rule for the file |
+| `SKY-L036` | Import Repeated Inside Function | LOW | A function import repeats an available, stable module import |
+| `SKY-L037` | Conditional Returning Bool Literals | LOW | A conditional returning `True` and `False` can use a direct Boolean conversion |
+| `SKY-L038` | Conversion Call Inside F-String | LOW | Builtin `str()`, `repr()`, or `ascii()` inside an f-string can use a conversion flag |
+| `SKY-L039` | Except Clause That Only Re-Raises | LOW | A trailing exception handler only re-raises the caught exception |
 
 ### Performance Rules (SKY-P)
 
@@ -2598,6 +2607,80 @@ hung workers cannot run indefinitely.
 
 ---
 
+### SKY-D360 · Dependabot Insecure External Code Execution
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Dependabot YAML |
+| **What** | A bundler, mix, or pip update enables `insecure-external-code-execution: allow` while using private registries |
+| **Risk** | Dependency manifest code can execute with access to registry credentials |
+
+Remove the execution allowance unless the update requires it, and restrict the
+registries and credentials available to that update. The rule requires both a
+supported ecosystem and private-registry access.
+
+---
+
+### SKY-D361 · Dependabot Cooldown Under Seven Days
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | Dependabot YAML |
+| **What** | Version updates have an effective cooldown shorter than seven days |
+| **Risk** | Newly published dependency versions enter the project before a review window has elapsed |
+
+The calculation considers the ecosystem, default and SemVer-specific cooldown
+days, and include/exclude settings. Disabled version updates are skipped.
+Dependabot security updates are not delayed by version-update cooldowns.
+
+---
+
+### SKY-D362 · Decoded Secret Printed Unmasked
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | GitHub Actions YAML |
+| **What** | A decoded structured secret, such as a field read through `fromJSON(secrets.CONFIG)`, reaches a value GitHub may print |
+| **Risk** | Masking the stored secret text may not mask individual decoded fields |
+
+Mask each derived sensitive value before exposing it to logs or outputs, and
+keep it out of printed commands and inputs. Comparisons and conditions that do
+not print the decoded value are excluded.
+
+---
+
+### SKY-D363 · Obfuscated Action Path Or Expression
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | GitHub Actions YAML |
+| **What** | A `uses:` path contains misleading dot or empty segments, or an expression obscures a constant or merely wraps another value |
+| **Risk** | Indirection makes the action or value used by a workflow harder to review |
+
+Use a canonical action path and a direct value where possible. Expression
+evaluation is bounded; oversized expansions are not evaluated.
+
+---
+
+### SKY-D364 · Long-Lived Publish Token
+
+| | |
+|---|---|
+| **Severity** | MEDIUM, or LOW for an npm fallback token when `id-token: write` is already granted |
+| **Languages** | GitHub Actions YAML |
+| **What** | A workflow publishes to PyPI or npm using stored credentials where trusted publishing is available |
+| **Risk** | A persistent publishing token can remain usable after a workflow or repository compromise |
+
+Configure the registry's trusted publisher for the intended repository and
+workflow. Grant `id-token: write` only to the publishing job and remove the
+stored publish credential once the trusted-publishing setup is verified.
+
+---
+
 ### SKY-D314 · GitLab CI Mutable Container Image
 
 | | |
@@ -4175,6 +4258,101 @@ console.log("legacy output");
 
 A later bare `/* eslint-enable */` closes the suppression and is not reported
 as file-wide. JSDoc comments are not treated as ESLint directives.
+
+---
+
+### SKY-L036 · Import Repeated Inside Function
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | Python |
+| **What** | A function repeats a stable, unconditional import already available from its module |
+| **Risk** | Redundant imports add clutter and obscure the binding the function uses |
+
+```python
+import json
+
+def decode(payload):
+    import json  # Redundant when the module binding remains available
+    return json.loads(payload)
+```
+
+The rule checks scope and bindings before suggesting removal. Shadowed imports,
+dynamic namespace access, and intentional source-code fixtures are preserved.
+
+---
+
+### SKY-L037 · Conditional Returning Bool Literals
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | Python |
+| **What** | A conditional expression or matching return branches produce only Boolean literals |
+| **Risk** | Roundabout Boolean conversion makes a condition harder to read |
+
+```python
+# Flagged
+return True if value else False
+
+# Direct conversion preserves the Boolean result
+return bool(value)
+```
+
+Returning `value` directly is equivalent only when it is already Boolean.
+The rule preserves truth conversion, including conditions involving overloaded
+comparisons. A suggested `bool(value)` also requires `bool` to refer to the
+builtin at the rewrite location.
+
+---
+
+### SKY-L038 · Conversion Call Inside F-String
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | Python |
+| **What** | An f-string field calls builtin `str()`, `repr()`, or `ascii()` instead of using a conversion flag |
+| **Risk** | An unnecessary call obscures the f-string's built-in conversion syntax |
+
+```python
+# Flagged
+message = f"Value: {str(value)}"
+
+# Equivalent conversion
+message = f"Value: {value!s}"
+```
+
+Use `!r` for `repr()` and `!a` for `ascii()`. The rule verifies builtin
+bindings and accounts for format specifiers before suggesting a rewrite.
+
+---
+
+### SKY-L039 · Except Clause That Only Re-Raises
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | Python |
+| **What** | A trailing exception handler performs no recovery and only re-raises the caught exception |
+| **Risk** | A redundant handler adds control flow without explaining or handling the failure |
+
+```python
+# Flagged
+try:
+    perform_work()
+except ValueError:
+    raise
+```
+
+Consider removing the redundant handler while preserving any other handlers,
+`else`, and `finally` behavior. An explicit `raise caught` also changes traceback
+details; review those semantics before rewriting it. Documented placeholders
+are excluded.
+
+SKY-L037, SKY-L038, and SKY-L039 respect configured lint ignores for equivalent
+rewrites, so deliberately disabled suggestions are not repeated.
 
 ---
 
