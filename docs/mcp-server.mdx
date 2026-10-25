@@ -120,10 +120,11 @@ Get your API key from [skylos.dev/dashboard/settings](https://skylos.dev/dashboa
 | `secrets_scan` | **Free** | Runs locally |
 | `verify_change` | **Free** | Runs locally; returns narrow AI-code trust findings for changed code |
 | `verify_agent` | **Free** | Runs locally; verifies AI-agent guardrails with scores, failed checks, OWASP coverage, gate verdict, and attestation digest |
+| `change_map` | **Free** | Runs locally; maps what a change touches: old and new code, callers, removed security checks, what to read first |
 | `remediate` | **10** | AI-powered fix generation |
 
 Analysis tools (`analyze`, `security_scan`, `quality_check`, `secrets_scan`,
-`verify_change`, and `verify_agent`) run entirely on your machine — they don't cost credits.
+`verify_change`, `verify_agent` and `change_map`) run entirely on your machine — they don't cost credits.
 Only the `remediate` tool, which uses LLM-powered fix generation, costs 10
 credits per call.
 
@@ -290,6 +291,25 @@ Statically verifies AI-agent guardrails before deployment. It inventories LLM in
 ```
 
 **Returns**: Compact JSON with `tool: "verify_agent"`, `defense_score`, `ops_score`, `failed_checks`, `owasp`, `gate`, and `attestation`. The verification is deterministic static analysis, not another model reviewing the code.
+
+### `change_map`
+
+Maps what a code change touches so a review agent can read it before the
+diff. It is the MCP equivalent of `skylos done map --format json`.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `path` | string | `"."` | Repository root |
+| `base` | string | `"HEAD"` | Compare with the merge base of this ref, such as `origin/main`; `HEAD` maps only uncommitted changes |
+
+**Example prompt**: "Map what this branch changed against origin/main, then review the flagged changes first."
+
+**Returns**: JSON with `schema_version`, `base_commit`, `symbols` (each
+changed function, method or class with `before` and `after` code, calls
+added and removed, `callers`, `security_removed`, `signature_change` and
+`reasons`), `read_first`, `flagged`, `groups`, `module_changes` and
+`coverage`. The same commit gives the same map: it is computed from the
+code, not by a model. See [Change Map](/change-map).
 
 ### `remediate`
 

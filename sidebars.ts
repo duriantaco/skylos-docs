@@ -61,6 +61,7 @@ const sidebars = {
         { type: 'doc', id: 'ai-defense', label: 'AI Defense' },
         { type: 'doc', id: 'ai-defects', label: 'AI Defects' },
         { type: 'doc', id: 'ai-contracts', label: 'AI Contracts' },
+        { type: 'doc', id: 'change-map', label: 'Change Map' },
         { type: 'doc', id: 'code-quality', label: 'Code Quality' },
         { type: 'doc', id: 'technical-debt', label: 'Technical Debt' },
       ],
