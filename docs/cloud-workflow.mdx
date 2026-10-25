@@ -400,7 +400,7 @@ A clean team rollout usually looks like this:
 5. Configure policy in `Dashboard -> Settings`.
 6. Run `skylos sync pull` so the repo has the latest synced config and suppressions.
 7. Install the GitHub App, then generate CI with `skylos cicd init`: PR checks plus default-branch OIDC uploads.
-8. Check that the expected PR jobs run, then require them in branch protection.
+8. Check that the expected PR jobs run, then require them: the project's Settings has **Download ruleset** for GitHub ([how](./ci-cd#require-the-check-with-a-ruleset)).
 
 ## Troubleshooting
 

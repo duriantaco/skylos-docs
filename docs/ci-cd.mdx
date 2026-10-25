@@ -403,9 +403,33 @@ Recommended order:
 1. get uploads working first
 2. save the exact GitHub repo URL on the project
 3. install the GitHub App from `Dashboard -> Settings`
-4. add branch protection that requires the Skylos status check
+4. open or update a pull request so the **Skylos Quality Gate** check runs on it
+5. require the check: in the project's Settings, step 4 of **Merge blocking on
+   GitHub** has **Download ruleset**
 
-The project settings surface also includes an auto-configure toggle that can allow Skylos to update branch protection and open a workflow PR after install. That is a workspace-level GitHub automation choice, not a requirement for basic uploads.
+### Require the check with a ruleset
+
+The ruleset Skylos gives you requires **Skylos Quality Gate** from the Skylos
+App on your default branch. A workflow job with the same name can't pass it.
+
+1. In the project's Settings, select **Download ruleset**.
+2. On GitHub, open the repository's **Settings -> Rules -> Rulesets**, select
+   **New ruleset -> Import a ruleset**, choose the file, then select **Create**.
+3. Back in Skylos, select **Check again**. The step shows **Done**, and the
+   repository shows **Enforcing** on the coverage page.
+
+Skylos offers the file only after the check has run on a pull request, so the
+rule never waits for a check that can't arrive. Direct pushes to the default
+branch need a passing check too. To let admins skip it, add them to the
+ruleset's bypass list on GitHub. "Merge anyway" in Skylos updates the check, so
+it still works with the ruleset.
+
+If the repository uses a merge queue, Skylos doesn't offer the ruleset yet:
+Skylos doesn't check merge-queue commits, so the queue would wait forever.
+
+Skylos only reads branch protection and rulesets; it never changes them. The
+auto-configure toggle in the project settings only opens the workflow pull
+request after install.
 
 ## Other CI Providers
 
