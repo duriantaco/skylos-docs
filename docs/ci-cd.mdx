@@ -19,6 +19,7 @@ Trivy.
 | Built GPU artifact gate | `skylos preflight build/app` | Exact artifact report: exit `0` PASS, `1` FAIL, `2` UNKNOWN |
 | Workflow security review | `skylos . --danger` | Scans `.github/workflows/*` and local action metadata |
 | Cloud upload with dashboard policy | `skylos . --upload` | Uses project policy, suppressions, and cloud history |
+| Cloud gate in one line on other CI systems | `skylos cloud --gate` | Every check, upload, and exit `1` when the Skylos Cloud gate fails; set `SKYLOS_TOKEN` |
 | GitHub required checks | `skylos cicd init` plus branch protection | PR quality gate and Done run without Cloud credentials; the GitHub App provides a separate Cloud-managed PR gate |
 
 ## GitHub Actions Workflow Security
@@ -408,6 +409,18 @@ Recommended order:
 The project settings surface also includes an auto-configure toggle that can allow Skylos to update branch protection and open a workflow PR after install. That is a workspace-level GitHub automation choice, not a requirement for basic uploads.
 
 ## Other CI Providers
+
+On CI systems other than GitHub Actions, `skylos cloud --gate` is the one-line
+option. It runs every check, uploads the findings, and exits 1 when the Skylos
+Cloud gate (your project's policy in Skylos Cloud) fails. That is not the local
+`skylos . --gate`, which uses `[tool.skylos.gate]` and uploads nothing. Set
+`SKYLOS_TOKEN` to a project token as a secret in a trusted job:
+
+```bash
+skylos cloud --gate
+```
+
+The examples below use the manual form: `--upload` with the checks you pick.
 
 ### GitLab CI
 

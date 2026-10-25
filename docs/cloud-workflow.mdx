@@ -5,6 +5,11 @@ description: "The verified end-to-end flow from the local Skylos CLI to Skylos C
 
 This is the operational guide for the cloud workflow. It reflects the current `skylos` CLI and `skylos-cloud` app behavior.
 
+Short version: run `skylos cloud`. It runs every check, shows the findings,
+uploads them, and prints this branch's quality gate and one link to it. The first run opens
+your browser to log in. See [Cloud Platform](/cloud#start-here-skylos-cloud)
+for what it sends and what it prints.
+
 Use this page when you want to answer:
 - Which command should I run?
 - What gets stored locally vs in the cloud?
@@ -18,8 +23,9 @@ For security-team review and procurement posture, read [Enterprise Trust](/enter
 
 | You want to... | Use this | What it actually does |
 |---|---|---|
-| Connect the current repo to a cloud project | `skylos login` or `skylos project use` | Opens the browser chooser, lets you pick or create a project, verifies the token, and links this repo |
-| Upload a scan | `skylos . --upload` | Runs analysis locally, then uploads findings and metadata to Skylos Cloud |
+| Scan, upload and see the gate | `skylos cloud` | Runs every check (`-a`) unless you name some, shows the findings, uploads them to Skylos Cloud, then prints this branch's quality gate and one link to it. The first run opens the browser login |
+| Connect or switch the current repo's cloud project | `skylos login` or `skylos project use` | Opens the browser chooser, lets you pick or create a project, verifies the token, and links this repo |
+| Upload with the manual flag | `skylos . --danger --upload` | The manual form of `skylos cloud`: runs the analysis you picked locally, then uploads findings and metadata to Skylos Cloud |
 | Keep local policy and suppressions in sync | `skylos sync pull` | Writes `.skylos/config.yaml` and `.skylos/suppressions.json` into the repo |
 | See which project this repo uses | `skylos project status` | Shows the repo link and active project |
 | List known linked projects | `skylos project list` | Shows locally saved projects from `~/.skylos/credentials.json` |
@@ -31,12 +37,12 @@ For security-team review and procurement posture, read [Enterprise Trust](/enter
 
 ```mermaid
 flowchart LR
-    A[Repo checkout] --> B[Run Skylos locally]
-    B --> C{Connected to Cloud?}
-    C -- No --> D[skylos login / skylos project use]
-    C -- Yes --> E[skylos . --upload]
-    D --> E
-    E --> F[Skylos Cloud stores scan]
+    A[Repo checkout] --> B[Run skylos . locally]
+    B --> E[skylos cloud]
+    E --> C{Connected to Cloud?}
+    C -- No --> D[Browser login: pick or create the project]
+    C -- Yes --> F[Skylos Cloud stores scan]
+    D --> F
     F --> G[Workspace views: Overview, Projects, Scans, Issues, Exceptions, Rules, Trends]
     F --> H[Project settings: repo URL, policy, API key, GitHub App, notifications, team]
     H --> I[skylos sync pull]
@@ -69,7 +75,8 @@ Add the cloud when you want:
 
 ## 2. Connect the Repo to Skylos Cloud
 
-Preferred command:
+The first run of `skylos cloud` connects the repo for you. To connect without
+scanning, or to switch to another project later, run:
 
 ```bash
 skylos login
@@ -116,15 +123,23 @@ Get the API key from `Dashboard -> Settings -> choose project -> API key`.
 
 ## 3. Upload Scans
 
-Basic upload:
+The one command:
+
+```bash
+skylos cloud
+```
+
+It runs every check (`-a`), shows the findings, uploads them, then prints this
+branch's quality gate and one link to it. Name checks to run only those, for
+example `skylos cloud --danger --secrets`. It takes the same scan flags as
+`skylos .`, for example `skylos cloud src --exclude build`. See
+[What you see](/cloud#what-you-see) for example output.
+
+The manual form is `--upload` on a scan. It uploads exactly the checks you
+picked:
 
 ```bash
 skylos . --upload
-```
-
-Common variants:
-
-```bash
 skylos . --danger --quality --ai-defects --upload
 skylos defend . --upload
 ```
@@ -149,11 +164,12 @@ The current token resolution order is:
 
 ### Linked repos upload when requested
 
-Linking saves the upload destination and credentials. Plain scans stay local;
-add `--upload` to send a report:
+Linking saves the upload destination and credentials. Plain scans stay local.
+Run `skylos cloud`, or add `--upload` to a scan, to send a report:
 
 ```bash
 skylos .
+skylos cloud
 skylos . --upload
 ```
 
@@ -329,6 +345,10 @@ project selection. Keep stored tokens out of PR test jobs.
   run: skylos . --danger --quality --ai-defects --upload
 ```
 
+Or run `skylos cloud --gate` with the same `SKYLOS_TOKEN`: it runs every
+check, uploads, and exits 1 when the Skylos Cloud gate fails. See
+[which gate that is](#8-how-the-cloud-gate-decides-pass-or-fail).
+
 ### Sync pull in CI
 
 If you want the CI runner to use the latest synced dashboard thresholds and suppressions locally before the scan, add:
@@ -376,6 +396,8 @@ Local gate uses local findings and local config. It only controls the CLI exit c
 ### Cloud gate
 
 ```bash
+skylos cloud
+# or the manual form
 skylos . --upload
 ```
 
@@ -389,25 +411,31 @@ Cloud gate uses the project in Skylos Cloud and evaluates:
 
 That is why a repo linked to the dashboard can behave differently from a local-only run.
 
+`skylos cloud --gate` exits 1 when this Skylos Cloud gate fails. It does not use
+your local limits: `skylos . --gate` is a different, local gate that uses
+`[tool.skylos.gate]` and uploads nothing.
+
+A token does not pass the gate; fixing the issues does. See
+[Do I need a key to pass the gate?](/cloud#do-i-need-a-key-to-pass-the-gate)
+
 ## 9. Recommended Rollout
 
 A clean team rollout usually looks like this:
 
 1. Start with local scans only.
-2. Connect the repo with `skylos login`.
-3. Upload from a developer machine once with `skylos . --upload` to check the connection. This scan is unverified and cannot pass the Cloud GitHub gate.
-4. Set the project repo URL if you want GitHub-native features.
-5. Configure policy in `Dashboard -> Settings`.
-6. Run `skylos sync pull` so the repo has the latest synced config and suppressions.
-7. Install the GitHub App, then generate CI with `skylos cicd init`: PR checks plus default-branch OIDC uploads.
-8. Check that the expected PR jobs run, then require them in branch protection.
+2. Run `skylos cloud` from a developer machine. The first run connects the repo; the upload checks the connection. This scan is unverified and cannot pass the Cloud GitHub gate.
+3. Set the project repo URL if you want GitHub-native features.
+4. Configure policy in `Dashboard -> Settings`.
+5. Run `skylos sync pull` so the repo has the latest synced config and suppressions.
+6. Install the GitHub App, then generate CI with `skylos cicd init`: PR checks plus default-branch OIDC uploads.
+7. Check that the expected PR jobs run, then require them in branch protection.
 
 ## Troubleshooting
 
 ### A linked scan does not appear in Cloud
 
-Linking alone does not enable scan uploads. Run `skylos . --upload` to send
-the report.
+Linking alone does not enable scan uploads. Run `skylos cloud`, or add
+`--upload` to a scan, to send the report.
 
 ### OIDC says the repo is not linked
 
@@ -421,7 +449,7 @@ per-root workflow; CLI `--scan-path` alone does not route policy sync.
 
 ### `skylos sync pull` says not connected
 
-Run `skylos login` or `skylos sync connect` first.
+Run `skylos cloud`, `skylos login` or `skylos sync connect` first.
 
 ### The repo is connected to the wrong project
 

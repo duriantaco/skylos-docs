@@ -8,6 +8,25 @@ description: "Get started with Skylos in under 2 minutes. Install the open-sourc
 Skylos is an open-source static analysis tool and PR gate. Use it locally first,
 then add CI once the output makes sense for your repository.
 
+## The Three Commands
+
+```bash
+pip install skylos
+skylos .            # find problems; your code and findings stay on your machine
+skylos cloud        # optional: track results per branch on Skylos Cloud
+skylos cicd init    # add a Skylos check to every pull request
+```
+
+- `skylos .` finds problems. Your code and findings stay on your machine.
+- `skylos cloud` is optional. It tracks results per branch on [Skylos Cloud](/cloud).
+- `skylos cicd init` adds a Skylos check to every pull request. See [CI/CD Integration](/ci-cd).
+
+`skylos .` finds dead code. `skylos . -a` runs every check (security, secrets,
+quality, AI-code defects, dependencies) and still stays local, except that the
+dependency check asks OSV.dev about package names and versions.
+
+The steps below go through each command in more detail.
+
 ## 1. Install
 
 ```bash
@@ -55,6 +74,14 @@ skylos .
 This starts with dead code detection. Skylos reports unused functions, classes,
 imports, variables, files, and framework entrypoint issues with confidence
 scores.
+
+When the scan finds issues, it ends with what to run next:
+
+```text
+Found 3 issues: security 2, quality 1.
+Next: skylos cloud      track these per branch on Skylos Cloud (sends findings, not your repository)
+      skylos cicd init  check every pull request in CI
+```
 
 ## 3. Add Security, Secrets, And Quality
 
@@ -105,6 +132,20 @@ skylos done map --base origin/main
 
 See [Change Map](/change-map).
 
+## Optional: Track Results On Skylos Cloud
+
+```bash
+skylos cloud
+```
+
+`skylos cloud` runs every check (`-a`), shows the findings, uploads them to
+Skylos Cloud, then prints this branch's quality gate and one link to it. The first run opens
+your browser to log in and pick the project for this repo. It sends findings,
+not your repository.
+
+See [Cloud Platform](/cloud) for what it sends, what you see, and how to use it
+in CI.
+
 ## 5. Add A GitHub Actions PR Gate
 
 Generate a workflow:
@@ -134,7 +175,7 @@ OIDC, tokens, annotations, and branch protection.
 | Built GPU artifact check | `skylos preflight build/app` | [Release Reliability](/release-reliability#built-artifact-preflight) |
 | Container vulnerability scan | `skylos image scan IMAGE@sha256:<digest> --platform linux/amd64` | [CLI Reference](/cli-reference#skylos-image-scan) |
 | Runtime agent behavior test | `skylos agent init && skylos agent test --allow-contract-endpoint` | [Agent Behavior Testing](/agent-behavior-testing) |
-| Cloud dashboard upload | `skylos suite . --upload` | [CLI to Dashboard](/cloud-workflow) |
+| Track results on Skylos Cloud | `skylos cloud` | [Cloud Platform](/cloud) |
 | MCP server for AI assistants | `python -m skylos_mcp.server` | [MCP Server](/mcp-server) |
 
 `image scan` requires Trivy to be installed separately on `PATH`. It forces
@@ -169,6 +210,7 @@ transform failure, so review its completion output.
 | See what a change touches | `skylos done map --base origin/main` |
 | Gate locally | `skylos . -a --gate` |
 | Print concise IDE output | `skylos --format concise src/test.py` |
+| Track results per branch on Skylos Cloud | `skylos cloud` |
 | Generate GitHub Actions workflow | `skylos cicd init` |
 | Export JSON | `skylos . -a --json -o skylos-results.json` |
 

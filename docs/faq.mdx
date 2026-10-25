@@ -75,6 +75,7 @@ skylos agent scan .
 skylos .                              # Dead code only
 skylos . -a                           # Main local audit
 skylos . --danger --quality --ai-defects --gate    # With quality gate
+skylos cloud                          # Every check, upload, see the gate on Skylos Cloud
 ```
 
 ### How do I scan a single file?
@@ -193,6 +194,28 @@ Skylos may not recognize custom sanitization functions. Use standard library san
 
 ---
 
+## Skylos Cloud
+
+### What does `skylos cloud` send?
+
+It sends findings with file paths and code snippets of up to 7 lines (none for
+secrets), the branch, the commit, the git author email of each flagged line,
+and a map of your functions and classes (names, files, lines, sizes, which
+calls which). Not your repository.
+
+Scans never upload unless you run `skylos cloud` or add `--upload`. For every
+network request the CLI can make, see
+[What leaves your machine](https://github.com/duriantaco/skylos/blob/main/docs/privacy-and-network.md).
+
+### Do I need a key to pass the gate?
+
+No. A token only lets you upload. The gate passes when the issues that fail it
+are fixed. On the paid plans (Pro, Enterprise), a workspace admin or owner can
+override a failed gate in Skylos Cloud; they must give a reason, and it is
+recorded with the scan.
+
+---
+
 ## Enterprise Trust
 
 ### Is Skylos enterprise-ready?
@@ -216,7 +239,7 @@ See [Enterprise Trust](/enterprise-trust) for the current trust posture.
 
 ### Does Skylos upload my whole repository?
 
-Normal `skylos . --upload` sends scan results and metadata to Skylos Cloud, not the full repository as source blobs.
+No. `skylos cloud` and `skylos . --upload` send scan results and metadata to Skylos Cloud, not the full repository as source blobs.
 
 Uploaded findings can include security-sensitive metadata, file paths, line numbers, rule ids, branch/commit metadata, and contextual evidence needed to explain results. Treat uploaded scan results as sensitive security data.
 
@@ -248,7 +271,7 @@ If thresholds are exceeded, `skylos --gate` exits with code 1.
 
 ### Can I bypass the gate?
 
-In interactive terminals, you'll be prompted to bypass unless `strict = true`. In CI/CD, the gate cannot be bypassed.
+For the local `--gate`: in interactive terminals, you'll be prompted to bypass unless `strict = true`. In CI/CD, the local gate cannot be bypassed. For the Skylos Cloud gate, see [Do I need a key to pass the gate?](#do-i-need-a-key-to-pass-the-gate)
 
 ### How do I set up the gate in CI?
 ```yaml

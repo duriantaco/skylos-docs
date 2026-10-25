@@ -43,6 +43,7 @@ installed family map and `skylos <family> --help` for its real parser options.
 | Command | Purpose |
 |------|---------|
 | `skylos PATH [PATH ...]` | Scan source; dead code by default, every main source analyzer with `-a` |
+| `skylos cloud [PATH]` | Scan with every check, upload the findings (not your repository) and show this branch's gate and link |
 | `skylos suite [DIRECTORY]` | Build one static, debt, defense, and provenance report |
 | `skylos verify [path]` | Scan source for AI-code mistakes and separately model supported Python working changes |
 | `skylos preflight [ARTIFACT]` | Check an exact local built GPU artifact against its fleet; OCI is `UNKNOWN` in the CLI |
@@ -117,6 +118,33 @@ Run static analysis on the specified path.
 ```bash
 skylos . --danger --quality --ai-defects
 ```
+
+### `skylos cloud [PATH] [scan flags]`
+
+Scan `PATH` (default `.`) with every check (`-a`), show the findings, upload
+them to Skylos Cloud, then show the quality gate for this branch and one link
+to it.
+
+```bash
+skylos cloud                    # scan this repo and upload
+skylos cloud --gate             # same, and exit 1 when the Cloud gate fails
+skylos cloud --danger --secrets # run only these checks
+skylos cloud src --exclude build
+```
+
+| Topic | Behavior |
+|------|-------------|
+| Checks | Every check (`-a`), unless you name some, e.g. `--danger --secrets` |
+| Sends | Findings with file paths and code snippets of up to 7 lines (none for secrets), the branch, the commit, the git author email of each flagged line, and a map of your functions and classes (names, files, lines, sizes, which calls which). Not your repository |
+| First run | Opens your browser to log in and pick the project for this repo |
+| Flags | The same scan flags as `skylos <path>` |
+| Gate and exit code | Shows the Skylos Cloud quality gate: the project's policy in Skylos Cloud. Exit `0` even when it fails. Add `--gate` to exit `1` when it fails (use this in CI). `skylos . --gate` is a different, local gate: it uses `[tool.skylos.gate]` and uploads nothing |
+| `--no-upload` | Refused with exit `2`: `skylos cloud` always uploads. Run `skylos .` for a local-only scan |
+| No terminal and no login | Stops before scanning and exits `1` with "Not connected to Skylos Cloud. Run skylos login in a terminal, or set SKYLOS_TOKEN to a project token (create one in your project's Settings on skylos.dev)." In GitHub Actions or GitLab CI it uses the CI identity (OIDC) or `SKYLOS_TOKEN` |
+
+`skylos cloud --help` prints this summary. `--upload` on a scan is the manual
+form of `skylos cloud`: it uploads exactly the checks you picked. See
+[Cloud Platform](/cloud#start-here-skylos-cloud) for example output.
 
 ### `skylos verify [path]`
 
@@ -439,7 +467,7 @@ cannot pass open.
 
 | Flag | Description |
 |------|-------------|
-| `--danger` | Enable security plus deployment/runtime contract scanning. Non-security deployment and GPU results are reported under Reliability |
+| `--danger`, `--security` | Enable security plus deployment/runtime contract scanning. Non-security deployment and GPU results are reported under Reliability. `--security` is another name for `--danger` |
 | `--secrets` | Enable API key and secret detection |
 | `--quality` | Enable code quality checks (complexity, nesting, etc.) |
 | `--ai-defects` | Enable evidence-backed AI defect checks such as phantom references, hallucinated APIs, impossible dependency versions, weakened test assertions, test-impact gaps, CI privilege expansion, and CLI surface drift |
@@ -685,7 +713,7 @@ skylos cicd review --input skylos-report.json --pr 42
 
 | Flag | Description |
 |------|-------------|
-| `--upload` | Upload scan results and metadata to Skylos Cloud. Uses `SKYLOS_TOKEN`, GitHub OIDC, or saved `skylos login` credentials. Uploads never cost credits. |
+| `--upload` | Upload scan results and metadata to Skylos Cloud. Uses `SKYLOS_TOKEN`, GitHub OIDC, or saved `skylos login` credentials. Uploads never cost credits. `skylos cloud` adds `--upload` for you, and `-a` unless you name checks. |
 | `--strict` | Exit with code 1 if quality gate fails (use in CI to block merges) |
 | `--force`, `-f` | Bypass quality gate locally (still uploads if `--upload` is set) |
 
