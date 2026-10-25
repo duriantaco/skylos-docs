@@ -38,10 +38,11 @@ preserve this category.
 See [GitHub Actions Security](/github-actions-security) for setup guidance and
 the full scanner scope.
 
-This workflow-configuration scanner is GitHub Actions-specific. GitLab CI,
-CircleCI, Jenkins, and other providers can still run Skylos as a CLI gate, but
-Skylos does not currently parse their CI configuration files for provider-level
-misconfiguration rules.
+Skylos also checks `.gitlab-ci.yml` for GitLab CI misconfigurations (SKY-D314
+to SKY-D323 in the [rules reference](/rules-reference)). It does not parse
+Jenkins, CircleCI, Bitbucket Pipelines, Azure Pipelines or Buildkite
+configuration for provider-level misconfiguration rules; those CIs still run
+the Skylos pull request gate, see [Other CI Providers](#other-ci-providers).
 
 ## GitHub Actions with OIDC
 
@@ -358,7 +359,9 @@ Keep policy sync and its credentials out of ordinary PR test jobs.
 ### `skylos cicd init`
 
 Use `skylos cicd init` from **Skylos 4.46.0 or newer** to scaffold the workflow
-described here.
+described here. On GitLab CI, Jenkins, Bitbucket Pipelines, Azure Pipelines
+and CircleCI it sets up that CI's gate instead; see
+[Other CI Providers](#other-ci-providers).
 
 Examples:
 
@@ -409,7 +412,149 @@ The project settings surface also includes an auto-configure toggle that can all
 
 ## Other CI Providers
 
+Skylos runs on any CI. `skylos cicd init` finds the CI your repository uses and
+sets up the pull request gate for it. Run `skylos cicd init --help`: if it lists
+`--ci`, your Skylos has this.
+
+| Repository has | `skylos cicd init` sets up |
+|:---|:---|
+| `.github/workflows/` | GitHub Actions: writes `.github/workflows/skylos.yml` |
+| `.gitlab-ci.yml` | GitLab CI |
+| `Jenkinsfile` | Jenkins |
+| `bitbucket-pipelines.yml` | Bitbucket Pipelines |
+| `azure-pipelines.yml` | Azure Pipelines |
+| `.circleci/config.yml` | CircleCI |
+| `.buildkite/`, `.travis.yml`, `.drone.yml`, `.woodpecker.yml`, `.teamcity/` | prints the commands to add |
+| no CI file | the CI of origin's host (github.com, gitlab.com, bitbucket.org, dev.azure.com), else GitHub Actions |
+
+If the CI file does not exist yet, Skylos writes it. If it exists, Skylos does
+not edit it: it prints the block to add and where it goes. Pick a CI with
+`--ci github|gitlab|jenkins|bitbucket|azure|circleci|other`.
+
+A repository with `.github/workflows/` gets the GitHub workflow, as before.
+Skylos also names any other CI file it found and the `--ci` command for it.
+Without `.github/workflows/`, two or more of the GitLab, Jenkins, Bitbucket,
+Azure and CircleCI files and no `--ci` make Skylos write nothing and ask you
+to pick.
+
+Every generated config runs the same gate on the lines the pull request changes,
+and fails the build when the gate fails:
+
+```bash
+skylos . --danger --quality --ai-defects --secrets --sca --baseline --gate --diff
+```
+
+Then:
+
+1. Commit the file, or the block Skylos printed, on a branch and open a pull request.
+2. Check that the Skylos gate runs on it.
+3. Make that check required before merging, in your code host's branch protection.
+
+`skylos doctor` shows which CI files run Skylos. Run in CI, it also shows which
+branch `--diff` compares with.
+
 ### GitLab CI
+
+The `skylos` job runs in merge request pipelines with `GIT_DEPTH: "0"`, fetches
+the target branch and runs the gate. If your `.gitlab-ci.yml` declares
+`stages:`, it needs a `test` stage. For the merge request Code Quality widget,
+see [GitLab Code Quality](https://github.com/duriantaco/skylos/blob/main/docs/gitlab-code-quality.md).
+
+### Jenkins
+
+The `Skylos` stage runs only in pull request builds (`when { changeRequest() }`)
+of a Multibranch Pipeline job. It installs Skylos in a virtualenv under
+`$WORKSPACE_TMP`, outside the checkout, so the install is not part of the diff.
+The agent needs `python3` 3.10 or newer.
+
+The stage fetches the target branch only when the clone does not have it. If
+that fetch fails on a private repository, the shell step has no Git
+credentials. Use the "merge with the target branch" pull request strategy,
+which fetches it during checkout, or give the step credentials.
+
+Jenkins does not own the pull request; your code host does. Make the Jenkins
+status check required there.
+
+### Bitbucket Pipelines
+
+The step runs in pull request pipelines with `clone: depth: full` and fetches
+the destination branch before the scan.
+
+### Azure Pipelines
+
+The pipeline checks out with `fetchDepth: 0`, which brings in the target branch.
+It does not run its own `git fetch`, because Azure does not keep checkout
+credentials for later steps. For Azure Repos, add the pipeline as the target
+branch's Build validation policy.
+
+### CircleCI
+
+The job skips builds without an open pull request. CircleCI does not expose the
+pull request's target branch, so the job compares with your default branch
+(origin's HEAD, else `main`). Change the branch in the file if pull requests go
+elsewhere.
+
+### Other CIs
+
+`skylos cicd init --ci other` prints the three commands to add to a pull
+request build step:
+
+```bash
+python -I -m pip install skylos
+git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+skylos . --danger --quality --ai-defects --secrets --sca --baseline --gate --diff origin/main
+```
+
+### Dart files
+
+The Jenkins and "other CI" commands install plain `skylos`. Dart support,
+`skylos[dart]`, is built from source and needs a C compiler, which many Jenkins
+agents do not have. To scan Dart files, install `skylos[dart]` on an agent that
+has one; without it, Skylos reports the Dart files as not analyzed and the gate
+stops with exit 2. The GitLab, Bitbucket, CircleCI and Azure configs run on
+images with a compiler and install `skylos[dart]`.
+
+### Which branch `--diff` compares with
+
+With no value, `--diff` compares with the pull request's target branch:
+
+| CI | Target branch from | Pull request build when |
+|:---|:---|:---|
+| GitHub Actions | `GITHUB_BASE_REF` | `GITHUB_BASE_REF` is set |
+| GitLab CI | `CI_MERGE_REQUEST_TARGET_BRANCH_NAME` | `GITLAB_CI=true` and the variable is set |
+| Jenkins | `CHANGE_TARGET` | `CHANGE_ID` is set (Multibranch Pipeline) in a Jenkins build: `JENKINS_URL`, `JENKINS_HOME` or a `jenkins-` `BUILD_TAG` |
+| Bitbucket Pipelines | `BITBUCKET_PR_DESTINATION_BRANCH` | the variable is set |
+| Azure Pipelines | `SYSTEM_PULLREQUEST_TARGETBRANCH` | `SYSTEM_PULLREQUEST_PULLREQUESTID` is set |
+| Buildkite | `BUILDKITE_PULL_REQUEST_BASE_BRANCH` | `BUILDKITE_PULL_REQUEST` is a number |
+| Travis CI | `TRAVIS_BRANCH` | `TRAVIS_PULL_REQUEST` is a number |
+| Drone | `DRONE_TARGET_BRANCH` | `DRONE_BUILD_EVENT=pull_request` |
+| Woodpecker | `CI_COMMIT_TARGET_BRANCH` | `CI=woodpecker` and `CI_PIPELINE_EVENT=pull_request` |
+
+Each variable counts only inside its own CI and only on a pull request build.
+Anywhere else, `--diff` compares with `origin/main`. On CircleCI, TeamCity and
+other CIs, pass the branch: `--diff origin/develop`.
+
+The target branch has to be in the clone. Many CIs clone only the pull request
+branch, or only recent history. When it is missing, Skylos stops with exit 2
+and prints the command to run first, for example:
+
+```text
+On Jenkins, run this before the scan: git fetch --no-tags origin +refs/heads/develop:refs/remotes/origin/develop
+```
+
+In a shallow clone that command includes `--unshallow`.
+
+### Uploading to Skylos Cloud from other CIs
+
+`skylos cicd init` adds Cloud uploads only for GitHub Actions, through GitHub
+OIDC. On other CIs, add a separate full scan with `--upload` and a
+`SKYLOS_TOKEN` secret. Diff-scoped reports cannot be uploaded. For Bitbucket
+and Azure pull request checks, see
+[Bitbucket and Azure Pipelines](https://github.com/duriantaco/skylos/blob/main/docs/bitbucket-azure-pipelines.md);
+for GitLab, see
+[GitLab managed uploads](https://github.com/duriantaco/skylos/blob/main/docs/gitlab-managed-uploads.md).
+
+GitLab CI:
 
 ```yaml
 skylos:
@@ -421,7 +566,7 @@ skylos:
     SKYLOS_TOKEN: $SKYLOS_TOKEN
 ```
 
-### CircleCI
+CircleCI:
 
 ```yaml
 - run:
@@ -431,7 +576,7 @@ skylos:
       SKYLOS_TOKEN: $SKYLOS_TOKEN
 ```
 
-### Jenkins
+Jenkins:
 
 ```groovy
 stage('Skylos Scan') {

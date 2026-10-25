@@ -343,9 +343,9 @@ key or `SKYLOS_TOKEN`.
 
 ### Generated workflows vs OIDC
 
-`skylos cicd init` generates a PR quality gate, a Done job when pytest tests
-or a configured test command are found, and a separate default-branch upload
-job using GitHub OIDC. Upload is on by default; use `--no-upload` to omit it.
+On GitHub Actions, `skylos cicd init` generates a PR quality gate, a Done job
+when pytest tests or a configured test command are found, and a separate
+default-branch upload job using GitHub OIDC. Upload is on by default; use `--no-upload` to omit it.
 Use `--done` or `--no-done` to override test discovery. Regenerate after
 upgrading Skylos to update the installed-version pin.
 

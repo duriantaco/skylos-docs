@@ -121,6 +121,10 @@ git commit -m "Add Skylos CI gate"
 git push
 ```
 
+On GitLab CI, Jenkins, Bitbucket Pipelines, Azure Pipelines or CircleCI, the
+same `skylos cicd init` sets up that CI's gate instead; see
+[Other CI Providers](/ci-cd#other-ci-providers).
+
 See [CI/CD Integration](/ci-cd) for local-only gates, cloud uploads, GitHub
 OIDC, tokens, annotations, and branch protection.
 
@@ -169,7 +173,7 @@ transform failure, so review its completion output.
 | See what a change touches | `skylos done map --base origin/main` |
 | Gate locally | `skylos . -a --gate` |
 | Print concise IDE output | `skylos --format concise src/test.py` |
-| Generate GitHub Actions workflow | `skylos cicd init` |
+| Set up a pull request gate for your CI | `skylos cicd init` |
 | Export JSON | `skylos . -a --json -o skylos-results.json` |
 
 ## Getting Help

@@ -475,7 +475,7 @@ not index symlinks, non-regular files, or very large source files.
 
 | Flag | Description |
 |------|-------------|
-| `--diff [BASE_REF]` | Only report findings in lines changed since BASE_REF (e.g. `--diff origin/main`). Use `--diff` without a value to auto-detect (`GITHUB_BASE_REF` or `origin/main`). Unlike `--diff-base` which filters at the file level, `--diff` uses unified diff hunk headers for exact line-range matching. |
+| `--diff [BASE_REF]` | Only report findings in lines changed since BASE_REF (e.g. `--diff origin/main`). Use `--diff` without a value to compare with the pull request's target branch on GitHub Actions, GitLab CI, Jenkins, Bitbucket Pipelines, Azure Pipelines, Buildkite, Travis CI, Drone and Woodpecker, else `origin/main`; see [Other CI Providers](/ci-cd#other-ci-providers). Unlike `--diff-base` which filters at the file level, `--diff` uses unified diff hunk headers for exact line-range matching. |
 | `--diff-base <ref>` | *(File-level)* Only report findings in files changed since the given ref. |
 
 **Example:**
@@ -483,7 +483,7 @@ not index symlinks, non-regular files, or very large source files.
 # Only show findings in lines your PR touched
 skylos . --diff origin/main --danger --quality --ai-defects
 
-# Auto-detect base ref (uses GITHUB_BASE_REF or defaults to origin/main)
+# Compare with the pull request's target branch (detected per CI), else origin/main
 skylos . --diff --danger --secrets --quality --ai-defects
 ```
 
@@ -599,8 +599,13 @@ Requires `skylos login` first. See [Billing & Credits](/billing) for pricing.
 
 ### `skylos cicd init`
 
-Generate a GitHub Actions workflow with a PR quality gate, a Done job when
-tests are discovered, and a default-branch Cloud upload through GitHub OIDC.
+Set up the pull request gate for the CI your repository uses. On GitHub
+Actions it generates a workflow with a PR quality gate, a Done job when tests
+are discovered, and a default-branch Cloud upload through GitHub OIDC. On
+GitLab CI, Jenkins, Bitbucket Pipelines, Azure Pipelines and CircleCI it
+writes that CI's file, or prints the block to add when the file already
+exists; see [Other CI Providers](/ci-cd#other-ci-providers). Run `skylos cicd init --help`:
+if it lists `--ci`, your Skylos has this.
 
 The behavior and options in this section require **Skylos 4.46.0 or newer**.
 Skylos 4.45.0 has the older generator and does not accept `--no-upload`,
@@ -619,6 +624,7 @@ step before making **Skylos Done** a required check.
 
 | Flag | Default | Description |
 |------|---------|-------------|
+| `--ci` | detected | CI to set up: `github`, `gitlab`, `jenkins`, `bitbucket`, `azure`, `circleci`, or `other` (prints the commands to add). |
 | `--python-version` | 3.12 | Python version for the workflow |
 | `--triggers` | `pull_request push` | GitHub event triggers |
 | `--analysis` | `dead-code security quality ai-defects secrets dependency` | Analysis types to enable |
@@ -632,6 +638,10 @@ step before making **Skylos Done** a required check.
 | `--advisory-gate` | false | Report quality-gate failures without failing the generated gate job. |
 | `--defend` | false | Include AI Defense checks. |
 | `--output`, `-o` | `.github/workflows/skylos.yml` | Output file path |
+
+`--llm`, `--model`, `--claude-security`, `--defend`, `--risk-review`,
+`--advisory-gate`, `--done`/`--no-done`, `--triggers` and `--force` apply to
+GitHub Actions only. On other CIs, Skylos says which of them were not used.
 
 For multiple Cloud projects in a monorepo, use the GitHub App's generated
 per-root workflow. The CLI-generated `skylos sync pull` step sends no GitHub
