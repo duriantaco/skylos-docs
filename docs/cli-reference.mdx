@@ -18,6 +18,7 @@ chooser; `skylos <path> --help` shows source-scan flags.
 | Question | Command | Input Skylos reads |
 |------|---------|--------------------|
 | What problems are in this source tree? | `skylos <path>` | Source and project configuration; dead code by default, every main source analyzer with `-a` |
+| What does this change touch, and what should I read first? | `skylos done map --base main` | Each changed Python or TypeScript/JavaScript function since the merge base, with its old and new code, callers and removed security checks |
 | What AI-code mistakes are in this source? | `skylos verify [path]` | The selected source target, plus a separate Git HEAD behavior comparison for supported Python working changes |
 | Will this exact local GPU build fit the declared fleet? | `skylos preflight [ARTIFACT]` | A local built artifact plus `.skylos/gpu-targets.yml` or `.yaml`; OCI input is identity-only in the CLI |
 | What vulnerabilities are in this container? | `skylos image scan IMAGE@sha256:<digest> --platform os/arch` | A remote registry image scanned through separately installed Trivy |
@@ -45,6 +46,7 @@ installed family map and `skylos <family> --help` for its real parser options.
 | `skylos suite [DIRECTORY]` | Build one static, debt, defense, and provenance report |
 | `skylos verify [path]` | Scan source for AI-code mistakes and separately model supported Python working changes |
 | `skylos preflight [ARTIFACT]` | Check an exact local built GPU artifact against its fleet; OCI is `UNKNOWN` in the CLI |
+| `skylos done [map\|receipt]` | Run the tests and completion checks on a change, show the change map (`map`), or print the latest receipt (`receipt`) |
 | `skylos clean [path]` | Preview or apply Python import/function cleanup |
 | `skylos review [path]` | Record and manage local finding decisions |
 | `skylos baseline [path]` | Save the current finding baseline |
@@ -197,6 +199,32 @@ file/range, and findings shaped for agent consumption:
 Without `--no-fail`, `skylos verify` exits `1` for `fail` and `2` for
 `incomplete`. An incomplete result means Skylos could not establish a requested
 proof; it is not silently treated as a pass.
+
+### `skylos done map [path]`
+
+Show what a change touches: each changed Python or TypeScript/JavaScript
+function, method and class with its old and new code, calls added and
+removed, its callers and whether they were updated, removed security
+checks, breaking or compatible signature changes, and what to read first.
+The map is computed from the code, not by a model, and makes no network
+requests. See [Change Map](/change-map).
+
+```bash
+skylos done map                          # uncommitted changes, compared with HEAD
+skylos done map --base origin/main       # a pull request, compared with its merge base
+skylos done map --format json            # for a review agent or script
+skylos done --base origin/main --map     # the done verdict, then the map
+```
+
+| Flag | Description |
+|------|-------------|
+| `--base <ref>` | Compare with the merge base of this ref. Default: `HEAD` (uncommitted changes only) |
+| `--format text\|json\|markdown` | Output format. Default: `text` |
+
+Exit `0` when the map is shown and `2` when it cannot be built, for example
+when the base ref does not exist. The map has no verdict. `skylos done --map`
+prints it after the done verdict and never changes the verdict, receipt or
+exit code.
 
 ### `skylos preflight [ARTIFACT]`
 

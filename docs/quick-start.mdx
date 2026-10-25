@@ -30,6 +30,7 @@ Choose by the thing you need Skylos to inspect:
 | Goal | Command | Input |
 |:---|:---|:---|
 | Scan source code | `skylos PATH` | Repository source and configuration |
+| See what a change touches before reviewing it | `skylos done map --base main` | Changed Python and TypeScript/JavaScript functions since the merge base |
 | Verify source for AI-code defects | `skylos verify [PATH]` | Source; Python working changes also get a behavior comparison with Git HEAD |
 | Check an exact local GPU release | `skylos preflight [ARTIFACT]` | Local built artifact and declared GPU fleet |
 | Find container vulnerabilities | `skylos image scan IMAGE@sha256:<digest> --platform os/arch` | Remote registry image scanned by a separately installed Trivy |
@@ -96,6 +97,14 @@ skylos . --trace
 See [Smart Tracing](/smart-tracing) and [Configuration](/configuration) for
 baselines, suppressions, and whitelists.
 
+To review the change itself, list what it touches and what to read first:
+
+```bash
+skylos done map --base origin/main
+```
+
+See [Change Map](/change-map).
+
 ## 5. Add A GitHub Actions PR Gate
 
 Generate a workflow:
@@ -157,6 +166,7 @@ transform failure, so review its completion output.
 | Scan a pinned image for CVEs | `skylos image scan IMAGE@sha256:<digest> --platform linux/amd64` |
 | Run the combined repo report | `skylos suite` |
 | Scan changed lines only | `skylos . -a --diff origin/main` |
+| See what a change touches | `skylos done map --base origin/main` |
 | Gate locally | `skylos . -a --gate` |
 | Print concise IDE output | `skylos --format concise src/test.py` |
 | Generate GitHub Actions workflow | `skylos cicd init` |
