@@ -604,8 +604,8 @@ Actions it generates a workflow with a PR quality gate, a Done job when tests
 are discovered, and a default-branch Cloud upload through GitHub OIDC. On
 GitLab CI, Jenkins, Bitbucket Pipelines, Azure Pipelines and CircleCI it
 writes that CI's file, or prints the block to add when the file already
-exists; see [Other CI Providers](/ci-cd#other-ci-providers). Run `skylos cicd init --help`:
-if it lists `--ci`, your Skylos has this.
+exists; see [Other CI Providers](/ci-cd#other-ci-providers). CIs other than
+GitHub Actions need Skylos 5.1.0 or newer.
 
 The behavior and options in this section require **Skylos 4.46.0 or newer**.
 Skylos 4.45.0 has the older generator and does not accept `--no-upload`,
@@ -631,13 +631,16 @@ step before making **Skylos Done** a required check.
 | `--no-baseline` | false | Skip baseline comparison |
 | `--llm` | false | Include LLM-enhanced analysis |
 | `--model` | — | LLM model to use with `--llm` |
-| `--upload` / `--no-upload` | on | Upload full scans on default-branch pushes with GitHub OIDC; no stored API key required. Use `--no-upload` for CI without Cloud. |
+| `--claude-security` | false | Add a parallel Claude Code Security scan job. |
+| `--upload` / `--no-upload` | on for GitHub Actions | Upload full scans on default-branch pushes with GitHub OIDC; no stored API key required. Use `--no-upload` for CI without Cloud. Other CIs get no upload job. |
 | `--done` / `--no-done` | auto | Add Done when pytest tests or a configured `[tool.skylos.done]` test command are found; force or omit the job explicitly. |
-| `--default-branch` | `origin/HEAD`, else `main` and `master` | Branch whose pushes are scanned for Cloud upload. |
+| `--default-branch` | `origin/HEAD`, else `main` and `master` | GitHub Actions: the branch whose pushes upload. CircleCI and other CIs: the branch the gate compares with (`origin/HEAD`, else `main`). |
 | `--scan-path` | `.` | Directory to scan, such as `apps/api`. Does not route the generated policy-sync step to a Cloud project subpath. |
+| `--risk-review` | false | Add the **Skylos risk review** job. It fails while a pull request has risks, such as deleted tests or removed auth, that no person with write access approved. Bot approvals do not count. |
 | `--advisory-gate` | false | Report quality-gate failures without failing the generated gate job. |
 | `--defend` | false | Include AI Defense checks. |
-| `--output`, `-o` | `.github/workflows/skylos.yml` | Output file path |
+| `--output`, `-o` | the CI's own file | Output file path, for example `.github/workflows/skylos.yml` or `Jenkinsfile` |
+| `--force` | false | Replace an existing GitHub workflow without asking. The old file is kept next to it as `<name>.bak`. |
 
 `--llm`, `--model`, `--claude-security`, `--defend`, `--risk-review`,
 `--advisory-gate`, `--done`/`--no-done`, `--triggers` and `--force` apply to

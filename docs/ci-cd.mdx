@@ -38,11 +38,13 @@ preserve this category.
 See [GitHub Actions Security](/github-actions-security) for setup guidance and
 the full scanner scope.
 
-Skylos also checks `.gitlab-ci.yml` for GitLab CI misconfigurations (SKY-D314
-to SKY-D323 in the [rules reference](/rules-reference)). It does not parse
-Jenkins, CircleCI, Bitbucket Pipelines, Azure Pipelines or Buildkite
-configuration for provider-level misconfiguration rules; those CIs still run
-the Skylos pull request gate, see [Other CI Providers](#other-ci-providers).
+`--danger` also checks `.gitlab-ci.yml` for GitLab CI misconfigurations
+(SKY-D314 to SKY-D323 in the [rules reference](/rules-reference)), plus
+Dependabot config, Dockerfiles, Docker Compose files and systemd units.
+
+It does not parse Jenkins, CircleCI, Bitbucket Pipelines, Azure Pipelines or
+Buildkite configuration for misconfiguration rules. Those CIs still run the
+Skylos pull request gate; see [Other CI Providers](#other-ci-providers).
 
 ## GitHub Actions with OIDC
 
@@ -360,7 +362,7 @@ Keep policy sync and its credentials out of ordinary PR test jobs.
 
 Use `skylos cicd init` from **Skylos 4.46.0 or newer** to scaffold the workflow
 described here. On GitLab CI, Jenkins, Bitbucket Pipelines, Azure Pipelines
-and CircleCI it sets up that CI's gate instead; see
+and CircleCI it sets up that CI's gate instead (Skylos 5.1.0 or newer); see
 [Other CI Providers](#other-ci-providers).
 
 Examples:
@@ -413,8 +415,8 @@ The project settings surface also includes an auto-configure toggle that can all
 ## Other CI Providers
 
 Skylos runs on any CI. `skylos cicd init` finds the CI your repository uses and
-sets up the pull request gate for it. Run `skylos cicd init --help`: if it lists
-`--ci`, your Skylos has this.
+sets up the pull request gate for it. CIs other than GitHub Actions need
+Skylos 5.1.0 or newer; check with `skylos --version`.
 
 | Repository has | `skylos cicd init` sets up |
 |:---|:---|
@@ -443,6 +445,13 @@ and fails the build when the gate fails:
 ```bash
 skylos . --danger --quality --ai-defects --secrets --sca --baseline --gate --diff
 ```
+
+`--baseline` hides findings saved in `.skylos/baseline.json`. Commit one with
+`skylos baseline .` if you want that. Without the file, Skylos prints "No
+baseline found" and checks every changed line.
+
+The config installs the Skylos version you ran `skylos cicd init` with, for
+example `skylos[dart]==5.1.1`. Change that pin when you upgrade.
 
 Then:
 
@@ -490,17 +499,18 @@ branch's Build validation policy.
 ### CircleCI
 
 The job skips builds without an open pull request. CircleCI does not expose the
-pull request's target branch, so the job compares with your default branch
-(origin's HEAD, else `main`). Change the branch in the file if pull requests go
-elsewhere.
+pull request's target branch, so the job compares with your default branch:
+the `--default-branch` you pass, else origin's HEAD, else `main`. Change the
+branch in the file if pull requests go elsewhere.
 
 ### Other CIs
 
 `skylos cicd init --ci other` prints the three commands to add to a pull
-request build step:
+request build step. The step needs Python 3.10 or newer. With Skylos 5.1.1
+and `main` as the default branch, they are:
 
 ```bash
-python -I -m pip install skylos
+python -I -m pip install skylos==5.1.1
 git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
 skylos . --danger --quality --ai-defects --secrets --sca --baseline --gate --diff origin/main
 ```
@@ -510,9 +520,15 @@ skylos . --danger --quality --ai-defects --secrets --sca --baseline --gate --dif
 The Jenkins and "other CI" commands install plain `skylos`. Dart support,
 `skylos[dart]`, is built from source and needs a C compiler, which many Jenkins
 agents do not have. To scan Dart files, install `skylos[dart]` on an agent that
-has one; without it, Skylos reports the Dart files as not analyzed and the gate
-stops with exit 2. The GitLab, Bitbucket, CircleCI and Azure configs run on
-images with a compiler and install `skylos[dart]`.
+has one.
+
+Without it, Skylos skips the Dart files and reports coverage as incomplete. The
+gate still decides on the other files. It stops with exit 2 only when most of
+the files in scope could not be analyzed, or when you add `--strict` or set
+`require_complete = true` under `[tool.skylos.gate.coverage]`.
+
+The GitLab, Bitbucket, CircleCI and Azure configs run on images with a compiler
+and install `skylos[dart]`.
 
 ### Which branch `--diff` compares with
 
@@ -548,11 +564,25 @@ In a shallow clone that command includes `--unshallow`.
 
 `skylos cicd init` adds Cloud uploads only for GitHub Actions, through GitHub
 OIDC. On other CIs, add a separate full scan with `--upload` and a
-`SKYLOS_TOKEN` secret. Diff-scoped reports cannot be uploaded. For Bitbucket
-and Azure pull request checks, see
-[Bitbucket and Azure Pipelines](https://github.com/duriantaco/skylos/blob/main/docs/bitbucket-azure-pipelines.md);
-for GitLab, see
+`SKYLOS_TOKEN` secret.
+
+Diff-scoped reports cannot be uploaded. A scan with `--upload` and `--diff` or
+`--diff-base` stops with "diff-scoped results cannot be uploaded as a full
+scan". Keep the gate step and the upload step separate.
+
+Use a project token made for CI, not the one `skylos login` saved on a laptop.
+Until an owner or admin selects **Mark for CI** on that token (project
+Settings, **Project tokens**), its uploads are unverified. Unverified scans
+are stored and shown, but they don't post a pull request check or status,
+mark issues fixed, or become the baseline. Tokens saved by `skylos login`
+can't be marked.
+
+For Bitbucket and Azure pull request checks, see
+[Bitbucket and Azure Pipelines](https://github.com/duriantaco/skylos/blob/main/docs/bitbucket-azure-pipelines.md).
+For GitLab, see
 [GitLab managed uploads](https://github.com/duriantaco/skylos/blob/main/docs/gitlab-managed-uploads.md).
+Skylos Cloud posts merge request comments on GitLab only on the Workspace and
+Enterprise plans.
 
 GitLab CI:
 
