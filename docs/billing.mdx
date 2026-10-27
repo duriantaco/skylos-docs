@@ -1,106 +1,139 @@
 ---
 title: "Billing & Credits"
-description: "How credits work, pricing, and what costs credits in Skylos"
+description: "Skylos Cloud plans (Free, Workspace, Enterprise), the 14-day trial, credit packs, the Workspace pass, and what costs credits"
 ---
 
-Skylos uses **credit packs** — one-time purchases, no subscriptions, no recurring charges. Each purchase also extends your **Pro access** (see [How Pro Works](#how-pro-works) below).
+Skylos Cloud has three plans: **Free**, **Workspace** and **Enterprise**.
+There are no subscriptions and no seats. You buy once, and nothing renews by
+itself.
+
+Credits pay for AI and compute actions. Any purchase also turns on the
+Workspace plan for 12 months (see [How the Workspace plan works](#how-the-workspace-plan-works)).
+
+The CLI, the agent hooks and the PR gate in your own CI are free, with no
+account.
 
 ## New User Onboarding
 
-Every new Skylos account gets:
+Your first workspace gets a **Workspace trial**:
 
-- **50 starter credits** — for compute actions such as AI triage, fix PRs and scan comparisons (scan uploads are free)
-- **7-day Pro trial** — full access to all Pro features
+- **14 days** of the Workspace plan
+- **50 credits** for compute actions such as AI triage, fix PRs and scan comparisons (scan uploads are free)
+- No card, and nothing renews or charges you
 
-No credit card required. Start scanning and explore the cloud dashboard immediately.
+The trial is given once per account and once per GitHub user. Later
+workspaces start on Free with 0 credits.
+
+On day 15 the workspace moves to Free. Settings and issues stay, and unused
+credits stay yours. Credits work on every plan, Free included.
 
 ---
 
 ## What's Free
 
-| Action | Why Free |
-|--------|----------|
-| `skylos .` (local CLI scan) | Adoption funnel — local scanning is always free |
-| `skylos . --format json` / `pretty` / `concise` / `--tree` | Same — all local output formats are free |
-| MCP `analyze` / `security_scan` / `quality_check` / `secrets_scan` | Local analysis tools — run on your machine |
-| Dashboard viewing (read-only) | No friction to see results |
-| Scan uploads (`--upload`, CI) and storing results | Uploads never cost credits, on any plan; plan limits cap projects and how long scans are kept |
-| All languages (Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, Shell) | Languages are adoption multipliers, not paywalls |
+| Action | Notes |
+|--------|-------|
+| `skylos .` and every local scan, output format and gate | Runs on your machine; no account needed |
+| Agent hooks and `skylos done` | Run on your machine |
+| MCP `analyze` without a key | 5 calls per rolling 24 hours, counted in the MCP server's memory |
+| MCP scan tools with a key (`security_scan`, `quality_check`, `secrets_scan`, `provenance_scan` and others) | Run on your machine; 0 credits |
+| Scan uploads (`--upload`, CI) and storing results | Never cost credits, on any plan. Plan limits cap projects and how many scans are kept |
+| Cloud scans of a GitHub repository (GitHub App, no CI) | 0 credits; Free gets 5 per 24 hours |
+| The PR pass or fail check and the merge gate | Never use credits |
+| Viewing the dashboard | Any plan |
 
 ## What Costs Credits
 
-Only **compute-heavy cloud actions** cost credits:
+Only compute actions in Skylos Cloud cost credits:
 
 | Action | Credits |
 |--------|---------|
 | Scan comparison (diff between two scans) | 2 |
-| PR auto-fix (LLM-generated fix) | 3 |
-| AI issue triage (LLM analysis) | 5 |
+| AI fix PR | 3 |
+| Weekly cleanup PR | 3 |
+| AI issue triage | 5 |
 | MCP AI remediation (`remediate` tool) | 10 |
-| Compliance report (PCI DSS, SOC2, HIPAA) | 500 |
+| Deep scan, where your workspace offers it (refunded if no report is made) | 10 |
+| Compliance report | 500 |
 
-## Credit Packs
+The MCP `remediate` tool charges its credits before it runs, even with
+`dry_run=True`.
 
-| Pack | Credits | Price | Per-Credit | Pro Access |
+## Credit Packs And The Workspace Pass
+
+| Purchase | Credits | Price | Per credit | Workspace plan |
 |------|---------|-------|------------|------------|
-| **Starter** | 500 | $9 | $0.018 | 30 days |
-| **Builder** | 2,500 | $39 | $0.016 | 90 days |
-| **Team** | 10,000 | $129 | $0.013 | 180 days |
-| **Scale** | 50,000 | $499 | $0.010 | 365 days |
+| **Starter** pack | 50 | $9 | $0.180 | 12 months, up to 3 people |
+| **Builder** pack | 250 | $39 | $0.156 | 12 months, up to 3 people |
+| **Team** pack | 1,000 | $129 | $0.129 | 12 months, up to 3 people |
+| **Scale** pack | 5,000 | $499 | $0.100 | 12 months, up to 3 people |
+| **Workspace pass** | 1,000 | $990 | - | 12 months, unlimited members |
 
-Volume discount up to 45%. Credits never expire.
+"Team" is the name of a credit pack, not a plan.
 
-**30-day money-back guarantee** on all packs.
+Credits never expire.
+
+"People" counts members and pending invites, owner included. A workspace with
+more than 3 people needs the Workspace pass. A credit pack bought by such a
+workspace adds credits only.
 
 ---
 
-## How Pro Works
+## How The Workspace Plan Works
 
-Pro is **time-bound** — each credit pack purchase includes a Pro access duration.
+- Any purchase on Billing turns on the Workspace plan for 12 months from that purchase.
+- If the workspace already has a later end date, it keeps the later one.
+- Nothing renews by itself. There is no subscription to cancel.
+- When the 12 months end, nothing is charged. The workspace moves to Free. Its settings and issues stay, and new scans keep the newest 10 per project.
+- Your credits stay. Buy again to turn the Workspace plan back on.
 
-**How it works:**
-- Buy any credit pack → you get Pro access for the pack's duration
-- Pro duration **stacks** — buying another pack extends your expiry date
-- If Pro expires, you drop back to the Free plan (your credits are still there)
-- Buy any pack to **reactivate** Pro immediately
-
-**Example:**
-1. Buy Starter pack → Pro for 30 days (expires April 3)
-2. On March 20, buy Builder pack → Pro extended by 90 days (now expires July 2)
-3. Credits from both packs are combined in your balance
+Workspaces that bought before the 12-month terms keep their old terms.
 
 :::tip
-Your credits never expire — only Pro access is time-bound. If Pro lapses, buy any pack to reactivate and your existing credits are still available.
+Credits never expire. Only the Workspace plan has an end date.
 :::
 
 ---
 
-## Pro Features
+## What Each Plan Includes
 
-These features are **plan-gated** (require an active Pro subscription), not credit-gated:
+These features depend on the plan, not on credits.
 
-- **Advanced gate modes** — server-controlled GitHub checks that can't be bypassed
-- **Full trend charts** — track security and quality metrics over time
-- **Team collaboration** — shared dashboard, team-wide suppressions
-- **Slack & Discord notifications** — get alerts on new findings
-- **Suppression governance** — manage false positives across the team
-- **SARIF export** — import results into GitHub Security tab
-- **Inline PR comments** — findings posted directly on PR diffs
-- **Findings export** — download results as CSV/JSON
-- **Custom rules** — up to 50 organization-specific rules
-- **90-day scan history** — full history retention (Free: 7 days)
+| | Free | Workspace | Enterprise |
+|---|---|---|---|
+| Cloud projects | 1 | 10 | Up to 9,999 |
+| Stored scans per project | Newest 10 | Newest 500 | Newest 10,000 |
+| Data retention you can set | 30 to 365 days | Up to 1,095 days | Up to 1,095 days |
+| PR pass or fail check | Yes | Yes | Yes |
+| PR comment and inline review comments (up to 10) | No | Yes | Yes |
+| Merge anyway (with a reason) | No | Yes | Yes |
+| Edit the policy and gate limits | No (read-only) | Yes | Yes |
+| Custom rules | 3 | 50 (Python rules allowed) | Unlimited |
+| Hide an issue | Directly: 25 per project, each expires in 7, 30 or 90 days | Through an approval request | Through an approval request |
+| Approve "Not fixing" requests | No | Yes | Yes |
+| Audit log, access review, exports (CSV, JSON) | No | Yes | Yes |
+| Issue comments and assignment | No | Yes | Yes |
+| Trends history | 7 days | 7, 30 or 90 days, with a branch filter | Same as Workspace |
+| Slack and Discord notifications | No | Yes | Yes |
+| Teams, outbound webhooks and Jira | No | Yes | Yes |
+| GitHub organization connect and bulk add | No | Yes | Yes |
+| Members | No invites | Up to 3 with a pack, unlimited with the pass | Unlimited |
+| Single sign-on (SSO) | No | No | Yes |
+| Audit export of who wrote each change | No | No | Yes |
 
 ---
 
 ## Enterprise
 
-Custom pricing for teams that need:
-- Unlimited repos and history (365-day retention)
-- SSO/SAML
-- Compliance reports
-- Audit logs
-- Priority support and SLA
-- Unlimited credits
+Enterprise starts at **$5,000 a year** and includes **5,000 credits a year**.
+Skylos sets it up by hand.
+
+Talk to us when you need:
+
+- More than 10 projects
+- SSO
+- Invoice or purchase-order billing
+- A DPA or a security questionnaire
 
 Contact `founder@skylos.dev`.
 
@@ -116,30 +149,34 @@ skylos credits
 
 Output:
 ```
-[My Org] (pro plan — expires 2026-06-15)
-Balance: 1,500 credits
+My Org (Workspace plan)
+Balance: 1,040 credits
 
 Recent activity:
-  +2500   Purchased 2500 credits (builder pack)
-  -5      AI issue triage
-  -10     AI code remediation
+  +1000  Purchased 1000 credits (team pack)
+  -5  Used feature: AI issue triage
+  -10  Used feature: MCP remediation
 
 Buy credits: https://skylos.dev/dashboard/billing
 ```
 
+`skylos credits` needs a Cloud connection. Run `skylos login` first.
+
 ### Dashboard
 
-Go to [skylos.dev/dashboard/billing](https://skylos.dev/dashboard/billing) to see your balance, Pro expiry date, recent transactions, and buy more credits.
+Go to [skylos.dev/dashboard/billing](https://skylos.dev/dashboard/billing) to
+see your balance, your plan and its end date, and recent credit activity. Only
+workspace owners can buy and see billing activity.
 
 ---
 
 ## How Purchasing Works
 
-1. Go to **skylos.dev/dashboard/billing** (or run `skylos credits` in the CLI to get the link)
-2. Pick a credit pack
-3. You're redirected to a secure checkout page (powered by Lemon Squeezy)
-4. After payment, credits are added to your account instantly
-5. Your Pro access is extended by the pack's duration
+1. Go to **skylos.dev/dashboard/billing** (or run `skylos credits` in the CLI to get the link).
+2. Pick a credit pack or the Workspace pass.
+3. You're redirected to a secure checkout page (powered by Lemon Squeezy).
+4. After payment, credits are added to the workspace.
+5. The Workspace plan is on for 12 months from the purchase.
 
 ---
 
@@ -160,11 +197,11 @@ actions stop until you add credits.
 The `remediate` tool returns an error:
 
 ```
-Insufficient credits. Required: 10, available: 0.
-Buy credits at https://skylos.dev/dashboard/billing
+Insufficient credits. Required: 10, available: 0. Buy credits at https://skylos.dev/dashboard/billing
 ```
 
-Other MCP tools (`analyze`, `security_scan`, `quality_check`, `secrets_scan`) run locally and don't require credits.
+The scan tools (`analyze`, `security_scan`, `quality_check`, `secrets_scan`)
+cost 0 credits, so they keep running.
 
 ### CI/CD
 
@@ -174,9 +211,10 @@ Same as CLI upload — uploads from CI are free, so a workspace with 0 credits k
 
 ## Low Credit Warning
 
-Uploads do not use credits, so a low balance never blocks them. Check your
-balance any time with `skylos credits` or on the
-[billing page](https://skylos.dev/dashboard/billing).
+Uploads do not use credits, so a low balance never blocks them. The dashboard
+marks the balance "Low" at 10 credits or fewer, and `skylos credits` prints
+"Low credits!" below 10. Check your balance any time with `skylos credits` or
+on the [billing page](https://skylos.dev/dashboard/billing).
 
 ---
 
@@ -185,17 +223,17 @@ balance any time with `skylos credits` or on the
 **Do credits expire?**
 No. Credits never expire. Buy them once, use them whenever.
 
-**Does Pro access expire?**
-Yes. Pro is time-bound — each credit pack extends your Pro duration. When it expires, you drop to Free but keep your credits. Buy any pack to reactivate.
+**Does the Workspace plan expire?**
+Yes. Each purchase turns it on for 12 months. When it ends, the workspace moves to Free and keeps its credits. Buy again to turn it back on.
 
 **Can I get a refund?**
-Yes. 30-day money-back guarantee on all packs. Contact `founder@skylos.dev` or request through the payment provider.
+Refunds follow the Lemon Squeezy checkout terms, the law, and any written agreement with Skylos. Contact `founder@skylos.dev`. A full refund removes that purchase's credits.
 
 **What happens if my balance hits zero mid-CI-run?**
 Nothing changes for the scan. Uploads never cost credits, so the upload, PR checks and merge gate keep working. Only compute actions, such as AI triage and fix PRs, stop until you add credits.
 
 **Is there a free trial?**
-Yes! Every new account gets **50 starter credits** and a **7-day Pro trial** — no credit card required. Local scanning is also free forever with no limits.
+Yes. Your first workspace gets a 14-day Workspace trial with 50 credits, and no card. Local scanning is free with no limits.
 
 **What's the difference between plan-gated and credit-gated?**
-Pro features (trends, team collaboration, integrations) require an active Pro subscription but don't cost credits. Compute actions (AI triage, fix PRs, scan comparisons, etc.) cost credits regardless of plan. Scan uploads never cost credits.
+Plan features (longer history, team review, integrations, PR comments) need the Workspace plan but don't cost credits. Compute actions (AI triage, fix PRs, scan comparisons, etc.) cost credits on every plan, Free and Enterprise included. Scan uploads never cost credits.
