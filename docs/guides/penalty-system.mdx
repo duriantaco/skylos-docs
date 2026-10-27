@@ -37,8 +37,8 @@ flowchart LR
     C -->|Match| D[Return 0%]
     C -->|No Match| E{Apply Soft Penalties}
     E --> F[-10% private name]
-    E --> G[-20% in __init__.py]
-    E --> H[-30% dynamic module]
+    E --> G[-15% in __init__.py]
+    E --> H[-10% dynamic module]
     E --> I[-40% test double]
     E --> J[-60% mixin method]
     F --> K[Final: max 0%]
@@ -459,20 +459,20 @@ class MyClass:
 
 **Why**: Internal API, might be used within module.
 
-### In `__init__.py` (-20%)
+### In `__init__.py` (-15%)
 
 ```python
 # mypackage/__init__.py
-from .module import MyClass              # -20% confidence penalty
+from .module import MyClass              # -15% confidence penalty
 ```
 
 **Why**: Often re-exports for public API.
 
-### Dynamic Module (-30%)
+### Dynamic Module (-10%)
 
 ```python
 # If module uses eval/exec
-eval(code)                               #  All definitions -30% confidence penalty
+eval(code)                               #  All definitions -10% confidence penalty
 ```
 
 **Why**: Dynamic code execution makes static analysis unreliable.
@@ -497,14 +497,18 @@ def my_fixture():                        # -100% confidence penalty
 
 | Pattern | Penalty | Example |
 |---------|---------|---------|
-| `handle_*` | -30% | Event handler pattern |
-| `on_*` | -30% | Callback pattern |
-| `*_handler` | -30% | Handler suffix |
-| `*_callback` | -30% | Callback suffix |
-| `test_*` | -50% | Test function (non-test file) |
+| `test_*`, `*_test` | -40% in a test file, -10% elsewhere | Test function |
+| `pytest_*` | -30% | pytest hook |
+| `clean_*` | -25% with Django, -6% without | Django form validation |
+| `validate_*` | -20% with Django, -5% without | Django/DRF validation |
 | `*Plugin` | -20% | Plugin pattern |
-| `*Factory` | -20% | Factory pattern |
-| `*Mixin` (methods) | -60% | Mixin class methods |
+| `visit_*`, `leave_*` | -20% | AST/tree visitor pattern |
+| `handle_*`, `*_handler`, `*_callback` | -15% | Handler or callback name |
+| `setup_*`, `teardown_*` | -15% | Fixture-style setup |
+| `on_*` | -10% | Callback pattern (methods also get the -30% event-handler penalty above) |
+
+Penalties add up when a name matches more than one pattern. `*Mixin` methods
+get the separate -60% mixin penalty described above.
 
 ---
 
@@ -583,6 +587,10 @@ skylos . --confidence 80
 skylos . --confidence 0
 ```
 
+The penalties on this page are the Python rules. Other languages use their own
+evidence. Rust candidates are always capped at 40, so they appear only with
+`--confidence 40` or lower.
+
 ---
 
 ## Why These Specific Values?
@@ -590,8 +598,8 @@ skylos . --confidence 0
 | Penalty | Value | Rationale |
 |---------|-------|-----------|
 | Private name | -10% | Might be internal API |
-| Init file | -20% | Often re-exports |
-| Dynamic module | -30% | Can't trace `eval`/`exec` |
+| Init file | -15% | Often re-exports |
+| Dynamic module | -10% | Can't trace `eval`/`exec` |
 | Event handler (`on_*`) | -30% | Common framework convention |
 | Watcher (`watch_*`) | -30% | Common reactive convention |
 | Abstract method match | -40% | Likely interface implementation |
@@ -602,7 +610,8 @@ skylos . --confidence 0
 | Test file/decorator | -100% | Tests aren't dead code |
 | Dunder methods | -100% | Python magic methods |
 
-These values were **calibrated empirically** across many real-world codebases.
+These values are set in the Skylos source (`skylos/constants.py`,
+`skylos/analysis/penalties.py` and `skylos/analysis/known_patterns.py`).
 
 ---
 
@@ -615,14 +624,14 @@ These patterns are suppressed entirely (confidence set to 0) regardless of other
 - **`conf.py` in docs/**: Top-level variables in `docs/conf.py` or `doc/conf.py` are consumed by Sphinx's `execfile()` — not dead code.
 - **Theme files in docs/**: Pygments theme files (`_theme`, `theme_support`) in `docs/` directories are loaded dynamically.
 
-### Django (v3.5.1+)
+### Django
 
 - **`clean_<field>()` methods**: Called by Django form validation on `Form`/`ModelForm` subclasses.
 - **Admin class attributes**: `list_display`, `list_filter`, `search_fields`, `ordering`, `readonly_fields`, `fieldsets`, `fields`, `exclude`, `filter_horizontal`, `filter_vertical`, `raw_id_fields`, `autocomplete_fields`, `actions`, `inlines`, `form`, `model`, `extra`, `max_num`, `min_num`, etc. — read by Django's admin metaclass.
 - **Model Meta attributes**: `ordering`, `verbose_name`, `db_table`, `abstract`, `unique_together`, `indexes`, `constraints`, `permissions`, etc. — read by Django's model metaclass.
 - **Django TestCase variants**: `TestCase`, `SimpleTestCase`, `TransactionTestCase`, `LiveServerTestCase`, `StaticLiveServerTestCase`.
 
-### Django REST Framework (v3.5.1+)
+### Django REST Framework
 
 - **`validate_<field>()` methods**: Called by DRF serializer field-level validation.
 - **`get_<field>()` methods**: Called by `SerializerMethodField`.
@@ -632,7 +641,7 @@ These patterns are suppressed entirely (confidence set to 0) regardless of other
 
 - **`threading.Thread.run()` overrides**: Called by `Thread.start()`, not by direct invocation.
 
-### Test Patterns (v3.5.1+)
+### Test Patterns
 
 - **`Test*` classes in test files**: Classes with `Test` prefix in test paths are collected by pytest.
 - **Mock objects inside test functions**: Functions/methods nested inside `test_*` functions are duck-typed mocks, not dead code.

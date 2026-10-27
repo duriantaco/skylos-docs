@@ -16,6 +16,16 @@ skylos . --ai-defects
 skylos . --diff origin/main --ai-defects --format json
 ```
 
+Phantom calls (`SKY-L012`) are checked in Python, TypeScript/JavaScript, Go
+and Java. Package and version checks cover PyPI, npm and Go modules. Those
+checks send package names and versions to the public registry. To keep an
+internal package from being reported as made up, list it in
+`SKYLOS_PRIVATE_DEPS_ALLOW`.
+
+The same checks run on each agent edit through [agent hooks](/agent-hooks) and
+on a finished change through [`skylos verify`](/cli-reference#skylos-verify-path) and the
+[done gate](/done-gate).
+
 ## Output Contract
 
 The full-scan contract is intentionally separate from quality and security:

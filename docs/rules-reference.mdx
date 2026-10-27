@@ -9,7 +9,7 @@ description: "Complete reference for all Skylos static analysis rules — securi
 |--------|----------|-------------|
 | `SKY-D` | Security | Vulnerabilities that could be exploited |
 | `SKY-S` | Secrets | Hardcoded credentials and sensitive data |
-| `SKY-SC` | Smart Contracts | Blockchain and contract-specific security issues |
+| `SKY-SC` | Security Contracts | A FastAPI route lost a guard that `security_contracts` requires |
 | `SKY-G` | Go-Specific Security | Go-only vulnerabilities with no cross-language equivalent |
 | `SKY-DEP` | Deployment Security & Reliability | Correlated Kubernetes exposure and unsafe runtime-mode findings |
 | `SKY-GPU` | GPU Release Reliability | Fail-closed CUDA, build-architecture, and TensorRT compatibility findings |
@@ -22,7 +22,7 @@ description: "Complete reference for all Skylos static analysis rules — securi
 | `SKY-E` | File Hygiene | Empty or unreachable files |
 | `SKY-A` | AI Defect | Evidence-backed AI-code failure modes |
 
-Rule IDs are **unified across languages** — when multiple scanners detect the same vulnerability class, Skylos reports it with the same ID across Python, TypeScript/JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, Shell, and other supported ecosystems.
+Rule IDs are **unified across languages** — when multiple scanners detect the same vulnerability class, Skylos reports it with the same ID across Python, TypeScript/JavaScript, Java, Go, PHP, Rust, Dart, C#, Shell, and other supported ecosystems. Kotlin has no security rules. Per-language coverage is on each [language page](./language-support).
 
 AI-defect grouping is based on finding category, not only the rule-ID prefix.
 The CLI flag is `--ai-defects`, JSON reports use the top-level `ai_defects`
@@ -129,9 +129,9 @@ and output contract.
 | `SKY-A104` | Public CLI Surface Drift | MEDIUM | Diff-aware CLI | Public CLI flag removed from argparse, Click, or Typer surface |
 | `SKY-A105` | Contract Route Guard Missing | HIGH | Python contract verify | Route handler is missing a guard decorator required by an AI hallucination contract |
 | `SKY-A106` | Suspicious Dependency Version Bump | LOW | Python manifests and lock files in Git changes | A dependency's old and new versions exactly match the project's own version change |
-| `SKY-A110` | Test Deleted | HIGH | Python tests (`skylos done`) | An existing test disappears without a matching moved or renamed test, or loses parametrized cases |
-| `SKY-A111` | Test Newly Skipped | HIGH | Python tests (`skylos done`) | An existing test gains skip, skipif, xfail, `pytest.skip()`, `importorskip`, or `skipTest` |
-| `SKY-A112` | Test Settings Loosened | HIGH | pytest, coverage, GitHub Actions (`skylos done`) | Test selection, local hooks, coverage floors, or CI test failure handling weaken the test run |
+| `SKY-A110` | Test Deleted | HIGH | Python and JavaScript/TypeScript tests (`skylos done`) | An existing test disappears without a matching moved or renamed test, or loses parametrized cases |
+| `SKY-A111` | Test Newly Skipped | HIGH | Python and JavaScript/TypeScript tests (`skylos done`) | An existing test gains a skip (pytest skip/skipif/xfail, `skipTest`; JS `.skip`, `xit`, `.todo`, `.only` focus) |
+| `SKY-A112` | Test Settings Loosened | HIGH | pytest, coverage, Jest, Vitest, `package.json` test scripts, GitHub Actions (`skylos done`) | Test selection, local hooks, coverage floors, or CI test failure handling weaken the test run |
 | `SKY-A113` | Tests Fail When Skylos Runs Them | HIGH | Any test command (`skylos done`) | The configured test command fails, or an expected Python test does not report a result |
 | `SKY-A114` | Skylos Settings or Hooks Changed | HIGH | Repository files (`skylos done`) | Protected paths, `[tool.skylos]`, or a CI workflow that runs Skylos change |
 | `SKY-A115` | Test Answer Hard-Coded in Code | HIGH | Python, JavaScript/TypeScript (`skylos done`) | Added production code answers an existing test's literal input with that test's expected value; weaker matches advise |
@@ -358,7 +358,9 @@ stages.
 | `SKY-S101` | Hardcoded Secret | CRITICAL | All | API keys, passwords, tokens, private keys in source code |
 | `SKY-S102` | Client-Side Secret Exposure | HIGH–CRITICAL | TS/JS, HTML, client bundles | Secret material or a server-only environment variable reaches client-accessible code |
 
-Scanned file types include supported source and config files such as `.py`, `.pyi`, `.pyw`, `.env`, `.yaml`, `.yml`, `.json`, `.toml`, `.ini`, `.cfg`, `.conf`, `.ts`, `.tsx`, `.js`, `.jsx`, `.go`, `.java`, `.php`, `.rs`, `.dart`, `.cs`, `.sh`, `.bash`, `.zsh`, `.ksh`, and `.bats`.
+`--secrets` scans these file types: `.py`, `.pyi`, `.pyw`, `.env`, `.yaml`, `.yml`, `.json`, `.toml`, `.lock`, `.ini`, `.cfg`, `.conf`, `.ts`, `.tsx`, `.js`, `.jsx`, `.mts`, `.cts`, `.mjs`, `.cjs`, `.html`, `.htm`, `.css`, `.map`, `.go`, `.php`, `.rs`, `.dart`, `.cs`, `.kt`, and `.kts`.
+
+Not scanned by `--secrets`: Java (`.java` secrets are reported by `--danger`), shell scripts, Dockerfiles and C/C++.
 
 ### Go-Specific Rules (SKY-G)
 
@@ -391,10 +393,14 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 
 ### Quality Rules (SKY-Q)
 
+Quality rules run with `--quality` (or `-a`). Python gets every quality rule.
+TypeScript/JavaScript gets a subset. Java and Go get `SKY-Q301`, `SKY-Q302`,
+`SKY-C303` and `SKY-C304`. PHP, Rust, Dart and Kotlin have no quality rules.
+
 | Rule ID | Name | Severity | Languages | Default Threshold |
 |---------|------|----------|-----------|-------------------|
-| `SKY-Q301` | Cyclomatic Complexity | MEDIUM | All | 10 |
-| `SKY-Q302` | Deep Nesting | MEDIUM | All | 3 levels (Python), 4 levels (TS) |
+| `SKY-Q301` | Cyclomatic Complexity | MEDIUM | Python, TS/JS, Java, Go | 10 |
+| `SKY-Q302` | Deep Nesting | MEDIUM | Python, TS/JS, Java, Go | 3 levels (Python), 4 levels (TS) |
 | `SKY-Q305` | Duplicate Branch Logic | MEDIUM | Python, TS | Duplicate branch condition or semantically duplicate branch body |
 | `SKY-Q306` | Cognitive Complexity | MEDIUM | Python | Function control flow is hard to follow |
 | `SKY-Q401` | Async Blocking | MEDIUM | Python | — |
@@ -404,7 +410,7 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-Q406` | Async Array.forEach Callback | HIGH | TypeScript, JavaScript | Built-in `Array.forEach` does not wait for async callbacks |
 | `SKY-Q407` | Discarded Async Array.map Result | HIGH | TypeScript, JavaScript | Promises returned by `Array.map(async ...)` are discarded |
 | `SKY-Q501` | God Class | MEDIUM | Python | 20 methods / 15 attributes |
-| `SKY-Q502` | Class Too Large | MEDIUM | Python | Class has too many methods or attributes for maintainable ownership |
+| `SKY-Q502` | God File | MEDIUM | Python | 500 lines, 40 definitions, or 25 top-level definitions in one file |
 | `SKY-Q701` | Coupling Between Objects (CBO) | MEDIUM/HIGH | Python | Ce > 4 |
 | `SKY-Q702` | Lack of Cohesion of Methods (LCOM) | MEDIUM/HIGH | Python | LCOM4 > 2 |
 | `SKY-Q402` | Await in Loop | MEDIUM | TS | Sequential `await` in loop — use `Promise.all` |
@@ -424,8 +430,8 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 
 | Rule ID | Name | Severity | Languages | Default Threshold |
 |---------|------|----------|-----------|-------------------|
-| `SKY-C303` | Too Many Arguments | MEDIUM | All | 5 arguments |
-| `SKY-C304` | Function Too Long | MEDIUM | All | 50 lines |
+| `SKY-C303` | Too Many Arguments | MEDIUM | Python, TS/JS, Java, Go | 5 arguments |
+| `SKY-C304` | Function Too Long | MEDIUM | Python, TS/JS, Java, Go | 50 lines |
 | `SKY-C401` | Duplicated Code Clone | MEDIUM | Python | Similar code block repeated across functions or files |
 | `SKY-CIRC` | Circular Dependency | MEDIUM | Python | Modules import each other in a cycle |
 
@@ -513,23 +519,34 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-U004` | Unused Class | LOW | Class defined but never instantiated or subclassed |
 | `SKY-U005` | Unused Dependency | LOW | Declared dependency is not imported by project code |
 | `SKY-U006` | Unused Parameter | LOW | Function parameter is never referenced |
-| `SKY-UC001` | Unreachable Code (Python) | MEDIUM | Code after `return`, `raise`, `break`, or `continue` |
+| `SKY-UC001` | Unreachable Code (Python) | MEDIUM | Code after `return`, `raise`, `break`, `continue`, or an always-false condition |
 | `SKY-UC002` | Unreachable Code (TS) | MEDIUM | Code after `return`, `throw`, `break`, or `continue` |
+
+`SKY-UC001`, `SKY-UC002` and `SKY-U005` are dead-code rules, but they run only
+with `--quality` (or `-a`).
 
 ### Other Rules
 
 | Rule ID | Name | Severity | Description |
 |---------|------|----------|-------------|
-| `SKY-UC001` | Unreachable Code | MEDIUM | Code after `return`, `raise`, `break`, `continue`, or always-false condition |
 | `SKY-E002` | Empty File | LOW | Empty Python file (no code, or docstring-only) |
 | `SKY-E003` | Unused TypeScript/JavaScript File | LOW | File is not reachable from a recognized entry point or another live module |
-| `SKY-SC001` | Smart Contract Security Issue | HIGH | Contract code contains a known security-sensitive pattern |
+| `SKY-E004` | Unnecessary TypeScript/JavaScript Export | LOW | A symbol is exported and used in its own file, but no other file imports it. `--select SKY-E004` is rejected as unknown today; filter with `--category dead_code` instead |
+| `SKY-SC001` | Security Contract Failed | Set per contract (default HIGH) | A FastAPI route named in `security_contracts` lost, or disappeared with, a required guard |
 
 ---
 
 ## Suppressing Rules
 
-Add a comment on the same line or line above:
+Inline comments work in Python, TypeScript/JavaScript, and CI/config files.
+Go, Java, PHP, Rust, Dart, C#, Kotlin, C/C++ and shell have no inline form:
+use `ignore` in config, the whitelist, a baseline, or `skylos review`.
+
+In Python and TS/JS, put the comment on the same line as the finding. On a
+decorator line it also covers the next line. In CI and config files
+(Dockerfile, Compose, GitHub Actions, GitLab CI, Kubernetes), it can go on the
+same line or the line before, and it names exactly one rule.
+
 ```python
 import os  # skylos: ignore
 ```
@@ -538,6 +555,9 @@ Suppress a specific rule:
 ```python
 API_KEY = "sk-test-key"  # skylos: ignore[SKY-S101]
 ```
+
+A rule-scoped marker does not hide dead-code findings. Use the blanket
+`# skylos: ignore` for an unused function or import.
 
 For TypeScript/JavaScript:
 ```typescript
@@ -558,12 +578,16 @@ Other supported pragmas:
 def framework_hook():  # pragma: no skylos
     pass
 
-def another():  # pragma: no cover
+def another():  # noqa: skylos
     pass
 
 def yet_another():  # noqa
     pass
 ```
+
+A bare `# noqa` does not hide HIGH or CRITICAL security (`SKY-D`) or secret
+(`SKY-S`) findings. `# noqa: F401` and `# noqa: F841` hide unused imports and
+unused variables only.
 
 Global suppression in `pyproject.toml`:
 ```toml
@@ -1181,7 +1205,7 @@ A check configured to block cannot pass when it is skipped or unfinished.
 | | |
 |---|---|
 | **Severity** | HIGH |
-| **Languages** | Python tests |
+| **Languages** | Python and JavaScript/TypeScript tests |
 | **What** | An existing test is deleted without a matching moved or renamed test, or loses parametrized cases |
 
 Matching test bodies preserve moved and renamed tests. A deleted test that
@@ -1193,8 +1217,8 @@ advice; deleting an unrelated module does not qualify.
 | | |
 |---|---|
 | **Severity** | HIGH |
-| **Languages** | Python tests |
-| **What** | An existing test gains skip, skipif, xfail, `pytest.skip()`, `importorskip`, or `skipTest` |
+| **Languages** | Python and JavaScript/TypeScript tests |
+| **What** | An existing test gains skip, skipif, xfail, `pytest.skip()`, `importorskip`, or `skipTest` (Python), or `.skip`, `xit`, `xdescribe`, `.todo`, `.only`, Playwright `test.skip()`/`fixme()`, or node:test `t.skip()` (JS/TS) |
 
 The check compares existing tests with the base. Skips in a newly added test
 are not treated as a change to an existing test's protections.
@@ -1204,7 +1228,7 @@ are not treated as a change to an existing test's protections.
 | | |
 |---|---|
 | **Severity** | HIGH |
-| **Languages** | pytest, coverage configuration, GitHub Actions |
+| **Languages** | pytest, coverage configuration, Jest, Vitest, `package.json` test scripts, GitHub Actions |
 | **What** | Test settings are changed to run fewer tests, rewrite results, lower coverage floors, or allow CI test failures |
 
 Examples include added pytest selectors or ignored paths, local `conftest.py`
@@ -3351,14 +3375,15 @@ the mapped array's length, or drops a built-in `.filter(Boolean)` chain.
 
 ---
 
-### SKY-Q502 · Class Too Large
+### SKY-Q502 · God File
 
 | | |
 |---|---|
 | **Severity** | MEDIUM |
 | **Languages** | Python |
-| **What** | Class grows beyond a maintainable ownership boundary |
-| **Risk** | Large classes tend to accumulate unrelated responsibilities |
+| **Threshold** | 500 lines, 40 definitions, or 25 top-level definitions (`god_file_max_lines`, `god_file_max_definitions`, `god_file_max_top_level_definitions`) |
+| **What** | One file holds too much code or too many definitions |
+| **Risk** | Large files tend to accumulate unrelated responsibilities |
 
 ---
 
@@ -4478,14 +4503,29 @@ def example():
 
 ---
 
-### SKY-SC001 · Smart Contract Security Issue
+### SKY-SC001 · Security Contract Failed
 
 | | |
 |---|---|
-| **Severity** | HIGH |
-| **Languages** | Smart contract source |
-| **What** | Contract code contains a known security-sensitive pattern |
-| **Risk** | Smart contract defects can lead to irreversible loss or unauthorized state changes |
+| **Severity** | Set per contract (default HIGH) |
+| **Languages** | Python (FastAPI) |
+| **What** | A FastAPI route named in a security contract lost a required guard, or disappeared with the guard removed, compared with the base commit |
+| **Risk** | An endpoint that needed authentication or authorization is now reachable without it |
+
+Declare contracts in config. Any contract turns on `--danger`:
+
+```toml
+[[tool.skylos.security_contracts]]
+id = "admin-delete-user"
+framework = "fastapi"
+file = "app/routes/admin.py"
+handler = "delete_user"
+guards = ["require_admin"]
+severity = "HIGH"
+```
+
+Skylos Cloud can sync the same contracts from **Governance → Policy → Required
+route guards (FastAPI)**.
 
 ---
 
@@ -4526,10 +4566,9 @@ max_args = 6            # SKY-C303 threshold (default: 5)
 # Disable specific rules
 ignore = ["SKY-P403", "SKY-L003"]
 
-# TypeScript overrides
+# TypeScript override (only complexity can be overridden, for typescript and java)
 [tool.skylos.languages.typescript]
 complexity = 15
-nesting = 4
 ```
 
 ---

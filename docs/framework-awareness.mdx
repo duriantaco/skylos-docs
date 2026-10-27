@@ -32,22 +32,25 @@ Skylos assigns a confidence score (0-100%) to each finding. Higher confidence = 
 ### How Confidence is Calculated
 ```
 Starting confidence: 100%
-  - Soft pattern penalties (e.g., handle_* = -20)
+  - Soft pattern penalties (e.g., handle_* = -15)
   - Dynamic module penalty (file has eval/exec = -10)
   - Framework detection (route decorator = 0%, skip entirely)
-  - Private name penalty (_helper = -80)
-  = Final confidence
+  - Private name penalty (_helper = -10)
+  = Final confidence, capped by what the code is (a public
+    Python name is capped at 90%, a public method at 80%, a parameter at 50%)
 ```
 
 ### Confidence Thresholds
 
 | Confidence | Meaning | Action |
 |------------|---------|--------|
-| 100% | Definitely unused | Safe to delete |
-| 80-99% | Very likely unused | Review briefly |
-| 60-79% | Probably unused | Review carefully |
+| 90-100% | Very likely unused | Review briefly, then delete |
+| 60-89% | Probably unused | Review carefully |
 | < 60% | Not flagged | Below threshold (default) |
 | 0% | Whitelisted/Framework | Never flagged |
+
+See [Confidence Caps](/dead-code-detection#confidence-caps) for the highest
+score each kind of finding can reach.
 ```bash
 skylos . -c 60  # Default: only flag >= 60% confidence
 skylos . -c 40  # Include more uncertain findings
@@ -114,24 +117,29 @@ These patterns **reduce** confidence but don't skip entirely. The function is st
 | `test_*` | -40 | Test discovery (only in test files) |
 | `*_test` | -40 | Test discovery (only in test files) |
 | `clean_*` | -25 | Django form validation (only if Django detected) |
-| `validate_*` | -25 | Django/DRF validation (only if Django detected) |
-| `visit_*` | -25 | AST visitor dispatch via `getattr(self, f"visit_{node_type}")` |
-| `leave_*` | -25 | libcst visitor pattern |
-| `handle_*` | -20 | Event dispatch via `getattr(obj, f"handle_{action}")` |
-| `*_handler` | -20 | Callback/event handlers |
-| `*_callback` | -20 | Async callbacks |
+| `validate_*` | -20 | Django/DRF validation (only if Django detected) |
+| `visit_*` | -20 | AST visitor dispatch via `getattr(self, f"visit_{node_type}")` |
+| `leave_*` | -20 | libcst visitor pattern |
+| `handle_*` | -15 | Event dispatch via `getattr(obj, f"handle_{action}")` |
+| `*_handler` | -15 | Callback/event handlers |
+| `*_callback` | -15 | Async callbacks |
+| `setup_*` | -15 | Setup hooks |
+| `teardown_*` | -15 | Teardown hooks |
 | `*Plugin` | -20 | Plugin discovery via `Base.__subclasses__()` |
-| `on_*` | -15 | Event listener pattern |
+| `on_*` | -10 | Event listener pattern |
 | `pytest_*` | -30 | Pytest hook functions |
+
+Outside their context (a `test_*` name outside a test file, `clean_*` without
+Django), these penalties drop to a quarter.
 
 ### Example Calculation
 ```python
 # File has eval() somewhere, so dynamic_module penalty applies
 
-def handle_secret():  # 100 - 20 (handle_*) - 10 (dynamic) = 70%
+def handle_secret():  # 100 - 15 (handle_*) - 10 (dynamic) = 75%
     pass
 
-def visit_Name():     # 100 - 25 (visit_*) - 10 (dynamic) = 65%
+def visit_Name():     # 100 - 20 (visit_*) - 10 (dynamic) = 70%
     pass
 
 def totally_dead():   # 100 - 10 (dynamic) = 90%
@@ -156,8 +164,8 @@ def test_login():  # 100 - 10 = 90% (penalty / 4)
 | Condition | Penalty | Reason |
 |-----------|---------|--------|
 | Dynamic module (`eval`/`exec` in file) | -10 | Functions might be called dynamically |
-| Private name (`_helper`) | -80 | Less likely to be public API |
-| In `__init__.py` | -15 | Often re-exports |
+| Private name (`_helper`) | -10 | Less likely to be public API |
+| Function or class in `__init__.py` | -15 | Often re-exports |
 
 ## Django
 
@@ -324,13 +332,13 @@ class User(BaseModel):
 Skylos recognizes the visitor pattern used by `ast`, `libcst`, `lark`, etc.:
 ```python
 class MyVisitor(ast.NodeVisitor):
-    def visit_FunctionDef(self, node):  # confidence = 75% (100 - 25)
+    def visit_FunctionDef(self, node):  # confidence at most 80% (100 - 20)
         pass
     
-    def visit_Name(self, node):         # confidence = 75% (100 - 25)
+    def visit_Name(self, node):         # confidence at most 80% (100 - 20)
         pass
     
-    def leave_FunctionDef(self, node):  # confidence = 75% (100 - 25)
+    def leave_FunctionDef(self, node):  # confidence at most 80% (100 - 20)
         pass
 ```
 
@@ -413,11 +421,19 @@ def dynamic_handler():  # skylos: ignore
     pass
 ```
 
+For dead code, use the plain form. A rule-scoped marker such as
+`# skylos: ignore[SKY-U001]` does not hide a dead-code finding. Inline markers
+work in Python and TypeScript/JavaScript only; for other languages use the
+whitelist or config below.
+
 ### 2. Whitelist Pattern (permanent)
 ```bash
 skylos whitelist 'handle_*'
 skylos whitelist my_func --reason "Called via registry"
 ```
+
+`skylos whitelist` edits the `pyproject.toml` in the current directory. Run
+it from the project root. It does not edit `skylos.toml`.
 
 ### 3. Config File
 ```toml

@@ -42,6 +42,10 @@ Use an explicit path when a repository has multiple suites:
 skylos agent test contracts/refund-agent.yml --allow-contract-endpoint
 ```
 
+Run only some scenarios with `--scenario ID` (repeat it for more than one).
+`skylos agent test` calls only your agent endpoint. It needs no model-provider
+key.
+
 ## Contract version 1
 
 ```yaml

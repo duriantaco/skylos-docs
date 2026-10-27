@@ -1,0 +1,267 @@
+---
+title: "Agent Hooks"
+description: "Check a coding agent's edits, file reads, shell commands and package installs while it works, in Claude Code, Codex and Cursor. Runs locally, no account."
+---
+
+# Agent hooks (`skylos agent install-hooks`)
+
+A coding agent can add a security bug, read a secret into its context, install
+a package that does not exist, or skip a failing git hook. CI finds some of
+this later. Agent hooks check each step while the agent works, and tell the
+agent what to fix.
+
+Run this once in your project:
+
+```bash
+skylos agent install-hooks            # Claude Code, this project
+```
+
+Everything runs on your machine. Hooks need no account, no Docker and no API
+key. The only network calls are package-registry lookups (PyPI, npm, the Go
+proxy, JSR), and only for install commands and new imports.
+
+## Install
+
+```bash
+skylos agent install-hooks                  # Claude Code, this project
+skylos agent install-hooks --codex          # Codex
+skylos agent install-hooks --cursor         # Cursor
+skylos agent install-hooks --user           # all projects, in your home directory
+skylos agent install-hooks --dry-run        # print the config, write nothing
+skylos agent install-hooks --uninstall      # remove only the Skylos hooks
+```
+
+| Agent | Project file (default, `--project`) | User file (`--user`) |
+|:--|:--|:--|
+| Claude Code (default) | `.claude/settings.json` | `~/.claude/settings.json` |
+| Codex | `.codex/hooks.json` | `~/.codex/hooks.json` |
+| Cursor | `.cursor/hooks.json` | `~/.cursor/hooks.json` |
+
+The installer merges its entries into the file. It keeps your other hooks and
+settings. Running it again changes nothing. If the file is not valid JSON, it
+stops and leaves the file alone.
+
+Other options:
+
+- `--path DIR`: the project root for a project install (default `.`).
+- `--skylos-bin PATH`: the Skylos the hooks run. By default the hooks call the
+  Skylos that ran the installer, by absolute path. A bare name such as
+  `skylos` is looked up on the agent's PATH instead.
+- `--no-check`: skip the one test run that confirms that Skylos supports
+  `skylos hook`.
+
+A project install also adds Skylos's local state (`.skylos/cache/`, the session
+file, the hook log, receipts) to `.gitignore`.
+
+The project hook file is usually committed. It names this machine's Skylos
+path. On a machine without that path, the hooks do nothing and never block.
+Teammates run `skylos agent install-hooks` themselves, or you install with
+`--skylos-bin skylos`.
+
+A Skylos that cannot start never blocks the agent: every hook command falls
+back to "allow".
+
+## Check that the hooks work
+
+Because a broken install falls back to "allow", hooks can look installed and
+do nothing. `skylos doctor` checks them:
+
+```bash
+skylos doctor
+```
+
+Its "Agent hooks" section shows, for each agent and scope, how many Skylos
+hooks are installed, whether the Skylos they call still exists, and a quick
+self-test of the `pre-bash` hook.
+
+## The eight hooks
+
+The installer writes one entry per hook the agent supports. Claude Code gets
+9 entries (`post-failure` is installed twice), Codex 6 and Cursor 5.
+
+| Hook | Claude Code | Codex | Cursor | Can block? | Timeout |
+|:--|:--|:--|:--|:--|:--|
+| `session-start` | `UserPromptSubmit` | `UserPromptSubmit` | `beforeSubmitPrompt` | No | 30 s |
+| `pre-edit` | `PreToolUse` on `Edit\|Write\|MultiEdit` | `PreToolUse` on `apply_patch\|Edit\|Write` | not used | No | 30 s |
+| `post-edit` | `PostToolUse` on `Edit\|Write\|MultiEdit` | `PostToolUse` on `apply_patch\|Edit\|Write` | `afterFileEdit` | Sends the agent back to fix (Cursor: records only) | 120 s |
+| `pre-read` | `PreToolUse` on `Read` | not used | `beforeReadFile` | Yes | 15 s |
+| `pre-bash` | `PreToolUse` on `Bash\|PowerShell` | `PreToolUse` on `^Bash$` | `beforeShellExecution` | Yes, or asks you | 30 s |
+| `post-bash` | `PostToolUse` on `Bash\|PowerShell` | `PostToolUse` on `^Bash$` | not used | No | 30 s |
+| `post-failure` | `PostToolUseFailure` on edits and on `Bash\|PowerShell` | not used | not used | No | 30 s |
+| `stop` | `Stop` | `Stop` | `stop` (`loop_limit` 10) | Yes | 7,260 s |
+
+What each hook does:
+
+- **`session-start`** records the starting checkout when you send a prompt.
+  Changes you made before the agent started are not blamed on the agent.
+- **`pre-edit`** records the file before an edit, so the agent's new lines
+  can be attributed to it in [`skylos provenance`](/done-gate#provenance).
+- **`post-bash`** and **`post-failure`** record files that a shell command
+  or a failed tool call changed. Those lines stay unattributed.
+- **`post-edit`** checks the lines the agent just changed and tells the agent
+  what to fix. See [What post-edit blocks](#what-post-edit-blocks).
+- **`pre-read`** blocks reading a file that holds a hard-coded secret, so the
+  key is not sent to the model provider. The message names the file and line,
+  never the value.
+- **`pre-bash`** blocks shell commands that would print a secret, installs of
+  packages that do not exist or look like typos of popular ones, and ways to
+  skip git hooks (`--no-verify`, `HUSKY=0`, `core.hooksPath`). It asks you
+  before installs it cannot verify, such as git or URL sources.
+- **`stop`** blocks the agent from finishing while issues it added in this
+  session are still open. See [The stop hook](#the-stop-hook).
+
+The `stop` timeout is long on purpose. When the stop hook runs your tests
+through `skylos done`, the tests, the changed-line checks and the rerun of
+failing tests on the base can each take up to the limits in
+`[tool.skylos.done]`.
+
+### What post-edit blocks
+
+Only lines the agent changed count. Older issues in the same file are never
+reported. The hook sends the agent back to fix:
+
+1. secrets;
+2. untrusted input that reaches a dangerous call: a web route, CLI or MCP tool
+   parameter, `request.*`, `input()`, `sys.argv`, environment variables or
+   stdin;
+3. calls that are dangerous whatever the input: unsafe deserialization,
+   disabled TLS or JWT verification, hidden Unicode (Trojan Source), and
+   `eval`, `exec`, `os.system`, `shell=True` or `yaml.load` with a non-constant
+   argument;
+4. made-up dependencies, versions, APIs and references, and breaks of your
+   [AI contract](/ai-contracts).
+
+Other findings on the changed lines are notes. Claude Code gets them as
+context. They never block.
+
+Source files get the full `skylos verify` check set. Config files (`.env`,
+YAML, JSON, TOML) get only the secrets check. Writing a secret into a `.env`
+file that Git ignores is allowed: that is where keys belong.
+
+To also block selected quality rules on agent-added lines, write
+`.skylos/standards.md`, then run:
+
+```bash
+skylos agent install-standards --enforce SKY-Q301
+```
+
+Cursor's `afterFileEdit` cannot send feedback. On Cursor, the agent sees the
+findings at `stop`.
+
+### pre-bash settings
+
+`pre-bash` reads `[tool.skylos.hooks]` from the `pyproject.toml` at the
+repository root:
+
+```toml
+[tool.skylos]
+hooks_allow_packages = ["internal-pkg", "npm:my-reactt"]  # optional npm:/pypi:/go:/jsr: prefix
+
+[tool.skylos.hooks]
+direct_source = "ask"        # git, URL and tarball installs, unknown registries
+on_unverified = "ask"        # registry could not be reached
+block_hook_bypass = true     # --no-verify, HUSKY=0, core.hooksPath and similar
+trusted_registries = ["https://pypi.corp.example/simple", "npm.corp.example"]
+```
+
+Values are `ask`, `deny` or `allow`. Codex has no "ask", so `ask` becomes
+`deny` there. `allow` lets the command run with a visible note. An invalid
+value falls back to the default, which never allows.
+
+These keys are read only from `pyproject.toml`. A `skylos.toml` or
+`.skylos.toml` does not set them.
+
+Example block for a typo of `requests`:
+
+```text
+Skylos blocked this install: 1 package looks hallucinated or typosquatted.
+- PyPI package 'reqeusts' does not exist on PyPI (likely hallucinated; an attacker can register it).
+```
+
+### The stop hook
+
+Each `post-edit` records the issues the agent added. At `stop`, Skylos
+rechecks every file that still has one, even files the agent did not touch
+again. If an issue is still there, the stop is blocked with the list and a
+recheck command. When the issues are unchanged after one retry, Claude Code
+and Codex let the agent stop and show you a warning. Cursor also stops after
+its `loop_limit`.
+
+If the base commit has a committed `[tool.skylos.done]` table, the stop hook
+also runs [`skylos done`](/done-gate) on the whole session: it runs your tests
+and checks for deleted tests, edited Skylos settings and added secrets. After
+`max_stop_blocks` blocks (default 3) on the same checkout, the agent may stop
+with a warning. The receipt still says failed. Without that table, the stop
+hook does not run your tests.
+
+## Turn a hook off
+
+Set `SKYLOS_HOOKS_DISABLE` in the environment the agent runs in:
+
+```bash
+export SKYLOS_HOOKS_DISABLE=pre-read          # one hook
+export SKYLOS_HOOKS_DISABLE=pre-bash,stop     # several
+export SKYLOS_HOOKS_DISABLE=all               # all of them
+```
+
+To remove the hooks, run the installer again with `--uninstall` and the same
+agent flag.
+
+## When Skylos errors
+
+A hook that hits an internal error allows the action, but it says so. The
+agent and you see a message such as:
+
+```text
+Skylos could not check this edit: the hook input could not be read (JSONDecodeError). It was allowed without a check.
+```
+
+At `stop`, Skylos lists the session's unchecked actions once, as a warning.
+An agent treats a hook timeout as a non-blocking failure.
+
+Each hook run adds one JSON line to `.skylos/hook.log`: time, event, agent,
+outcome, counts and duration. The log never holds file contents, secrets or
+commands. It rotates at 512 KB.
+
+## Recheck, recap and warm cache
+
+```bash
+skylos hook recheck app.py              # recheck files with the post-edit policy
+skylos hook recheck app.py --range 10:40
+skylos hook recheck --session           # every file with open agent issues
+```
+
+`recheck` exits `0` when nothing blocking is left, `1` when something is, and
+`2` on a usage error.
+
+```bash
+skylos agent recap                      # what the hooks stopped in the last 7 days
+skylos agent recap --days 30 --format json
+```
+
+`recap` reads only the local hook log. It counts blocked installs, blocked
+secret reads, edits sent back and early "done" claims. It sends nothing.
+
+```bash
+skylos agent warm-cache
+```
+
+`warm-cache` builds `.skylos/cache/module-facts.json` once, so the first edit
+check in a large project is as fast as later ones.
+
+## What hooks do not do
+
+- They are not a sandbox. A script that installs packages itself, or
+  `curl ... | sh`, is not checked.
+- They do not undo an edit. `post-edit` runs after the file is written; the
+  agent fixes it.
+- They do not check the packages inside requirement files or lockfiles
+  (`pip install -r`, `npm ci`, `uv sync`). `skylos . -a` and `skylos done` do.
+- They do not check edits made through the shell (`sed -i`, heredocs) when
+  they happen. `stop` still rechecks files with recorded issues.
+- They use only the settings in your repository. They do not download a
+  policy from Skylos Cloud.
+
+Keep a required CI check as well. Local hooks give fast feedback, but an agent
+with file access can change local state. See [Done Gate](/done-gate) and
+[CI/CD Integration](/ci-cd).

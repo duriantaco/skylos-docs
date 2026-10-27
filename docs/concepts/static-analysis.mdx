@@ -23,11 +23,8 @@ Static analysis examines your source code **without executing it**. Unlike tests
 Tests only cover the paths you think to test. Static analysis examines **every path**:
 
 
-**def:**
-
-
 ```python
-# process(data):
+def process(data):
     if data.type == "A":
         return handle_a(data)
     elif data.type == "B":
@@ -106,7 +103,7 @@ def get_user(id):
     return user.name    # user might be None!
 ```
 
-Tools: Pyright (partial), Infer, Skylos
+Tools: Pyright (partial), Infer
 
 ### Taint Analysis
 
@@ -139,7 +136,7 @@ flowchart TD
 |---------------|-------------------|
 | Syntactic | Unused imports |
 | Semantic | Dead functions, classes, variables |
-| Data Flow | Complexity, nesting depth |
+| Structural | Complexity, nesting depth |
 | Taint | SQL injection, command injection, SSRF, XSS |
 
 ---
@@ -150,17 +147,14 @@ Static analysis is powerful but not perfect:
 
 ### Can't Understand Runtime Values
 
-
-**def:**
-
-
 ```python
-# dynamic_call(func_name):
+def dynamic_call(func_name):
     func = getattr(module, func_name)  # Which function? Unknown at static time.
     func()
 ```
 
-Skylos uses **confidence scoring** to handle uncertainty.
+Skylos uses **confidence scoring** to handle uncertainty. For Python, optional
+runtime tracing (`skylos . --trace`) records which functions really ran.
 
 ### Can't Prove Correctness
 

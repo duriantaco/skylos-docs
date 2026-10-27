@@ -23,13 +23,13 @@ Skylos is a hybrid static analysis tool for Python, TypeScript, JavaScript, Java
 
 | Capability | What It Finds | Rule IDs |
 |------------|---------------|----------|
-| **Dead Code** | Unused functions, imports, classes, variables | SKY-U001–U004 |
-| **Security** | SQL injection, XSS, SSRF, command injection, path traversal, CORS, JWT, mass assignment, MCP server vulnerabilities | SKY-D201–D244 |
+| **Dead Code** | Unused functions, imports, classes, variables | SKY-U rules |
+| **Security** | SQL injection, XSS, SSRF, command injection, path traversal, CORS, JWT, mass assignment, MCP server vulnerabilities | SKY-D rules |
 | **Secrets** | Hardcoded API keys (AWS, Stripe, OpenAI, GitHub, Slack, etc.) | SKY-S101 |
-| **Quality** | Cyclomatic complexity, deep nesting, async blocking, god classes | SKY-Q301–Q501 |
-| **Logic Bugs** | Mutable defaults, bare except, dangerous comparisons, inconsistent returns | SKY-L001–L006 |
+| **Quality** | Cyclomatic complexity, deep nesting, async blocking, god classes | SKY-Q and SKY-C rules |
+| **Logic Bugs** | Mutable defaults, bare except, dangerous comparisons, inconsistent returns | SKY-L rules |
 | **Supply Chain** | Hallucinated dependencies, undeclared imports, real packages called with invented APIs, and npm/Go versions that do not exist | SKY-D222–D225 |
-| **Remediation** | Auto-fix issues via LLM, validate with tests, revert if broken | — |
+| **Remediation** | Plan or apply LLM-generated fixes | — |
 
 For the full rules reference, see [Rules Reference](/rules-reference).
 
@@ -39,6 +39,21 @@ For the full rules reference, see [Rules Reference](/rules-reference).
 
 ```bash
 pip install skylos
+```
+
+Start the server by hand to check it works:
+
+```bash
+skylos mcp
+```
+
+It speaks MCP over stdio. `python -m skylos_mcp` and
+`python -m skylos_mcp.server` start the same server.
+
+### Claude Code
+
+```bash
+claude mcp add skylos -- skylos mcp
 ```
 
 ### Claude Desktop
@@ -85,9 +100,24 @@ If Skylos is installed in a virtual environment, point to the venv Python:
 }
 ```
 
+### Network transports
+
+For a client that connects over HTTP instead of stdio:
+
+```bash
+export SKYLOS_MCP_TOKEN="a-secret-of-16-or-more-characters"
+skylos mcp --transport streamable-http
+```
+
+`--transport` takes `stdio` (default), `sse` or `streamable-http`. Network
+transports need `SKYLOS_MCP_TOKEN` (at least 16 characters); clients send it
+as a bearer token. The server binds to `MCP_BIND` (default `127.0.0.1`) on
+`PORT` (default `8080`).
+
 ### Authentication (API Key)
 
-To use all tools and track credit usage, add your API key:
+To use all tools and track credit usage, add a Skylos project token as
+`SKYLOS_API_KEY`:
 
 ```json
 {
@@ -103,42 +133,39 @@ To use all tools and track credit usage, add your API key:
 }
 ```
 
-Get your API key from [skylos.dev/dashboard/settings](https://skylos.dev/dashboard/settings).
+Use the project token that `skylos login` saved, or create one in the
+project's **Settings → Repository & connection → Project tokens** on
+[skylos.dev](https://skylos.dev/dashboard). The server checks the token with
+skylos.dev when it starts.
 
 **Without an API key**, the MCP server still works but in limited mode:
 - Only the `analyze` tool is available
-- Limited to 5 calls per day
-- `security_scan`, `quality_check`, `secrets_scan`, and `remediate` require authentication
+- Limited to 5 calls in any 24 hours
+- Every other tool returns "requires authentication"
 
-**With an API key**, all tools are available:
+**With an API key**, all tools are available. The analysis itself still runs
+on your machine. Credits:
 
-| Tool | Credits | Notes |
-|------|---------|-------|
-| `analyze` | **Free** | Runs locally |
-| `security_scan` | **Free** | Runs locally |
-| `quality_check` | **Free** | Runs locally |
-| `secrets_scan` | **Free** | Runs locally |
-| `verify_change` | **Free** | Runs locally; returns narrow AI-code trust findings for changed code |
-| `verify_agent` | **Free** | Runs locally; verifies AI-agent guardrails with scores, failed checks, OWASP coverage, gate verdict, and attestation digest |
-| `change_map` | **Free** | Runs locally; maps what a change touches: old and new code, callers, removed security checks, what to read first |
-| `remediate` | **10** | AI-powered fix generation |
+| Tool | Credits |
+|------|---------|
+| `analyze`, `security_scan`, `quality_check`, `secrets_scan`, `architecture_check`, `health_score`, `provenance_scan` | 0 |
+| `verify_change`, `validate_code_change`, `verify_agent`, `change_map`, `get_security_context`, `generate_fix`, `learn_triage`, `get_triage_suggestions`, `verify_dead_code` | 0 |
+| `remediate` | 10 |
 
-Analysis tools (`analyze`, `security_scan`, `quality_check`, `secrets_scan`,
-`verify_change`, `verify_agent` and `change_map`) run entirely on your machine — they don't cost credits.
-Only the `remediate` tool, which uses LLM-powered fix generation, costs 10
-credits per call.
-
-**Enterprise plans** have unlimited credits — no per-call charges.
+Credits work the same on every plan, Enterprise included. Enterprise includes
+5,000 credits a year.
 
 See [Billing & Credits](/billing) for pricing and credit packs.
 
 ### Rate Limits
 
+The server counts calls per hour for the plan of the token's workspace:
+
 | Plan | Rate Limit |
 |------|-----------|
-| No API key | 5 calls/day (`analyze` only) |
+| No API key | 5 calls in 24 hours (`analyze` only) |
 | Free | 50 calls/hour |
-| Pro | 500 calls/hour |
+| Workspace | 500 calls/hour |
 | Enterprise | 5,000 calls/hour |
 
 ### Custom Results Directory
@@ -161,6 +188,27 @@ By default, analysis results are stored in `~/.skylos/mcp_results/`. Override wi
 ```
 
 ## Available Tools
+
+| Tool | What it does |
+|------|--------------|
+| `analyze` | Dead-code scan |
+| `security_scan` | Security flow scan, like `skylos . --danger` |
+| `quality_check` | Quality checks, like `skylos . --quality` |
+| `secrets_scan` | Hard-coded secrets, values redacted |
+| `architecture_check` | Coupling, cohesion and circular imports (Python) |
+| `health_score` | Risk, maintainability and dead-code readouts |
+| `verify_change` | AI-code checks on a file or line range, like `skylos verify` |
+| `validate_code_change` | Checks a diff for removed security controls, dangerous patterns, secrets and made-up dependencies |
+| `verify_agent` | Static guardrail check of an LLM agent, like `skylos defend`, with an attestation |
+| `change_map` | What a change touches, like `skylos done map --format json` |
+| `get_security_context` | Detects frameworks, auth, headers, rate limits and validation |
+| `provenance_scan` | Reads recorded agent attribution for changes |
+| `remediate` | Plans LLM fixes; writes files only with `dry_run=false` |
+| `generate_fix` | A grep-verified dead-code removal diff; writes only with `apply=true` |
+| `verify_dead_code` | LLM second opinion on dead-code findings |
+| `learn_triage`, `get_triage_suggestions` | Record an accept or dismiss decision, and suggest decisions from that history |
+
+The most used tools are described below.
 
 ### `analyze`
 
@@ -236,7 +284,7 @@ Detects hardcoded credentials and sensitive data.
 
 **Returns**: All SKY-S101 findings — API keys, tokens, passwords, and private keys with the file, line number, and detected provider.
 
-**Scanned file types**: `.py`, `.pyi`, `.pyw`, `.env`, `.yaml`, `.yml`, `.json`, `.toml`, `.ini`, `.cfg`, `.conf`, `.ts`, `.tsx`, `.js`, `.jsx`, `.go`, `.java`, `.php`, `.rs`
+**Scanned file types**: `.py`, `.pyi`, `.pyw`, `.env`, `.yaml`, `.yml`, `.json`, `.toml`, `.lock`, `.ini`, `.cfg`, `.conf`, `.ts`, `.tsx`, `.js`, `.jsx`, `.mts`, `.cts`, `.mjs`, `.cjs`, `.html`, `.css`, `.go`, `.php`, `.rs`, `.dart`, `.cs`, `.kt`. Java secrets are reported by the security scan, not by `secrets_scan`.
 
 **Detected providers**: AWS, Stripe, GitHub, GitLab, Slack, Google, SendGrid, Twilio, OpenAI, Anthropic, and generic high-entropy strings.
 
@@ -313,7 +361,10 @@ code, not by a model. See [Change Map](/change-map).
 
 ### `remediate`
 
-End-to-end remediation: scan for issues, generate LLM-based fixes, validate each fix by running your test suite, and optionally apply them.
+Plan or apply LLM-generated fixes. With `dry_run=true` (default), static
+analysis returns a plan without calling a model or changing files. With
+`dry_run=false`, it generates fixes and edits files in place. It does not run
+your tests.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -321,27 +372,29 @@ End-to-end remediation: scan for issues, generate LLM-based fixes, validate each
 | `max_fixes` | int | 5 | Maximum number of fixes to attempt |
 | `dry_run` | bool | true | If true, shows plan without applying. Set to false to apply fixes. |
 | `model` | string | "gpt-4.1" | LLM model for fix generation |
-| `test_cmd` | string | null | Custom test command (default: auto-detect pytest/unittest) |
 | `severity` | string | null | Minimum severity filter: `critical`, `high`, `medium`, `low` |
+
+`test_cmd` is refused. Run your trusted tests yourself after you review the
+fixes.
 
 **Example prompt**: "Fix the top 3 security issues in my project, but don't apply yet — show me the plan"
 
-**Returns**: Remediation plan with status for each finding (fixed, skipped, test_failed, not_resolved). Security remediation also re-scans after a fix and can include generated regression-test proof metadata, such as the rule family, source file, and candidate test file.
+**Returns**: Remediation plan with a status for each finding.
 
 :::caution
-Set `dry_run=false` only when you're ready to modify files. Fixes that break tests are automatically reverted.
+Set `dry_run=false` only when you're ready to modify files. Review every
+change and run your tests before keeping it.
 :::
 
 **Safety guardrails**:
 - Dry run by default — nothing changes unless you explicitly set `dry_run=false`
-- Fixes that break tests are automatically reverted
-- Low-confidence fixes are skipped
-- After applying a fix, Skylos re-scans to confirm the finding is actually resolved
-- For supported security findings such as `SKY-D211`, Skylos can attach a targeted regression-test candidate after the fix is verified
+- It never runs commands from your project
 - Maximum fixes capped at `max_fixes` to prevent runaway changes
 
 :::note
-The `remediate` tool requires an LLM API key. Set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` in the MCP server's environment, or configure keys via `skylos key`.
+Applying fixes needs `pip install "skylos[llm]"` and an LLM API key. Set
+`OPENAI_API_KEY` or `ANTHROPIC_API_KEY` in the MCP server's environment, or
+save keys with `skylos key`.
 :::
 
 ## Available Resources
@@ -413,8 +466,10 @@ You: "Apply the fixes"
 [Calls remediate(path="./backend", severity="critical", dry_run=false, max_fixes=2)]
 
 Results:
-- api/users.py: Fixed (tests pass, finding resolved)
-- data/loader.py: Fixed (tests pass, finding resolved)
+- api/users.py: Fixed
+- data/loader.py: Fixed
+
+Run your tests before you keep these changes.
 ```
 
 ### Checking for secrets before deploy
@@ -465,16 +520,24 @@ Recommendation: Move these to environment variables or a secrets manager.
 1. **MCP client** (Claude Desktop, Cursor, etc.) connects to the Skylos server via stdio
 2. **Tool calls** are routed to Skylos's core `analyzer.analyze()` function — the same engine used by the CLI
 3. **Results** are stored in-memory and on disk (`~/.skylos/mcp_results/`) for later retrieval via resources
-4. **Remediation** uses Skylos's LLM orchestrator to generate, apply, test, and verify fixes
+4. **Remediation** uses Skylos's LLM orchestrator to plan, generate and apply fixes
 
-The MCP server runs 100% locally. Your code never leaves your machine (unless you use the `remediate` tool, which sends code snippets to your configured LLM provider for fix generation).
+The analysis runs locally. Your code does not leave your machine, with these
+exceptions:
+
+- With `SKYLOS_API_KEY`, the server sends the token to skylos.dev to check it
+  and to record credit use. It sends no code.
+- Dependency checks send package names and versions to PyPI, npm or the Go
+  proxy.
+- `remediate` and `verify_dead_code` send code snippets to your configured
+  LLM provider.
 
 ## Troubleshooting
 
 ### Server not appearing in Claude Desktop
 
 1. Verify the config file path is correct for your OS
-2. Check that `python -m skylos_mcp.server` works from your terminal
+2. Check that `skylos mcp` (or `python -m skylos_mcp.server`) starts from your terminal
 3. Restart Claude Desktop after editing the config
 4. Check Claude Desktop logs for connection errors
 
@@ -507,10 +570,11 @@ python -m pip install skylos
 
 ## Privacy
 
-- **Static analysis**: Runs 100% locally. No data leaves your machine.
-- **Secrets scanning**: 100% local. Detected secrets are never transmitted.
+- **Static analysis**: Runs locally. Dependency checks send package names and versions to public registries.
+- **Secrets scanning**: Local. Detected secrets are never transmitted.
 - **Remediation**: Sends code snippets to your configured LLM provider (OpenAI, Anthropic, or local). Use a local LLM (Ollama) for full privacy.
-- **Results storage**: Stored locally at `~/.skylos/mcp_results/`. No telemetry or data collection.
+- **API key**: With `SKYLOS_API_KEY`, the server contacts skylos.dev to check the token and record credits. No code is sent.
+- **Results storage**: Stored locally at `~/.skylos/mcp_results/`.
 
 ## References
 

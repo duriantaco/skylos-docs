@@ -3,7 +3,15 @@ title: "AI-Powered Features"
 description: "Using LLMs for automated fixes, security audits, and hybrid analysis"
 ---
 
-Skylos uses LiteLLM as its LLM gateway, giving you one interface across cloud and local providers (OpenAI-compatible APIs). You can use OpenAI, Anthropic, and local runtimes like Ollama / LM Studio / vLLM by changing the model name and (optionally) the base URL—without changing Skylos code.
+Skylos uses LiteLLM as its LLM gateway, giving you one interface across cloud and local providers (OpenAI-compatible APIs). You can use OpenAI, Anthropic, Google, Mistral, Groq, xAI, Together, DeepSeek, and local runtimes like Ollama / LM Studio / vLLM by changing the model name and (optionally) the base URL—without changing Skylos code.
+
+The `skylos agent ...` commands need the `llm` extra:
+
+```bash
+pip install "skylos[llm]"
+```
+
+`skylos verify`, `skylos defend` and every normal scan do not use an LLM.
 
 ## Architecture Overview
 
@@ -27,7 +35,8 @@ Skylos uses a **hybrid analysis approach** that combines the strengths of both s
             │                     │
             │  Both found → HIGH  │
             │  Static only → MED  │
-            │  LLM only → REVIEW  │
+            │  LLM only → MED,    │
+            │    needs review     │
             └─────────────────────┘
 ```
 
@@ -61,12 +70,15 @@ Because of these limitations, Skylos uses static analysis as the **truth layer**
 
 Skylos resolves API keys per provider:
 
-1. `skylos key` (stored in system keyring)
-2. Environment variables (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.)
+1. Environment variables (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `MISTRAL_API_KEY`, `GROQ_API_KEY`, `XAI_API_KEY`, `TOGETHER_API_KEY`, `DEEPSEEK_API_KEY`)
+2. Keys saved with `skylos key` (stored in the system keyring)
 3. Interactive prompt (only if allowed and no key is found)
 
 ```bash
-skylos key
+skylos key                      # menu (needs a terminal)
+skylos key list                 # which providers have a saved key
+skylos key add openai           # save a key for one provider
+skylos key remove openai        # delete a saved key
 ```
 
 ```bash
@@ -209,12 +221,18 @@ skylos agent scan ./src
 | Flag | Description |
 |------|-------------|
 | `--model` | Model to use (default: `gpt-4.1`) |
-| `--provider` | Force provider: `openai` or `anthropic` |
+| `--provider` | Force provider: `openai`, `anthropic`, `google`, `mistral`, `groq`, `xai`, `together`, `deepseek` or `ollama` |
 | `--base-url` | Custom endpoint for local LLMs |
 | `--format` | Output format: `table`, `tree`, `json`, `sarif` |
 | `--output`, `-o` | Write output to file |
 | `--min-confidence` | Filter by confidence: `high`, `medium`, `low` |
 | `--with-fixes` | Generate fix suggestions without applying them |
+| `--llm-only` | Skip static analysis and run the LLM only |
+| `--changed` | Analyze only git-changed files |
+| `--verify-dead-code` | Run the slower LLM dead-code check before showing results |
+| `--prompt-template KIND=PATH` | Append a trusted prompt file. KIND is `security`, `quality`, `security_audit` or `review`. Repeatable |
+| `--strict` | Exit with an error when findings are reported |
+| `--upload` | Send findings and the run summary to Skylos Cloud (off by default) |
 
 **Examples:**
 
@@ -259,11 +277,17 @@ skylos agent scan . --security
 | Flag | Description |
 |------|-------------|
 | `--model` | Model to use (default: `gpt-4.1`) |
-| `--provider` | Force provider: `openai` or `anthropic` |
+| `--provider` | Force provider, as for `agent scan` |
 | `--base-url` | Custom endpoint for local LLMs |
 | `--format` | Output format: `table`, `tree`, `json`, `sarif` |
 | `--output`, `-o` | Write output to file |
 | `--interactive`, `-i` | Optional interactive file selection before the audit |
+
+`skylos agent security-quick [path]` is the same command.
+
+For a longer, resumable audit (threat model, candidates, LLM validation and
+exports), use `skylos agent security-deep [path]` (also `skylos agent audit
+--deep`). `--scan-only` runs its static stage with no LLM.
 
 **Why use it:**
 
@@ -301,25 +325,31 @@ The same run also writes `.skylos/runs/<run-id>/repo_map.json`, `candidates.json
 
 ### `skylos agent remediate`
 
-Generate a fix for a specific issue:
+Scan a path, fix findings with an LLM, and optionally test and open a PR:
 
 ```bash
-skylos agent remediate ./src/api.py --line 45 --message "SQL injection vulnerability"
+skylos agent remediate ./src --dry-run           # show what would be fixed
+skylos agent remediate ./src --severity high     # fix high and critical only
 ```
 
 **Options:**
 
 | Flag | Description |
 |------|-------------|
-| `--line`, `-l` | Line number of the issue (required) |
-| `--message`, `-m` | Description of the issue (required) |
-| `--model` | Model to use |
-| `--provider` | Force provider |
-| `--base-url` | Custom endpoint |
+| `--max-fixes` | Maximum number of findings to fix (default: 10) |
+| `--dry-run` | Show what would be fixed without changing files |
+| `--severity` | Only fix findings at or above `critical`, `high`, `medium` or `low` |
+| `--test-cmd` | Trusted test command to run after fixes (no shell) |
+| `--auto-test` | Run auto-detected project tests after fixes |
+| `--auto-pr` | Create a PR with the fixes |
+| `--branch-prefix` | Git branch prefix for that PR |
+| `--standards [FILE]` | LLM-guided cleanup mode, optionally with your standards `.md` file |
+| `--model`, `--provider`, `--base-url` | Model settings, as for `agent scan` |
+| `--upload` | Send the run summary to Skylos Cloud (off by default) |
 
-For supported security findings, remediation does more than apply a patch and
-run existing tests. After a fix, Skylos re-runs the relevant analysis to confirm
-the original finding is closed. For `SKY-D211` SQL injection findings, Skylos
+Skylos runs tests after a fix only when you pass `--auto-test` or `--test-cmd`.
+For supported security findings, Skylos also re-runs the relevant analysis after
+a fix to confirm the original finding is closed. For `SKY-D211` SQL injection findings, Skylos
 can also generate a targeted regression-test candidate and include proof
 metadata in the remediation summary.
 
@@ -340,9 +370,9 @@ skylos agent scan --changed
 ```
 
 This is a convenience flag that:
-1. Finds files changed in git (`git diff --name-only HEAD`)
+1. Finds files changed in git
 2. Runs analysis only on those files
-3. Perfect for pre-commit or PR review workflows
+3. Fits pre-commit or PR review workflows
 
 ## Applying AI Remediation
 
@@ -354,8 +384,25 @@ skylos agent remediate . --dry-run
 skylos agent remediate .
 ```
 
-Add `--run-tests` only for a trusted repository, or pass a trusted command with
-`--test-command`. PR creation is opt-in with `--auto-pr`.
+Add `--auto-test` only for a trusted repository, or pass a trusted command with
+`--test-cmd`. PR creation is opt-in with `--auto-pr`.
+
+## Other Agent Commands
+
+`skylos agent` has more subcommands. Run `skylos agent <command> --help` for
+each one's flags.
+
+| Command | What it does | Needs an LLM |
+|---------|--------------|--------------|
+| `skylos agent verify <path>` | Second opinion on dead-code findings (LLM, Jev, or both); `--fix` makes removal patches | Yes (Jev modes need `TYPESAFE_API_KEY`) |
+| `skylos agent replay .skylos/runs/<id>` | Check and summarize a saved agent run | No |
+| `skylos agent init` / `skylos agent test` | Create and run runtime behavior tests against your agent's endpoint. See [Agent Behavior Testing](./agent-behavior-testing) | No |
+| `skylos agent install-hooks` | Install Skylos hooks for Claude Code, Codex or Cursor. See [Agent Hooks](./agent-hooks) | No |
+| `skylos agent recap` | Show what the hooks blocked | No |
+| `skylos agent warm-cache` | Prebuild the index that keeps hook checks fast | No |
+| `skylos agent install-standards` / `check-standards` | Give agents your project standards as skills, and check them | No |
+| `skylos agent pre-commit` | Security, secrets and quality on staged files | No |
+| `skylos agent watch`, `status`, `triage`, `serve` | Keep and serve ranked active-agent state (used by the VS Code automation view) | No |
 
 ## What Gets Detected
 
@@ -389,8 +436,7 @@ Findings are scored based on source:
 |--------|------------|---------|
 | Static + LLM agree | **HIGH** | Very likely a real issue |
 | Static only | **MEDIUM** | Deterministic match |
-| LLM only | **MEDIUM** | Needs human review |
-| Conflict | **REVIEW** | Flagged for manual inspection |
+| LLM only | **MEDIUM** | Marked as needing human review |
 
 ## Local LLM Setup
 
@@ -435,16 +481,12 @@ skylos agent scan ./src \
 
 ## Configuration
 
-### pyproject.toml
+LLM settings come from flags and environment variables, not from
+`pyproject.toml`. Set the model with `--model`, the provider with
+`--provider`, and a local endpoint with `--base-url`.
 
-```toml
-[tool.skylos]
-model = "gpt-4.1"
-
-[tool.skylos.llm]
-provider = "openai"
-# base_url = "http://localhost:11434/v1"  # Uncomment for local
-```
+To add your own prompt text, pass `--prompt-template KIND=PATH`. A
+`[tool.skylos.templates]` table in config is not read.
 
 ### Environment Variables
 
@@ -452,7 +494,8 @@ provider = "openai"
 |----------|-------------|
 | `OPENAI_API_KEY` | OpenAI API key |
 | `ANTHROPIC_API_KEY` | Anthropic API key |
-| `SKYLOS_LLM_PROVIDER` | Force provider: `openai` or `anthropic` |
+| `GEMINI_API_KEY`, `MISTRAL_API_KEY`, `GROQ_API_KEY`, `XAI_API_KEY`, `TOGETHER_API_KEY`, `DEEPSEEK_API_KEY` | Other provider keys |
+| `SKYLOS_LLM_PROVIDER` | Force provider, for example `openai` or `anthropic` |
 | `SKYLOS_LLM_BASE_URL` | Custom base URL for OpenAI-compatible APIs |
 | `OPENAI_BASE_URL` | Alternative to `SKYLOS_LLM_BASE_URL` |
 
@@ -500,7 +543,7 @@ verification rules.
       --min-confidence high
 
 - name: Upload SARIF
-  uses: github/codeql-action/upload-sarif@v2
+  uses: github/codeql-action/upload-sarif@v3
   with:
     sarif_file: skylos-results.sarif
 ```
@@ -546,5 +589,4 @@ skylos agent scan . --base-url http://localhost:11434/v1 --model qwen2.5-coder:7
 ### Slow responses
 
 - Use local LLMs with GPU acceleration
-- Reduce file count with selective auditing
-- Try smaller context with `--max-chunk-tokens`
+- Reduce file count with `--changed`, or pick files with `--security -i`

@@ -17,7 +17,7 @@ Use this page when a security team asks:
 
 Skylos Cloud is ready for a security-team pilot and controlled enterprise evaluation.
 
-It is not yet positioned as a completed regulated-procurement package for teams that require SSO, SCIM, a completed SOC 2 report, DPA automation, status-page commitments, SIEM streaming, and formal SLA paperwork before a pilot can start.
+It is not yet positioned as a completed regulated-procurement package for teams that require SCIM, a completed SOC 2 report, DPA automation, status-page commitments, SIEM streaming, and formal SLA paperwork before a pilot can start.
 
 | Area | Current status |
 |---|---|
@@ -28,8 +28,11 @@ It is not yet positioned as a completed regulated-procurement package for teams 
 | Role-based access control | Available |
 | Audit event coverage for mutating routes | Available |
 | Audit export foundations | Available |
-| Upload attribution | Available |
-| SSO / SAML | Roadmap |
+| Upload attribution and upload trust levels | Available |
+| SAML single sign-on, "Require SSO" | Available on Enterprise; Skylos registers your identity provider by hand |
+| "Require two-factor" for the workspace | Available |
+| Data retention setting (30 to 1,095 days, by plan) | Available |
+| Workspace deletion with a grace period | Available |
 | SCIM provisioning | Roadmap |
 | SOC 2 report | Roadmap |
 | DPA and subprocessor portal | Roadmap |
@@ -154,16 +157,16 @@ That means enterprise customers should evaluate Skylos using a shared-responsibi
 
 Use precise language:
 
-> Skylos is ready for a security-team pilot. It is local-first, has Cloud governance, project-key attribution, RBAC, audit coverage for mutating governance workflows, and export foundations. For full regulated procurement, SSO, SCIM, SOC 2, DPA automation, public status/SLA, and SIEM streaming are on the enterprise roadmap.
+> Skylos is ready for a security-team pilot. It is local-first, has Cloud governance, project-key attribution, RBAC, audit coverage for mutating governance workflows, export foundations, and SAML SSO set up with Skylos. For full regulated procurement, SCIM, SOC 2, DPA automation, public status/SLA, and SIEM streaming are on the enterprise roadmap.
 
-Do not claim that Skylos is SOC 2 certified, SAML-ready, SCIM-ready, or SIEM-streaming-ready until those controls are implemented and verified.
+Do not claim that Skylos is SOC 2 certified, SCIM-ready, or SIEM-streaming-ready until those controls are implemented and verified. SAML SSO needs Skylos to register your identity provider first; it is not self-serve.
 
 ## Roadmap Controls
 
 The highest-value enterprise controls still to add are:
 
-1. SAML SSO with enforced workspace login.
-2. SCIM deprovisioning and group mapping.
+1. SCIM deprovisioning and group mapping.
+2. Self-serve SAML identity provider setup.
 3. Formal SOC 2 readiness program and report.
 4. DPA, subprocessor list, and security contact workflow.
 5. Public status page and incident communication process.

@@ -43,39 +43,45 @@ Add the cloud when you need:
 
 ### Workspace Views
 
-Skylos Cloud currently gives you workspace-level navigation for:
-- `Overview`
-- `Projects`
-- `Scans`
-- `Issues`
-- `Exceptions`
-- `Rules`
-- `Trends`
+The dashboard sidebar has four groups:
+
+- **Code**: `Home` (your repositories), `Pull requests`, `Issues`
+- **AI agents**: `Agents` and `Deep scans`, where your Skylos deployment turns them on
+- **Governance**: `Policy`, `Not fixing`, `Audit evidence`
+- **Workspace**: `Settings`, `Billing`
+
+`Policy`, `Not fixing` and `Audit evidence` stay greyed out until the
+workspace has its first scan.
 
 ### Project Views
 
-Each project currently has tabs for:
+Each project page has these tabs:
 - `Overview`
-- `Scans`
 - `Issues`
-- `Suppressions`
-- `Defense`
-- `Provenance`
-- `Scanner proof`
+- `Pull requests`
+- `Scans`
 - `Settings`
 
-The **Scanner proof** tab stores bounded, tamper-evident comparison receipts from `skylos compare --upload`. Use it to evaluate Skylos beside an incumbent scanner on the same revision before changing a required gate. See [Scanner Comparison](/scanner-comparison).
+The **More** menu adds `Trends`, `Code attribution`, `AI feature safeguards`,
+`Agent PR log`, `Technical debt`, `Investigate`, `Required controls` and
+`Not fixing`.
+
+Comparison receipts from `skylos compare --upload` go to a project's Scanner
+proof page only where the Skylos deployment turns that page on. It is not a tab
+or a More item. See [Scanner Comparison](/scanner-comparison).
 
 ### Project Settings
 
-`Dashboard -> Settings` is the project-management surface for:
-- repository URL
-- API key rotation
-- GitHub App installation
+The project's **Settings** tab manages:
+- repository URL and owner team
+- project tokens (create, mark for CI, rotate)
+- GitHub App installation and merge blocking
 - Slack and Discord notifications
-- team members
-- workspace/project policy
-- policy inheritance
+- project policy
+
+Workspace **Settings** holds members and teams, integrations (GitHub,
+webhooks, Jira), API tokens, single sign-on and two-factor rules, and data
+retention.
 
 ### Enterprise Trust Controls
 
@@ -100,7 +106,7 @@ flowchart LR
     D --> E[Review scans, issues, exceptions, rules, trends]
     E --> F[Change policy or suppressions in dashboard]
     F --> G[skylos sync pull]
-    G --> H[Repo gets .skylos/config.yaml and .skylos/suppressions.json]
+    G --> H[Repo gets .skylos/config.yaml]
 ```
 
 The split is simple:

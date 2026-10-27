@@ -31,6 +31,8 @@ Choose by the thing you need Skylos to inspect:
 |:---|:---|:---|
 | Scan source code | `skylos PATH` | Repository source and configuration |
 | See what a change touches before reviewing it | `skylos done map --base main` | Changed Python and TypeScript/JavaScript functions since the merge base |
+| Check a branch or PR before merge, including one an AI agent wrote | `skylos done --base main` | Runs your tests, then checks for deleted or skipped tests, loosened settings, test-only shortcuts and new secrets ([Done Gate](/done-gate)) |
+| Check every edit while a coding agent works | `skylos agent install-hooks` | Claude Code, Codex or Cursor hook settings ([Agent Hooks](/agent-hooks)) |
 | Verify source for AI-code defects | `skylos verify [PATH]` | Source; Python working changes also get a behavior comparison with Git HEAD |
 | Check an exact local GPU release | `skylos preflight [ARTIFACT]` | Local built artifact and declared GPU fleet |
 | Find container vulnerabilities | `skylos image scan IMAGE@sha256:<digest> --platform os/arch` | Remote registry image scanned by a separately installed Trivy |
@@ -76,9 +78,11 @@ The `-a` scan enables the main static checks:
 
 For exact rules, see [Rules Reference](/rules-reference).
 
-Most source analysis is local. The dependency/SCA family may query OSV. Use
-explicit analyzer flags instead of `-a` when an offline run must exclude that
-network-backed family.
+Most source analysis is local. Two checks in `-a` use the network: the
+dependency check asks OSV.dev about package names and versions, and the
+AI-defect check asks PyPI, npm and the Go proxy whether imported packages
+exist. Use explicit analyzer flags instead of `-a` when a run must stay
+offline.
 
 ## 4. Keep Findings Focused On Active Work
 
@@ -148,8 +152,7 @@ Cloud gate failures are nonzero. `defend` also accepts a directory and is
 report-only unless `--fail-on`, `--min-score`, or a gate policy is set. `clean`
 supports Python import/function transforms; without a mode it is interactive
 and can write after confirmation. Use `--dry-run` for a guaranteed no-write
-preview. A completed apply pass can still exit `0` after printing an individual
-transform failure, so review its completion output.
+preview. Review the completion output after an apply pass.
 
 ## Cheatsheet
 

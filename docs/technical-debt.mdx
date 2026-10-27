@@ -25,7 +25,13 @@ skylos debt . --json
 
 # Show only the top 10 hotspots in table output
 skylos debt . --top 10
+
+# Write the report to a file
+skylos debt . --json -o debt.json
 ```
+
+The debt score is a percentage where higher is healthier. Run
+`skylos debt . --help` (with a path) to see every option.
 
 ## How Scoring Works
 
@@ -140,9 +146,24 @@ Because of that:
 - `--history` only works for project-root scans
 - subdirectory scans can still use `--changed` and `--baseline`, but they cannot persist repo-wide baseline/history files
 
+## Gating
+
+`skylos debt` only reports by default and exits `0`. These flags make it a
+gate that exits `1`:
+
+```bash
+skylos debt . --min-score 70                                # score below 70%
+skylos debt . --baseline --fail-on-status new_or_worsened   # new or worse hotspots
+```
+
+`--fail-on-status` takes `new`, `worsened` or `new_or_worsened`. Use it with
+`--baseline` and a saved baseline. Without them no hotspot has a status, so
+the check cannot fail.
+
 ## Policy Files
 
-Skylos can read a repo-local `skylos-debt.yaml`.
+Skylos can read a repo-local `skylos-debt.yaml` (also `skylos-debt.yml` or
+`.skylos-debt.yaml`), or the file you pass with `--policy`.
 
 Example:
 
@@ -191,6 +212,18 @@ Example fields to expect in JSON output:
   ]
 }
 ```
+
+## LLM Summary And Upload
+
+`--with-agent` asks an LLM to summarize the top hotspots. It needs
+`pip install "skylos[llm]"` and a provider key, or a local model with
+`--base-url`:
+
+```bash
+skylos debt . --with-agent --agent-top 5 --model gpt-4.1
+```
+
+`--upload` sends the debt result to Skylos Cloud. A failed upload exits `1`.
 
 ## Recommended Workflow
 

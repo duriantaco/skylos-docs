@@ -33,7 +33,7 @@ Static analysis sees `visitor.visit()` but can't know that `visit_FunctionDef` g
 
 ## The Solution: Runtime Call Tracing
 
-The `--trace` flag runs your test suite with Python's `sys.settrace()` enabled, recording **every function that actually gets called**.
+The `--trace` flag runs your test suite with a Python profiling hook (`sys.setprofile()`) enabled, recording **every function that actually gets called**. It works for Python only.
 ```bash
 skylos . --trace
 ```
@@ -48,7 +48,7 @@ This:
 ```mermaid
 flowchart LR
     A["skylos . --trace"] --> B["Run pytest"]
-    B --> C["sys.settrace()"]
+    B --> C["sys.setprofile()"]
     C --> D["Record calls"]
     D --> E[".skylos_trace"]
     E --> F["Static analysis"]
@@ -95,22 +95,26 @@ flowchart LR
 
 ### 1. Call Recording
 
-When you run `skylos . --trace`, Skylos executes:
+When you run `skylos . --trace`, Skylos runs `pytest -q` in a child process
+with the same Python that runs Skylos, roughly like this:
 ```python
-import sys
+import sys, threading
 
-def trace_calls(frame, event, arg):
+def record_calls(frame, event, arg):
     if event == 'call':
         filename = frame.f_code.co_filename
         func_name = frame.f_code.co_name
         line = frame.f_code.co_firstlineno
         # Record: (filename, func_name, line)
-    return trace_calls
 
-sys.settrace(trace_calls)
+sys.setprofile(record_calls)
+threading.setprofile(record_calls)
 pytest.main(["-q"])
-sys.settrace(None)
+sys.setprofile(None)
 ```
+
+Files under virtual environments, the standard library and pytest itself are
+not recorded.
 
 ### 2. Trace File
 
@@ -173,6 +177,18 @@ skylos .
 **Commit `.skylos_trace` to your repo** if your test suite is stable. CI runs will use it without re-running tests.
 :::
 
+### Caching Trace Runs
+
+`--cache` stores a successful trace run. The next `--trace --cache` run
+reuses it instead of running pytest again, as long as the project files, the
+Python version and the Skylos version have not changed:
+
+```bash
+skylos . --trace --cache           # reuse a cached trace when nothing changed
+skylos . --trace --refresh-cache   # run pytest again and overwrite the cache
+skylos . --trace --no-cache        # never use the cache
+```
+
 ---
 
 ## Best Practices
@@ -214,11 +230,11 @@ By default, Skylos excludes pytest internals. Your test functions themselves are
 
 ## Comparison
 
-| Approach | Accuracy | Speed | Setup |
-|----------|----------|-------|-------|
-| Static only | 70-85% | Fast | None |
-| Static + Framework rules | 85-95% | Fast | None |
-| Static + `--trace` | 95-99% | Slower (runs tests) | Requires tests |
+| Approach | What it adds | Speed | Setup |
+|----------|--------------|-------|-------|
+| Static only | Direct calls and imports | Fast | None |
+| Static + framework rules (default) | Routes, signals, fixtures and other framework entry points | Fast | None |
+| Static + `--trace` | Functions your tests actually call, including dynamic dispatch | Slower (runs tests) | Requires pytest tests |
 
 ---
 
@@ -226,7 +242,9 @@ By default, Skylos excludes pytest internals. Your test functions themselves are
 
 ### "No tests ran"
 
-The trace runs `pytest` by default. If your tests are elsewhere:
+The trace runs `pytest -q` with the same Python that runs Skylos, so pytest
+and your project's dependencies must be installed there. If your tests are
+elsewhere:
 ```bash
 # Ensure pytest can find your tests
 pytest --collect-only
@@ -251,6 +269,9 @@ For these, use `# pragma: no skylos` to suppress:
 def production_only_handler():  # pragma: no skylos
     ...
 ```
+
+For a whole family of such functions, declare them as entry points with
+`[[tool.skylos.dead_code.entrypoints]]` (see [Configuration](/configuration)).
 
 ---
 

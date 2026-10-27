@@ -69,14 +69,6 @@ Dead code still needs to be:
 - Included in test coverage metrics
 - Migrated during major upgrades
 
-```mermaid
-xychart-beta
-    title "Time Spent Maintaining Dead Code"
-    x-axis ["10% dead", "20% dead", "30% dead", "40% dead"]
-    y-axis "Wasted Dev Hours/Month" 0 --> 50
-    bar [5, 12, 22, 40]
-```
-
 ### 3. Hidden Security Vulnerabilities
 
 "Unused" code can still be exploited:
@@ -93,7 +85,7 @@ If it's in the codebase, it's in the attack surface.
 
 ### 4. Misleading Metrics
 
-Dead code skews your metrics:
+Dead code skews your metrics. An illustrative example (not measured data):
 
 | Metric | With Dead Code | Without |
 |--------|----------------|---------|
@@ -122,11 +114,8 @@ import tensorflow  # Unused
 Code that **can never execute** due to control flow:
 
 
-**def:**
-
-
 ```python
-# example():
+def example():
     return "done"
     print("This never runs")  # Unreachable
 
@@ -141,10 +130,8 @@ def another():
 Functions, classes, or variables **defined but never referenced**:
 
 
-**def:**
-
-
-```python helper_v1():  # Defined but never called
+```python
+def helper_v1():  # Defined but never called
     pass
 
 def helper_v2():  # called
@@ -158,10 +145,8 @@ result = helper_v2()
 Modules imported but **never used**:
 
 
-**import:**
-
-
-```python json  #  Never used
+```python
+import json  # Never used
 import os    # Never used
 from typing import List, Dict, Optional  # Dict, Optional unused
 
@@ -174,10 +159,8 @@ def get_items() -> List[str]:
 Function parameters that are **never read**:
 
 
-**def:**
-
-
-```python process(data, debug=False):  # debug is never used
+```python
+def process(data, debug=False):  # debug is never used
     return transform(data)
 ```
 
@@ -186,11 +169,8 @@ Function parameters that are **never read**:
 Variables that are **assigned but never read**:
 
 
-**def:**
-
-
 ```python
-# calculate():
+def calculate():
     temp = compute_something()  # temp is never used
     result = compute_other()
     return result
@@ -261,13 +241,17 @@ def get_users():       # Not flagged as unused
 
 ### 3. Confidence Scoring
 
-Instead of binary "used/unused", Skylos scores confidence:
+Instead of binary "used/unused", Skylos scores confidence from 0 to 100. The
+default threshold is 60. Evidence that code might be used lowers the score:
 
-| Finding | Confidence | Recommendation |
-|---------|------------|----------------|
-| `def _private_helper()` | 20% | Probably internal, skip |
-| `def unused_public_fn()` | 90% | Safe to remove |
-| `import json  # in test file` | 15% | Might be for fixtures |
+| Situation | Effect on confidence |
+|---------|----------------|
+| No references, no framework or export evidence | High: a strong candidate |
+| Name starts with `_` (Python) | Lowered a little |
+| Public API, test file, or dynamic access nearby | Lowered more |
+| Framework decorator, entry point, or whitelist | Not reported |
+
+Always review a candidate before you delete it.
 
 ### 4. Safe Removal Workflow
 
@@ -276,7 +260,7 @@ Instead of binary "used/unused", Skylos scores confidence:
 skylos clean . --dry-run --types import,function --confidence 80
 
 # 2. Apply matching Python import/function cleanup
-skylos clean . --apply --types imports --confidence 80
+skylos clean . --apply --types import --confidence 80
 
 # 3. Interactive selection for the rest
 skylos . -i
@@ -307,7 +291,13 @@ skylos clean . --apply --comment-out --types import,function --confidence 80
   <details>
 <summary>Run Skylos in CI</summary>
 
-    Prevent new dead code from being introduced:
+    Prevent new dead code from being introduced. Dead code does not fail the
+    gate by default, so set a limit first:
+    
+    ```toml
+    [tool.skylos.gate]
+    max_dead_code = 0
+    ```
     
     ```yaml
     - name: Check for dead code

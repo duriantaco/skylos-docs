@@ -1,28 +1,11 @@
 ---
 title: "Why Skylos?"
-description: "How Skylos compares to other Python analysis tools"
+description: "How Skylos compares to other static analysis tools, and when to use each."
 ---
 
 ## The Analysis Tool Landscape
 
-There are many static analysis tools for Python. Here's how Skylos fits in:
-
-```mermaid
-quadrantChart
-    title Tool Positioning
-    x-axis Low Coverage --> High Coverage
-    y-axis High Noise --> Low Noise
-    quadrant-1 "Sweet Spot"
-    quadrant-2 "Comprehensive but noisy"
-    quadrant-3 "Limited value"
-    quadrant-4 "Focused but narrow"
-    
-    Skylos: [0.75, 0.8]
-    Pylint: [0.8, 0.3]
-    Bandit: [0.5, 0.5]
-    Vulture: [0.4, 0.7]
-    Semgrep: [0.7, 0.6]
-```
+There are many static analysis tools. Here is how Skylos fits in, compared with the common Python tools. Skylos also scans TypeScript/JavaScript, Java, Go, PHP and more; see [Language Support](/language-support).
 
 ---
 
@@ -30,16 +13,19 @@ quadrantChart
 
 | Capability | Skylos | Bandit | Semgrep | Vulture | Pylint |
 |------------|:------:|:------:|:-------:|:-------:|:------:|
-| Dead code detection | ✅ | ❌ | ❌ | ✅ | Partial |
-| Taint analysis | ✅ | ❌ | ✅ | ❌ | ❌ |
-| Framework awareness | ✅ | ❌ | Partial | ❌ | ❌ |
-| Complexity metrics | ✅ | ❌ | ❌ | ❌ | ✅ |
-| Secret detection | ✅ | ❌ | ✅ | ❌ | ❌ |
-| Quality gate | ✅ | ❌ | ❌ | ❌ | ❌ |
-| AI-powered fixes | ✅ | ❌ | ❌ | ❌ | ❌ |
-| TypeScript support | ✅ | ❌ | ✅ | ❌ | ❌ |
-| Confidence scoring | ✅ | ❌ | ❌ | Partial | ❌ |
-| Interactive removal | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Dead code detection | Yes | No | No | Yes | Partial |
+| Taint analysis | Yes | No | Yes | No | No |
+| Framework awareness | Yes | No | Partial | No | No |
+| Complexity metrics | Yes | No | No | No | Yes |
+| Secret detection | Yes | No | Paid tier | No | No |
+| Gate with per-category limits | Yes | No | Partial | No | Partial |
+| AI-assisted fixes (optional, needs a model key) | Yes | No | Paid tier | No | No |
+| TypeScript support | Yes | No | Yes | No | No |
+| Confidence scoring | Yes | No | No | Yes | No |
+| Interactive removal | Yes | No | No | No | No |
+
+Competitor columns are a summary as we understand each tool; "Paid tier" means
+the vendor sells it separately. Check each tool's own docs before you decide.
 
 ---
 
@@ -60,12 +46,12 @@ quadrantChart
     
     ```python
     # Bandit catches this:
-    eval(user_input)  # ✅ B307: eval detected
+    eval(user_input)  # B307: eval detected
     
     # Bandit misses this:
     data = user_input
     query = data
-    cursor.execute(query)  # ❌ No SQL injection warning
+    cursor.execute(query)  # No SQL injection warning
     ```
     
     **When to use Bandit:** Quick security audit when you don't need depth.
@@ -98,12 +84,11 @@ quadrantChart
     - No security scanning
     - No quality metrics
     - Limited framework awareness
-    - No confidence scoring
     - No interactive removal
     
     ```python
     # Vulture flags this as unused:
-    @app.route('/users')  # ❌ False positive
+    @app.route('/users')  # Can be reported as unused
     def get_users():
         return users
     ```
@@ -119,11 +104,9 @@ quadrantChart
     **What it does:** Comprehensive linting covering style, errors, and some security.
     
     **Limitations:**
-    - Very noisy—many stylistic warnings
+    - Many stylistic warnings by default
     - No taint analysis
     - No dedicated security focus
-    - No quality gate
-    - Slow on large codebases
     
     **When to use Pylint:** Enforcing code style alongside a formatter.
     
@@ -143,7 +126,7 @@ quadrantChart
     
     **When to use Snyk:** Enterprise security with compliance requirements.
     
-    **When to use Skylos:** Self-hosted, free, with dead code + quality.
+    **When to use Skylos:** A free CLI that runs on your machine, with dead code + quality.
   
 ---
 
@@ -151,7 +134,7 @@ quadrantChart
 
 ### 1. All-in-One Analysis
 
-Most tools focus on one thing. Skylos combines three:
+Most tools focus on one thing. Skylos combines three in one run:
 
 ```mermaid
 flowchart TD
@@ -183,11 +166,14 @@ def get_users():  # Not flagged—called by framework
 
 Instead of boolean "used/unused", Skylos scores confidence:
 
-| Finding | Confidence | Other Tools | Skylos |
-|---------|------------|-------------|--------|
-| `def _helper()` | 20% | Flagged | Filtered out |
-| `def __str__()` | 0% | Flagged | Excluded |
-| `def unused_fn()` | 85% | Flagged | Reported |
+| Finding | Skylos |
+|---------|--------|
+| `def __str__()` | Never reported: Python calls it |
+| `def _helper()` with no references | Reported with slightly lower confidence |
+| `@app.route` handler | Not reported: the framework calls it |
+| `def unused_fn()` with no references | Reported with high confidence |
+
+The default threshold is 60. Change it with `--confidence`.
 
 ### 4. Taint Analysis Catches Real Vulnerabilities
 
@@ -204,16 +190,14 @@ flowchart LR
 
 ### 5. Built-in Quality Gate
 
-No scripting required to block bad PRs:
+One flag gives a pass/fail verdict across security, secrets, quality and
+dependencies, with limits per category in `[tool.skylos.gate]`:
 
 ```bash
-# Other tools: requires wrapper script
-bandit -r . -f json > report.json
-python check_results.py report.json || exit 1
-
-# Skylos: built-in
-skylos . --danger --gate
+skylos . -a --gate
 ```
+
+See [Quality Gate](/quality-gate).
 
 ---
 
@@ -241,7 +225,9 @@ bandit -r myproject/ -f json -o bandit.json
 skylos myproject/ --danger --json -o skylos.json
 ```
 
-Skylos includes all Bandit-style checks plus taint analysis.
+Skylos covers the common Bandit-style checks (such as `eval`, `shell=True`,
+weak hashes and disabled TLS checks) plus taint analysis. It is not a
+rule-for-rule copy of Bandit.
 
 ### From Pylint (complexity only)
 
@@ -274,13 +260,9 @@ Skylos doesn't replace everything. Consider combining:
 ## Try It Yourself
 
 
-**pip:**
-
-
-```bash install skylos
-
+```bash
+pip install skylos
 skylos . --danger --quality --secrets
-
 ```
 
 ---

@@ -12,14 +12,22 @@ workflow without requiring Gradle, the Kotlin compiler, or Android build tools.
 | Area | Support |
 |:---|:---|
 | Extensions | `.kt`, `.kts` |
-| Dead code | Classes, objects, interfaces, enum classes, functions, methods, imports, calls, constructor-style refs, and annotations |
-| Security | Shared secret scanning for hardcoded credentials |
+| Dead code | `private` classes, objects, interfaces, functions and methods, plus unused imports |
+| Security | Secret scanning only (`--secrets`); no Kotlin security rules |
 | Quality | No dedicated Kotlin quality rules yet |
 
 ## Dead Code Detection
 
-Kotlin analysis recognizes common declarations and references used by the
-dead-code engine:
+Skylos reports only two kinds of Kotlin dead code:
+
+- `private` declarations with no reference in the file
+- unused imports
+
+Any declaration without `private` (public, internal or protected) is treated as
+used, because code outside the file may call it. So an unused public Kotlin
+function is never reported.
+
+To find references, Kotlin analysis reads these declarations and uses:
 
 - top-level functions
 - class, object, interface, and enum class declarations
@@ -43,6 +51,13 @@ Skylos treats common framework-managed Kotlin entrypoints as live, including:
 skylos .
 ```
 
+Example output:
+
+```text
+Main.kt:2  SKY-U001  unused function: unusedPriv
+Main.kt:1  SKY-U002  unused import: UUID
+```
+
 ## Secret Scanning
 
 Kotlin files participate in Skylos secret scanning. Hardcoded provider tokens
@@ -50,13 +65,14 @@ and generic high-entropy credentials in `.kt` and `.kts` files are reported
 through the same secrets engine used for other source languages.
 
 ```bash
-skylos . -a
+skylos . --secrets
 ```
 
 ## Limitations
 
 Kotlin support is intentionally thin today. Skylos does not run Gradle, the
-Kotlin compiler, Android build tooling, or Kotlin type resolution. It also does
-not yet provide Kotlin-specific command, SQL, SSRF, filesystem, or quality
-rules. Use Kotlin compiler checks, Android lint, Detekt, and project tests
+Kotlin compiler, Android build tooling, or Kotlin type resolution. It reports
+only `private` dead code and imports. It has no Kotlin command, SQL, SSRF,
+filesystem, or quality rules. Kotlin has no inline suppression comment; use
+`[tool.skylos] ignore`, `skylos whitelist`, or a baseline. Use Kotlin compiler checks, Android lint, Detekt, and project tests
 alongside Skylos.

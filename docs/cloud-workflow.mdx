@@ -112,7 +112,7 @@ skylos sync connect
 skylos sync connect sk_live_xxx...
 ```
 
-Get the API key from `Dashboard -> Settings -> choose project -> API key`.
+Get the token from the project page: **Settings** tab, **Project tokens**.
 
 ## 3. Upload Scans
 
@@ -166,23 +166,11 @@ If the CLI has a valid cloud token, it also asks Skylos Cloud for org-level cust
 
 ## 4. What Appears in Skylos Cloud
 
-Workspace navigation currently includes:
-- `Overview`
-- `Projects`
-- `Scans`
-- `Issues`
-- `Exceptions`
-- `Rules`
-- `Trends`
-
-Each project currently has tabs for:
-- `Overview`
-- `Scans`
-- `Issues`
-- `Suppressions`
-- `Defense`
-- `Provenance`
-- `Settings`
+The dashboard sidebar groups pages under **Code** (Home, Pull requests,
+Issues), **AI agents**, **Governance** (Policy, Not fixing, Audit evidence) and
+**Workspace** (Settings, Billing). Each project has the tabs Overview, Issues,
+Pull requests, Scans and Settings, plus a **More** menu. See
+[Cloud Platform](/cloud#what-cloud-adds) for the full list.
 
 In practice, the cloud split looks like this:
 - CLI: runs analysis
@@ -190,18 +178,15 @@ In practice, the cloud split looks like this:
 
 ## 5. Configure the Project in the Dashboard
 
-The main project management surface is:
-
-`Dashboard -> Settings -> choose project`
-
-That surface currently manages:
-- repository URL
-- API key rotation
-- GitHub App installation
+Open the project, then its **Settings** tab. It manages:
+- repository URL and owner team
+- project tokens (create, mark for CI, rotate)
+- GitHub App installation and merge blocking
 - Slack and Discord notifications
-- team members
-- workspace/project policy
-- policy inheritance
+- project policy
+
+Members, teams and the workspace policy live in workspace **Settings** and
+**Policy**.
 
 ### Repo URL: optional for basic uploads, required for GitHub-native features
 
@@ -228,8 +213,8 @@ skylos sync pull
 ```
 
 This writes:
-- `<repo>/.skylos/config.yaml`
-- `<repo>/.skylos/suppressions.json`
+- `<repo>/.skylos/config.yaml`: the project's policy and gate. Later scans apply it.
+- `<repo>/.skylos/suppressions.json`: the project's "Not fixing" decisions. Local scans don't read this file yet; uploaded scans get the decisions in Skylos Cloud.
 
 Use it after:
 - changing project policy in the dashboard
@@ -239,15 +224,20 @@ Use it after:
 
 ### Local config precedence
 
-The local CLI does not treat the synced file as the only source of truth.
-
-Current precedence is:
+For most keys, the repo config wins over the synced file:
 1. Skylos defaults
 2. `.skylos/config.yaml` from `sync pull`
-3. `pyproject.toml` `[tool.skylos]`
+3. `pyproject.toml` `[tool.skylos]` (or `skylos.toml`)
 4. CLI flags
 
-That means dashboard policy can seed the repo, but local `pyproject.toml` and explicit flags can still override it for a given run.
+The synced file wins for the keys that set policy. When it sets them, the repo
+config can't change `gate`, `ignore`, `exclude`, `include_generated`,
+`security_contracts`, the `*_enabled` switches or the license policy. When the
+synced policy turns on security checks, the repo also can't loosen them with
+`whitelist`, `masking` or `overrides`.
+
+So a dashboard policy can't be loosened by a local config file. Thresholds such
+as `complexity` still come from the repo when it sets them.
 
 ## 7. CI/CD
 
@@ -305,7 +295,7 @@ jobs:
           SKYLOS_BRANCH: ${{ github.ref_name }}
 ```
 
-Cloud rejects uploads from ordinary `pull_request` jobs. Its GitHub App has
+Cloud does not accept GitHub OIDC uploads from ordinary `pull_request` jobs. Its GitHub App has
 a separate PR workflow with an unprivileged scanner and isolated trusted
 policy and publishing jobs. Use that generated workflow for Cloud-verified
 PR checks; do not add credentials to your PR tests.

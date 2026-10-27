@@ -11,7 +11,10 @@ If you want the lighter project-scoped rule list inside Settings, read [Project 
 
 Custom Rules live in:
 
-- **Dashboard → Custom Rules**
+- **Governance → Policy → Custom rules**, then **Open custom rules**
+  (`/dashboard/rules`)
+
+Only an owner or admin can add, turn on, turn off or delete a rule.
 
 They are:
 
@@ -19,7 +22,7 @@ They are:
 - reusable across projects in the same organization
 - stored with severity and category metadata
 - available as YAML-based pattern rules
-- optionally available as Python rules on paid plans
+- optionally available as Python rules on the Workspace and Enterprise plans
 
 Typical use cases:
 
@@ -37,7 +40,7 @@ This difference is easy to blur, so keep it explicit.
 | Feature | Scope | Form | Best For |
 |--------|-------|------|----------|
 | Project Policy → Custom Governance Rules | one project | text list | lightweight project-specific governance instructions |
-| Dashboard → Custom Rules | whole organization | YAML or Python rule definitions | reusable structured checks across repos |
+| Governance → Policy → Custom rules | whole organization | YAML or Python rule definitions | reusable structured checks across repos |
 
 If you need real rule definitions with IDs, severity, categories, and reusable matching logic, use Custom Rules.
 
@@ -49,16 +52,11 @@ Current limits:
 
 | Plan | Rule Limit | Python Rules |
 |------|------------|--------------|
-| Free | 3 | No |
-| Pro | 50 | Yes |
-| Enterprise | Unlimited practical limit | Yes |
+| Free | 3 | No (YAML rules only) |
+| Workspace | 50 | Yes |
+| Enterprise | Unlimited | Yes |
 
-Two important plan nuances:
-
-- The dashboard can allow Free users to create a small number of rules.
-- The sync endpoint returns custom rules only on paid plans.
-
-If you are documenting rollout internally, say which plan the team is on.
+At the limit, the page offers a link to Billing.
 
 ---
 
@@ -84,7 +82,7 @@ Good for:
 - context-aware matching
 - rules that need richer code inspection
 
-Python rules require a paid plan.
+Python rules need the Workspace or Enterprise plan.
 
 ---
 
@@ -128,8 +126,8 @@ The dashboard ships with useful starter templates such as:
 
 Typical workflow:
 
-1. Open **Dashboard → Custom Rules**
-2. Click **Create Rule**
+1. Open **Governance → Policy → Custom rules → Open custom rules**
+2. Click **Create a rule**
 3. Choose **YAML Config**
 4. Start from a template or paste your own rule JSON
 5. Set severity and category
@@ -225,19 +223,62 @@ If a policy can be expressed cleanly in YAML, prefer YAML first. It is easier to
 
 ---
 
-## How Custom Rules Sync
+## How Custom Rules Reach Your Scans
 
-Custom Rules are not part of the project policy blob.
+Custom Rules are not part of the project policy blob. A connected CLI downloads
+the enabled rules at the start of a scan.
 
-They sync through the dedicated custom-rules path and are organization-scoped. That means:
+They run when all of these are true:
+
+- the CLI has a Skylos token (`skylos login` or `SKYLOS_TOKEN`)
+- the scan includes quality checks (`--quality` or `-a`)
+- the file is Python
+
+```bash
+skylos . -a
+```
+
+To scan without downloading Cloud rules, set `SKYLOS_CUSTOM_RULES` to an empty
+list:
+
+```bash
+SKYLOS_CUSTOM_RULES='[]' skylos . -a
+```
+
+Rules are organization-scoped. That means:
 
 - you manage them once at the org level
 - enabled rules can be reused across projects in the same organization
 - they should be documented as org standards, not as one-off project toggles
 
-If you are on the Free plan, do not assume rule sync will behave the same as a paid plan. The current sync endpoint returns custom rules only for paid plans.
+Custom Rules are separate from local rule packs (`skylos rules`). See
+[Rule packs](#local-rule-packs) below.
 
 ---
+
+## Local Rule Packs
+
+Rule packs are YAML files you manage with the CLI. They need no Cloud account.
+
+```bash
+skylos rules list                 # list built-in rules (add --json)
+skylos rules list --packs         # list installed packs
+skylos rules install <pack|URL>   # install a pack into ~/.skylos/rules/
+skylos rules remove <name>        # remove an installed pack
+skylos rules validate my-rules.yml
+skylos rules init                 # create a starter pack to edit
+```
+
+`skylos rules install` downloads a pack by name from the
+`duriantaco/skylos-rules` repository on GitHub, or from the URL you give.
+Installed packs live in `~/.skylos/rules/` and run in every scan on that
+machine.
+
+`skylos rules init` creates a starter pack at `.skylos/rules/local.yml` in the
+project. Scans with `--quality` or `-a` apply the packs in the project's
+`.skylos/rules/` folder. Commit the folder so everyone runs the same rules.
+
+Rule-pack findings use `CUSTOM-*` rule IDs.
 
 ## Recommended Rollout
 

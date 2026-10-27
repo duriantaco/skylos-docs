@@ -21,12 +21,23 @@ skylos contract init
 skylos contract validate .skylos/ai-contract.yml
 ```
 
-Run `skylos verify` with the contract:
+Run `skylos verify`. It finds `.skylos/ai-contract.yml` by itself:
 
 ```bash
-skylos verify . --contract .skylos/ai-contract.yml
-skylos verify . --file apps/api/routes.py --project-context --contract .skylos/ai-contract.yml
+skylos verify .
+skylos verify . --file apps/api/routes.py --project-context
+skylos verify . --contract contracts/api.yml   # a contract somewhere else
+skylos verify . --no-contract                  # ignore the contract
 ```
+
+See what a contract enforces:
+
+```bash
+skylos contract inspect
+skylos contract inspect --json
+```
+
+Contracts are checked mainly in Python code.
 
 MCP clients can pass the same file through `verify_change` with
 `contract_path`.

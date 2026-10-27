@@ -11,9 +11,9 @@ parsing.
 
 TypeScript analysis includes:
 
-- **Dead code detection:** Unused functions, classes, interfaces, enums, type aliases, variables, methods, and imports
-- **Security scanning:** `eval()`, unsafe `innerHTML`, `document.write()`, `new Function()`, `outerHTML`, string-based timers, command injection, webhook signature verification
-- **Quality analysis:** Cyclomatic complexity, nesting depth, function length, parameter count, type-evidence bypasses, and compiler suppression directives
+- **Dead code detection:** Unused functions, classes, interfaces, enums, type aliases, variables, methods, imports, files (`SKY-E003`), and unnecessary exports (`SKY-E004`)
+- **Security scanning:** `eval()`, unsafe `innerHTML`, `document.write()`, `new Function()`, `outerHTML`, string-based timers, command injection, webhook signature verification, Express and Next.js data flow, and client-side secret exposure
+- **Quality analysis:** Cyclomatic complexity, nesting depth, function length, parameter count, a few logic checks, type-evidence bypasses, and compiler suppression directives
 
 ## How It Works
 
@@ -55,6 +55,16 @@ export function publicApi() {}
 function internalHelper() {}
 ```
 
+Two more rules look at files and exports, not single symbols:
+
+- `SKY-E003` reports a TypeScript/JavaScript file that no other file imports
+  and no entry point reaches.
+- `SKY-E004` reports an `export` that nothing outside the file uses.
+
+`--select SKY-E004` is rejected as an unknown rule ID today, even though the
+finding is reported. Use `--category dead_code` or filter the JSON output
+instead.
+
 ### Lifecycle Method Exclusions
 
 Framework lifecycle methods are automatically excluded from dead code detection:
@@ -77,7 +87,11 @@ Skylos tracks references across many usage patterns:
 
 ## Security Rules
 
-### SKY-D501: eval()
+TypeScript and JavaScript findings use the shared `SKY-D` rule IDs. Run them
+with `--danger` (or `-a`). See the [Rules Reference](/rules-reference) for the
+full list, including Express and Next.js data-flow rules.
+
+### SKY-D201: eval()
 
 Detects use of `eval()`, which can execute arbitrary code.
 
@@ -86,38 +100,15 @@ Detects use of `eval()`, which can execute arbitrary code.
 eval(userInput);
 ```
 
-### SKY-D502: innerHTML
+### SKY-D202: new Function() and string timers
 
-Detects unsafe `innerHTML` assignments that could enable XSS.
-
-```typescript
-// Flagged (HIGH)
-element.innerHTML = userContent;
-```
-
-### SKY-D503: document.write()
-
-Detects `document.write()` calls that can lead to XSS vulnerabilities.
-
-```typescript
-// Flagged (HIGH)
-document.write(data);
-```
-
-### SKY-D504: new Function()
-
-Detects `new Function()` constructor which is equivalent to `eval()`.
+Detects `new Function()` and `setTimeout()` / `setInterval()` with a string
+argument. Each is equivalent to `eval()`.
 
 ```typescript
 // Flagged (CRITICAL)
 const fn = new Function('return ' + userInput);
-```
 
-### SKY-D505: String-based Timers
-
-Detects `setTimeout()` and `setInterval()` with string arguments, which are equivalent to `eval()`.
-
-```typescript
 // Flagged (HIGH)
 setTimeout("alert('xss')", 1000);
 setInterval("doStuff()", 500);
@@ -126,9 +117,29 @@ setInterval("doStuff()", 500);
 setTimeout(() => alert('ok'), 1000);
 ```
 
-### SKY-D506: child_process.exec()
+### SKY-D226: innerHTML, outerHTML, document.write() and dangerouslySetInnerHTML
 
-Detects `.exec()` calls that may indicate command injection. Safe objects like `regex`, `db`, `stmt`, and `cursor` are automatically excluded.
+Detects HTML sinks that can enable XSS.
+
+```typescript
+// Flagged (HIGH)
+element.innerHTML = userContent;
+element.outerHTML = userContent;
+document.write(data);
+```
+
+### SKY-D212: child_process command execution
+
+Detects `exec()`-style calls on `child_process` (including aliased imports)
+that may allow command injection. A regex `.exec()` is not flagged.
+
+```typescript
+// Flagged (HIGH)
+child_process.exec(userCommand);
+
+// Not flagged - regex exec is safe
+const match = pattern.exec(input);
+```
 
 ### SKY-D282: Unverified webhook handler
 
@@ -151,26 +162,18 @@ export async function POST(req: Request) {
 
 The rule requires webhook/provider evidence, POST handling, and body usage, then suppresses when strong verification evidence such as `constructEvent`, `createHmac`, or `crypto.timingSafeEqual` is present.
 
-```typescript
-// Flagged (HIGH)
-child_process.exec(userCommand);
+### Other rules
 
-// Not flagged - regex exec is safe
-const match = pattern.exec(input);
-```
-
-### SKY-D507: outerHTML
-
-Detects unsafe `outerHTML` assignments that could enable XSS.
-
-```typescript
-// Flagged (HIGH)
-element.outerHTML = userContent;
-```
+TypeScript also reports prototype pollution through `__proto__` (`SKY-D510`),
+`Math.random()` used for security values (`SKY-D250`), and client-side secret
+exposure (`SKY-S102`) among others.
 
 ## Quality Rules
 
-### SKY-Q601: Function Complexity
+Run quality rules with `--quality` (or `-a`). TypeScript uses the same rule IDs
+as Python for the shared checks.
+
+### SKY-Q301: Function Complexity
 
 Measures cyclomatic complexity for TypeScript functions.
 
@@ -196,7 +199,7 @@ function process(data: Data) {
 }
 ```
 
-### SKY-Q602: Nesting Depth
+### SKY-Q302: Nesting Depth
 
 Flags functions with deeply nested control flow.
 
@@ -221,7 +224,7 @@ function deep() {
 }
 ```
 
-### SKY-Q603: Function Length
+### SKY-C304: Function Length
 
 Flags functions that exceed the maximum line count.
 
@@ -232,7 +235,7 @@ function longFunction() {
 }
 ```
 
-### SKY-Q604: Parameter Count
+### SKY-C303: Parameter Count
 
 Flags functions with too many parameters.
 
@@ -242,6 +245,12 @@ function configure(a: string, b: number, c: boolean, d: object, e: string[], f: 
   // ...
 }
 ```
+
+### Other quality rules
+
+TypeScript also reports duplicate conditions in an if-else chain (`SKY-Q305`),
+sequential `await` in a loop (`SKY-Q402`), and unreachable code (`SKY-UC002`),
+plus the type-safety rules below.
 
 ### SKY-T103: Suspicious Chained Type Assertion
 
@@ -307,35 +316,30 @@ skylos ./src --danger --quality
 
 Supported extensions:
 
-- `.ts` - TypeScript
+- `.ts`, `.mts`, `.cts` - TypeScript
 - `.tsx` - TypeScript with JSX
-- `.js` - JavaScript
+- `.js`, `.mjs`, `.cjs` - JavaScript
 - `.jsx` - JavaScript with JSX
 
 ## Output Example
 
-```
-──────────────────── Unreachable Functions ────────────────────
- #   Name                 Location
- 1   unusedHelper         src/utils.ts:45
- 2   deprecatedFunc       src/legacy.ts:12
- 3   OldInterface         src/types.ts:8
+`--format concise` prints one line per finding:
 
-───────────────────── Security Issues ─────────────────────────
- #   Rule       Severity   Message                             Location
- 1   SKY-D501   Critical   Use of eval() detected              src/dynamic.ts:23
- 2   SKY-D502   High       Unsafe innerHTML assignment          src/render.tsx:67
- 3   SKY-D503   High       document.write() can lead to XSS    src/legacy.ts:12
- 4   SKY-D504   Critical   new Function() is equivalent to eval src/exec.ts:5
- 5   SKY-D506   High       child_process.exec() command inject  src/run.ts:41
-
-────────────────────── Quality Issues ─────────────────────────
- #   Rule       Severity   Message                             Location
- 1   SKY-Q601   Medium     Function 'processData' complexity 18 src/processor.ts:30
- 2   SKY-Q602   Medium     Function 'handle' nesting depth 6    src/handler.ts:15
- 3   SKY-Q603   Low        Function 'init' is 85 lines long     src/setup.ts:10
- 4   SKY-Q604   Low        Function 'configure' has 8 params    src/config.ts:22
+```bash
+skylos . --danger --quality --format concise
 ```
+
+```text
+src/app.ts:3  SKY-U001  unused function: unusedHelper
+src/app.ts:1  SKY-U002  unused import: readFileSync
+src/app.ts:8  SKY-D201  Use of eval() detected
+src/app.ts:9  SKY-D226  Unsafe innerHTML assignment — XSS vulnerability
+src/app.ts:11  SKY-D202  new Function() is equivalent to eval()
+src/app.ts:10  SKY-D202  setTimeout() with string argument is equivalent to eval()
+src/app.ts:15  SKY-C303  Function 'configure' has 6 parameters (limit: 5)
+```
+
+The default output (`skylos .`) shows the same findings in grouped tables.
 
 ## Monorepo And Import Resolution
 
@@ -368,12 +372,19 @@ For React components that appear unused:
 export { MyComponent } from './MyComponent';  // Not flagged
 ```
 
-For dynamic patterns:
+To silence one finding, put a Skylos comment on the same line:
 
 ```typescript
-// noqa: skylos
-const handler = handlers[eventType];
+const handler = handlers[eventType]; // skylos: ignore
+eval(trustedTemplate); // skylos: ignore[SKY-D201] reviewed: template is a constant
 ```
+
+TypeScript and JavaScript accept `// skylos: ignore`, `// skylos: ignore[SKY-...]`,
+`/* skylos: ignore */`, and `// skylos: ignore-start` ... `// skylos: ignore-end`.
+`// noqa: skylos` and a bare `// noqa` do not work in these files. A
+rule-scoped `skylos: ignore[SKY-U001]` does not hide dead-code findings; only
+the blanket `// skylos: ignore` does. For an intentionally unused symbol, the
+blanket form or `skylos whitelist` is the clear choice.
 
 ## Dependencies
 

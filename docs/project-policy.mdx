@@ -9,21 +9,29 @@ If you want the end-to-end workflow, read [Cloud Workflow](/cloud-workflow).
 
 ## Where Project Policy Lives
 
-In the dashboard, project policy is managed here:
+In the dashboard, policy is managed in two places:
 
-- **Dashboard → Settings → Analysis Configuration**
+- **Governance → Policy**: the workspace's default policy. Every repository uses it unless it has its own.
+- The project page's **Settings** tab, **Policy**: give one repository its own policy. Turn on **Repositories can only be stricter** on the Policy page to refuse a repository policy that is looser than the default.
 
-It is project-scoped, not organization-scoped.
+Free workspaces can read the policy but not change it, and the gate is fixed to
+"block any new issue". Editing needs the Workspace plan, and the admin or
+owner role.
 
-Project policy currently covers:
+Policy currently covers:
 
-- quality thresholds
-- gate enable/disable
-- gate mode and thresholds
-- enabled scan categories
-- exclude paths
-- project-scoped governance prompt rules
-- AI assurance
+- the quality gate: on or off, what always blocks, and limits for other new issues
+- required scan coverage
+- which checks run
+- code-quality limits
+- fix deadlines
+- required route guards (FastAPI security contracts)
+- AI code assurance
+- paths to skip
+- instructions for AI review
+
+Every save becomes a policy version you can see under **History**, with who
+changed it, when and why. Versions can't be edited, deleted or restored.
 
 ---
 
@@ -44,7 +52,7 @@ Use local repo config when you want repository-local defaults or local-only gati
 
 ## What the Policy Editor Contains
 
-### 1. Quality Thresholds
+### 1. Code-Quality Limits
 
 These control the numeric thresholds for quality findings:
 
@@ -68,10 +76,12 @@ skylos sync pull
 
 The gate has:
 
-- a master enable/disable switch
-- a gate mode
+- an on/off switch
+- "Always block": critical security issues always block; you can also always block exposed secrets and chosen AI-defect severities
+- a mode for other new issues
 - optional per-category thresholds
 - optional per-severity thresholds
+- presets (Recommended, Stricter on AI code, Strict) that fill the form; nothing is saved until you save
 
 Supported gate modes:
 
@@ -82,10 +92,14 @@ Supported gate modes:
 
 Plan behavior:
 
-- Free: `zero-new` only
-- Pro / Enterprise: advanced gate modes available
+- Free: `zero-new` only ("block any new issue")
+- Workspace and Enterprise: all modes
 
-### 3. Scan Categories
+**Required scan coverage** can also fail the gate when a scan has no completed
+dependency check, unresolved dependency versions, or custom rules that did not
+load.
+
+### 3. Which Checks Run
 
 The project policy can enable or disable:
 
@@ -102,9 +116,8 @@ AI assurance is an additional server-side gate rule.
 
 When enabled:
 
-- Skylos detects AI-authored changes using git metadata patterns
-- files touched by AI are tracked
-- any new unsuppressed issue in an AI-touched file fails the gate
+- Skylos uses the agent attribution recorded in the upload to find files an AI agent wrote
+- any new unsuppressed issue in such a file fails the gate
 
 This is stricter than normal gate thresholds.
 
@@ -118,9 +131,9 @@ tests/**
 generated/**
 ```
 
-### 6. Custom Governance Rules
+### 6. Instructions For AI Review
 
-These are project-scoped text rules stored with the project policy.
+These are plain-language rules stored with the policy, up to 50.
 
 Example:
 
@@ -129,7 +142,18 @@ Ensure all API routes return JSON
 Require rate limiting on public endpoints
 ```
 
+They are saved, versioned and sent to the CLI by `skylos sync pull`, but no
+Skylos check reads them yet.
+
 These are not the same thing as the separate **Custom Rules** feature in the dashboard.
+
+### 7. Fix Deadlines And Route Guards
+
+**Fix deadlines** set due dates for fixing issues by severity.
+
+**Required route guards** name FastAPI handlers that must keep a named
+`Depends(...)` guard. The CLI checks them in scans after `skylos sync pull`; a
+missing guard becomes a finding.
 
 ---
 
@@ -141,7 +165,7 @@ When Skylos Cloud evaluates an uploaded scan, the gate is effectively resolved i
 
 1. If an override or whitelist path applies and the account can use overrides, the gate passes.
 2. If the gate is disabled, the gate passes.
-3. If there is any unsuppressed `CRITICAL` `SECURITY` finding, the gate fails.
+3. If there is any unsuppressed `CRITICAL` `SECURITY` finding, or a finding the "Always block" settings name, the gate fails.
 4. If the mode is `zero-new`, the gate fails when there is any unsuppressed new finding.
 5. If the mode is `category`, `severity`, or `both`, Skylos counts unsuppressed new findings and compares them to the configured thresholds.
 6. If AI assurance is enabled and AI-touched files contain any new unsuppressed findings, the gate fails even if the normal thresholds passed.
@@ -171,7 +195,8 @@ This is why suppressions matter to the workflow. They are part of the cloud-side
 
 ## Suppressions and Project Policy
 
-Suppressions are synced separately from the main project config.
+Suppressions ("Not fixing" decisions) are applied by Skylos Cloud to uploaded
+scans. They are synced separately from the main project config.
 
 When you run:
 
@@ -184,10 +209,12 @@ Skylos writes:
 - `.skylos/config.yaml`
 - `.skylos/suppressions.json`
 
+Local scans apply `config.yaml`. They don't read `suppressions.json` yet, so a
+local scan can still show a finding that Cloud hides.
+
 Practical rule:
 
 - change policy in the dashboard → run `skylos sync pull`
-- add or revoke suppressions in the dashboard → run `skylos sync pull`
 
 If your repo snapshot is stale, local behavior and cloud behavior can drift.
 
@@ -206,7 +233,8 @@ The synced project config includes:
 - gate mode
 - category thresholds
 - severity thresholds
-- project-scoped governance rule strings
+- instructions for AI review
+- required route guards (security contracts)
 
 These are written into:
 
@@ -232,7 +260,7 @@ If you are documenting or debugging policy behavior, do not assume every dashboa
 
 This distinction needs to stay explicit:
 
-### Project Policy: Custom Governance Rules
+### Project Policy: Instructions For AI Review
 
 These are:
 
@@ -248,8 +276,8 @@ These are:
 - organization-scoped
 - structured YAML or Python rules
 - stored separately from project policy
-- managed under **Dashboard → Custom Rules**
-- synced through the dedicated custom-rules path, not the project-policy config blob
+- managed under **Governance → Policy → Custom rules**
+- fetched by the CLI at scan time when it has a Cloud token, not written by `skylos sync pull`
 
 If you need reusable organization-wide rule logic, use [Custom Rules](/custom-rules).
 
@@ -328,7 +356,7 @@ If the team changes policy or suppressions in the dashboard, run:
 skylos sync pull
 ```
 
-### Confusing Custom Governance Rules with Custom Rules
+### Confusing Instructions For AI Review with Custom Rules
 
 One is a project policy text list. The other is the separate structured rule engine.
 

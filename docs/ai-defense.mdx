@@ -35,6 +35,9 @@ and output handling. Defend then evaluates each detected integration against 10
 defense checks and 3 ops checks, producing a weighted score with OWASP LLM Top
 10 mapping.
 
+If Discover finds no integration, there is nothing to score. That result does
+not show that an unrecognized agent has guardrails.
+
 ---
 
 ## Quick Start
@@ -101,13 +104,13 @@ Found 2 LLM integration(s) in 1 files:
 
   Provider  Type  Location    Input Sources  Tools  Dangerous Sinks
   ───────── ───── ─────────── ────────────── ────── ───────────────
-  OpenAI    chat  app.py:11   none           0      eval (L16)
-  OpenAI    chat  app.py:25   none           0      none
+  OpenAI    chat  app.py:10   none           0      eval (L15)
+  OpenAI    chat  app.py:24   none           0      none
 
 Run 'skylos defend .' to check defenses.
 ```
 
-Discover found both LLM call sites. The first one (`app.py:11`) is flagged with a dangerous sink — `eval()` on line 16 receives the raw LLM output.
+Discover found both LLM call sites. The first one (`app.py:10`) is flagged with a dangerous sink — `eval()` on line 15 receives the raw LLM output.
 
 ### Step 2: Defend
 
@@ -121,18 +124,18 @@ skylos defend .
 │ Scanned: 1 files | Found: 2 LLM integration(s) | Score: 50% (MEDIUM)    │
 ├──────────────────────────────────────────────────────────────────────────┤
 
-Integration 1: app.py:11
+Integration 1: app.py:10
   Weighted Score: 0/16 (0%) — CRITICAL RISK
-  ✗ no-dangerous-sink   LLM output flows to dangerous sink(s): eval (L16) [-8]
-  ✗ output-validation   LLM output used without structured validation     [-5]
+  ✗ no-dangerous-sink   Dangerous sink(s) detected in same scope as LLM call: eval (L15) [-8]
+  ✗ output-validation   Output used without proven validation: LLM output may reach eval without a sink-specific guard [-5]
   ✗ model-pinned        Model uses floating alias 'gpt-4o'                [-3]
   ✗ logging-present     No logging detected around LLM call               [-3]
   ✗ cost-controls       No max_tokens set — unbounded token consumption   [-3]
 
-Integration 2: app.py:25
+Integration 2: app.py:24
   Weighted Score: 16/16 (100%) — SECURE RISK
-  ✓ no-dangerous-sink   LLM output does not flow to any dangerous sink    [+8]
-  ✓ output-validation   Output validation present at app.py:31            [+5]
+  ✓ no-dangerous-sink   No dangerous sink detected in same scope as LLM call [+8]
+  ✓ output-validation   Model output is structurally validated before its resolved use [+5]
   ✓ model-pinned        Model pinned to gpt-4o-2024-11-20                 [+3]
   ✓ logging-present     Logging detected near LLM call                    [+3]
   ✓ cost-controls       max_tokens set on LLM call                        [+3]
@@ -145,9 +148,10 @@ AI Defense Score: 50% (MEDIUM)
 AI Ops Score: 50% (FAIR)
   2/4 ops checks passing
 
-OWASP LLM Top 10 Coverage:
-  ◐ LLM02 Insecure Output Handling              50% (2/4)
-  ◐ LLM03 Training Data Poisoning / Supply Chain 50% (1/2)
+OWASP LLM Top 10 2025 Coverage:
+  ◐ LLM03 Supply Chain                          50% (1/2)
+  ◐ LLM05 Improper Output Handling              50% (2/4)
+  ◐ LLM09 Misinformation                        50% (1/2)
   ◐ LLM10 Unbounded Consumption                 50% (1/2)
 ```
 
@@ -159,7 +163,7 @@ Use `--owasp` to focus on specific OWASP LLM Top 10 items:
 
 ```bash
 skylos defend . --owasp LLM01        # prompt injection checks only
-skylos defend . --owasp LLM01,LLM02  # prompt injection + insecure output
+skylos defend . --owasp LLM01,LLM05  # prompt injection + improper output handling (2025 IDs)
 ```
 
 ### CI Gating
@@ -182,19 +186,14 @@ access.
 
 ### Supported Providers
 
-| Provider | Import | Detection |
-|----------|--------|-----------|
-| OpenAI | `import openai` | `client.chat.completions.create()` |
-| Anthropic | `import anthropic` | `client.messages.create()` |
-| Google Gemini | `import google.generativeai` | `model.generate_content()` |
-| Cohere | `import cohere` | `client.chat()` |
-| Mistral | `from mistralai import Mistral` | `client.chat.complete()` |
-| Ollama | `import ollama` | `client.chat()` |
-| Together AI | `import together` | `client.chat.completions.create()` |
-| Groq | `import groq` | `client.chat.completions.create()` |
-| LiteLLM | `import litellm` | `litellm.completion()` |
-| LangChain | `from langchain...` | `chain.invoke()` |
-| CrewAI | `from crewai...` | `crew.kickoff()` |
+| Language | Recognized SDKs and frameworks |
+|----------|--------------------------------|
+| Python SDKs | OpenAI, Anthropic, Google Gemini (`google.generativeai`, `google.genai`), Cohere, Mistral, Ollama, Together AI, Groq, Fireworks, Replicate, LiteLLM |
+| Python frameworks | LangChain, LangGraph, LlamaIndex, CrewAI, AutoGen, Haystack, Semantic Kernel, DSPy, SmolAgents, PydanticAI |
+| TypeScript / JavaScript | `openai`, `@anthropic-ai/sdk`, `@google/genai`, `@google/generative-ai`, Vercel AI SDK (`ai`, `@ai-sdk/*`), OpenAI Agents SDK, Claude Agent SDK, LiteLLM |
+
+Discover finds call sites it recognizes through these imports. A call made
+through your own wrapper that it cannot follow is not found.
 
 ### What It Detects
 
@@ -222,18 +221,18 @@ For each integration found, Discover extracts:
 
 ### Defense Checks (10)
 
-| Check | Severity | OWASP | What It Verifies |
+| Check | Severity | OWASP LLM 2025 | What It Verifies |
 |-------|----------|-------|-----------------|
-| `no-dangerous-sink` | CRITICAL | LLM02 | No `eval`/`exec` on LLM output |
+| `no-dangerous-sink` | CRITICAL | LLM05 | No `eval`/`exec`/`subprocess` on LLM output |
 | `untrusted-input-to-prompt` | CRITICAL | LLM01 | User input has delimiter or length check |
-| `output-validation` | HIGH | LLM02, LLM09 | LLM output is validated/parsed |
+| `tool-schema-present` | CRITICAL | LLM06 | Agent tools have schemas |
+| `tool-scope` | CRITICAL | LLM06 | Tools don't use `subprocess`/`exec` |
+| `output-validation` | HIGH | LLM05, LLM09 | LLM output is validated/parsed |
 | `prompt-delimiter` | HIGH | LLM01 | Prompt uses structural delimiters |
+| `rag-context-isolation` | HIGH | LLM01, LLM08 | RAG context has prompt delimiters |
+| `output-pii-filter` | HIGH | LLM02 | Output is filtered for PII |
 | `model-pinned` | MEDIUM | LLM03 | Model version is pinned (dated suffix) |
-| `input-length-limit` | MEDIUM | LLM01 | Input length is bounded |
-| `tool-schema-present` | HIGH | LLM04, LLM07 | Agent tools have schemas |
-| `tool-scope` | HIGH | LLM04, LLM07, LLM08 | Tools don't use `subprocess`/`exec` |
-| `rag-context-isolation` | HIGH | LLM01 | RAG context has prompt delimiters |
-| `output-pii-filter` | HIGH | LLM06 | Output is filtered for PII |
+| `input-length-limit` | LOW | LLM01, LLM10 | Input length is bounded |
 
 ### Ops Checks (3)
 
@@ -253,9 +252,9 @@ Defense and ops scores are calculated using weighted severity:
 
 | Severity | Weight |
 |----------|--------|
-| CRITICAL | 4 |
-| HIGH | 3 |
-| MEDIUM | 2 |
+| CRITICAL | 8 |
+| HIGH | 5 |
+| MEDIUM | 3 |
 | LOW | 1 |
 
 **Defense score** = (weighted passes / weighted maximum) as a percentage.
@@ -265,10 +264,10 @@ Defense and ops scores are calculated using weighted severity:
 | Score | Rating |
 |-------|--------|
 | >= 90% | SECURE |
-| >= 70% | LOW |
-| >= 40% | MEDIUM |
-| >= 20% | HIGH |
-| < 20% | CRITICAL |
+| >= 75% | LOW |
+| >= 50% | MEDIUM |
+| >= 25% | HIGH |
+| < 25% | CRITICAL |
 
 **Ops score ratings:**
 
@@ -281,17 +280,23 @@ Defense and ops scores are calculated using weighted severity:
 
 ### OWASP LLM Top 10 Coverage
 
+The default is the OWASP LLM Top 10 **2025**:
+
 | OWASP ID | Name | Checks |
 |----------|------|--------|
 | LLM01 | Prompt Injection | `prompt-delimiter`, `input-length-limit`, `untrusted-input-to-prompt`, `rag-context-isolation` |
-| LLM02 | Insecure Output | `no-dangerous-sink`, `output-validation` |
-| LLM03 | Training Data Poisoning | `model-pinned` |
-| LLM04 | Model Denial of Service | `tool-schema-present`, `tool-scope` |
-| LLM06 | Sensitive Info Disclosure | `output-pii-filter` |
-| LLM07 | Insecure Plugin Design | `tool-schema-present`, `tool-scope` |
-| LLM08 | Excessive Agency | `tool-scope` |
-| LLM09 | Overreliance | `output-validation` |
-| LLM10 | Model Theft | `input-length-limit`, `cost-controls`, `rate-limiting` |
+| LLM02 | Sensitive Information Disclosure | `output-pii-filter` |
+| LLM03 | Supply Chain | `model-pinned` |
+| LLM04 | Data and Model Poisoning | none |
+| LLM05 | Improper Output Handling | `no-dangerous-sink`, `output-validation` |
+| LLM06 | Excessive Agency | `tool-schema-present`, `tool-scope` |
+| LLM07 | System Prompt Leakage | none |
+| LLM08 | Vector and Embedding Weaknesses | `rag-context-isolation` |
+| LLM09 | Misinformation | `output-validation` |
+| LLM10 | Unbounded Consumption | `input-length-limit`, `cost-controls`, `rate-limiting` |
+
+Use `--owasp-version 2024` for the 2024 list, or `--owasp-framework agentic`
+for the OWASP Agentic (ASI) Top 10. See [Agent Verification](/agent-verification#owasp-frameworks).
 
 ---
 
@@ -345,7 +350,7 @@ skylos defend <directory> --upload
 skylos defend <directory> --json --upload    # JSON output + upload
 ```
 
-`defend` requires a directory. Findings are report-only unless `--fail-on`,
+`defend` takes a directory (default: the current one). Findings are report-only unless `--fail-on`,
 `--min-score`, or policy gate settings are present. An empty result means no
 supported integration was recognized; it is not evidence about unsupported
 languages or frameworks.
@@ -402,14 +407,15 @@ Use `skylos cicd init --defend` to include an AI Defense step in your generated 
 
 ```bash
 skylos cicd init --defend
-skylos cicd init --defend --upload     # also upload results to cloud
 ```
 
-This generates a workflow step that runs:
+The pull request job then runs:
 ```yaml
-- name: AI Defense Check
-  run: skylos defend . --fail-on critical --min-score 70 --json -o defense-results.json
+run: skylos defend . --fail-on critical --min-score 70 --json -o "$RUNNER_TEMP/defense-results.json"
 ```
+
+The default-branch upload job runs the same command with `--upload`. Pass
+`--no-upload` to `cicd init` to leave the upload job out.
 
 ### Pre-commit Hook
 
@@ -419,7 +425,7 @@ Add Skylos AI Defense as a pre-commit hook to block commits with critical defens
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/duriantaco/skylos
-    rev: v4.0.0
+    rev: v5.1.1
     hooks:
       - id: skylos-defend
 ```
@@ -442,5 +448,5 @@ The dashboard provides:
 - **Per-integration breakdown** showing which LLM call sites need attention
 
 :::info
-Cloud upload requires a Skylos token. Run `skylos sync connect` or set `SKYLOS_TOKEN` to authenticate.
+Cloud upload requires a Skylos login or token. Run `skylos login` or set `SKYLOS_TOKEN`.
 :::

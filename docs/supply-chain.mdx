@@ -1,0 +1,303 @@
+---
+title: "Dependencies and Supply Chain"
+description: "Find dependency CVEs, enforce a license policy, export CycloneDX or SPDX SBOMs, scan container images, and verify signed Skylos Cloud verdicts before deploy."
+---
+
+# Dependencies and Supply Chain
+
+This page covers what your project pulls in and ships: dependency CVEs,
+licenses, SBOMs, container images and signed verdicts.
+
+| Task | Command |
+|------|---------|
+| Find known CVEs in dependencies | `skylos . --sca` |
+| Report only new dependency CVEs | `skylos baseline . --sca`, then `skylos . --sca --baseline` |
+| Block disallowed licenses | `license_deny` in `[tool.skylos]`, then `skylos . --sca` |
+| Export an SBOM | `skylos sbom . -o sbom.cdx.json` |
+| Review npm publisher changes | `skylos . --sca --scan-publisher-changes` |
+| Scan a container image | `skylos image scan repo@sha256:<digest> --platform linux/amd64` |
+| Import a Trivy report | `skylos ingest trivy -i trivy.json` |
+| Check a signed Cloud verdict before deploy | `skylos verify-verdict verdict.json --require-passed` |
+
+## Dependency CVEs (`--sca`)
+
+```bash
+skylos . --sca
+```
+
+`-a` turns it on too. Skylos reads your lockfiles and exact manifest pins as
+data. It does not install packages or run package scripts. It sends package
+names, ecosystems and versions to [OSV.dev](https://osv.dev). It sends no
+source code.
+
+Findings use `SKY-SCA-*` rule IDs. The terminal shows one row per package with
+the worst severity and the version to upgrade to:
+
+```text
+┏━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Severity  ┃ Package  ┃ Installed ┃ Upgrade to ┃ Advisories   ┃ Location      ┃
+┡━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ HIGH      │ requests │ 2.19.0    │ 2.33.0     │ 10: CVE-...  │ requirements. │
+│           │          │           │            │              │ txt:1         │
+```
+
+JSON, SARIF and `--format concise` list one finding per advisory.
+
+### What Skylos reads
+
+| Ecosystem | Files |
+|-----------|-------|
+| PyPI | `uv.lock`, `Pipfile.lock`, `poetry.lock`; exact pins in `requirements.txt`, `pyproject.toml`, `setup.cfg`, `setup.py` |
+| npm | `package-lock.json`, `npm-shrinkwrap.json`, `pnpm-lock.yaml`, `yarn.lock` (Classic and Berry), `bun.lock`; exact pins in `package.json` |
+| Go | `go.mod` |
+| NuGet | Direct `PackageReference` entries in `.csproj` |
+
+Version ranges in manifests (for example `flask>=2.0` or `^1.2.0`) are not
+resolved. Add a lockfile or pin the exact version to check them.
+
+Not read yet: Composer, Cargo, Gemfile, Maven, Gradle, `pubspec`,
+`packages.lock.json`, SwiftPM, CocoaPods and Hex files, and the binary
+`bun.lockb`. Skylos names each file it found but did not read.
+
+### The coverage receipt
+
+Every `--sca` run says what it checked:
+
+```text
+SCA coverage limited: 1 dependencies queried; 1 dependencies have unresolved versions
+Dependency inventory: 1 packages queried · 0 supported lockfiles read · 1
+manifest versions unresolved · 0 lockfile entries unresolved · ...
+```
+
+Read it before you trust an empty result. JSON has the same data in
+`analysis_summary.sca_coverage`.
+
+### When OSV cannot be reached
+
+If an OSV request fails, or a lockfile cannot be read, the scan is incomplete.
+It exits `2`, even with `--force`. Skylos does not report a clean result it
+could not check. To gate without dependency results, run without `--sca`.
+
+### Report only new dependency CVEs
+
+Save today's findings, then report only new ones:
+
+```bash
+skylos baseline . --sca
+skylos . --sca --baseline --gate
+```
+
+`skylos baseline .` without `--sca` does not record dependency findings. An
+incomplete scan does not replace an existing baseline.
+
+In CI, read the baseline from a trusted commit, not from the pull request's
+own files:
+
+```bash
+skylos . --sca --baseline-ref "$TRUSTED_BASE_SHA" --gate
+```
+
+`--baseline-ref` implies `--baseline`. Set the SHA from trusted CI data, such
+as the target branch's commit. Without `--baseline-ref` in CI, Skylos keeps
+every dependency finding. It cannot be set through `addopts`.
+
+## License Policy
+
+Set a deny list, an allow list, or both:
+
+```toml
+[tool.skylos]
+license_deny = ["GPL-*", "AGPL-3.0-only"]   # SPDX IDs or globs
+license_allow = []                           # empty = allow anything not denied
+license_exceptions = ["some-pkg", "other-pkg@1.2.3"]
+license_severity = "HIGH"                    # LOW, MEDIUM, HIGH or CRITICAL
+```
+
+Then run a dependency scan:
+
+```bash
+skylos . --sca
+```
+
+A package that breaks the policy is reported as `SKY-SCA-LIC001`. The check is
+offline.
+
+How it decides:
+
+- A package fails only when no choice in its license expression passes.
+  `MIT OR GPL-3.0-only` passes a `GPL-*` deny list. `MIT AND GPL-3.0-only`
+  fails it.
+- The deny list wins over the allow list. With `license_allow` set, any
+  license not on it fails.
+- Globs match the whole ID without case. `GPL-*` does not match `LGPL-*`.
+- An unknown license (`NOASSERTION`) never fails. It shows up in the SBOM.
+
+To waive a finding:
+
+- One package: add `name` or `name@version` to `license_exceptions`.
+- One line in a manifest that allows `#` comments, such as `requirements.txt`:
+  add `# skylos: ignore[SKY-SCA-LIC001]` to the dependency's line.
+- Every package: `ignore = ["SKY-SCA-LIC001"]`.
+
+When Skylos Cloud policy is synced to `.skylos/config.yaml`, its `license_*`
+values win over the repository's.
+
+## SBOM Export
+
+```bash
+skylos sbom . -o sbom.cdx.json                         # CycloneDX 1.6 (default)
+skylos sbom . --format spdx-json -o sbom.spdx.json     # SPDX 2.3
+```
+
+Skylos prints what it wrote:
+
+```text
+Wrote CycloneDX 1.6 SBOM with 12 packages to sbom.cdx.json
+```
+
+Without `-o`, the JSON goes to stdout.
+
+The SBOM lists the same dependencies `--sca` reads, with each one's declared
+license. Licenses come from lockfiles and installed package metadata. Skylos
+never guesses. An unknown license is written as `NOASSERTION`.
+
+The export is offline. `--license-lookup` also asks
+[deps.dev](https://deps.dev) for licenses still missing (5 seconds per package):
+
+```bash
+skylos sbom . --format spdx-json --license-lookup -o sbom.spdx.json
+```
+
+If the inventory is incomplete (for example, an unpinned `requirements.txt`
+with no lockfile), Skylos still writes the SBOM, prints
+`SBOM incomplete: ...` on stderr, and exits `0`. Add `--strict` to exit `2`
+instead:
+
+```bash
+skylos sbom . -o sbom.cdx.json --strict
+```
+
+## npm Publisher Changes
+
+```bash
+skylos . --sca --scan-publisher-changes
+```
+
+This asks the npm registry who published each pinned direct dependency in
+`package-lock.json`. It warns when a new publisher appears after a long gap
+between releases (`SKY-SCA-NPM-PUB001`).
+
+- It is a review signal, not proof of compromise.
+- It never fails the gate.
+- `-a` does not turn it on.
+- It checks at most 25 packages. `npm-shrinkwrap.json` is not supported.
+
+## Hallucinated Dependencies
+
+AI agents sometimes add imports or manifest entries for packages that do not
+exist, or pin versions that were never published. `--ai-defects` (and `-a`,
+`skylos verify` and `skylos done`) reports these as `SKY-D222` and `SKY-D225`.
+See [AI Defects](./ai-defects).
+
+## Container Images
+
+### Scan an image with Trivy
+
+```bash
+skylos image scan ghcr.io/acme/api@sha256:<digest> --platform linux/amd64
+```
+
+Skylos runs your installed [Trivy](https://trivy.dev) on a remote image pinned
+to a `sha256` digest. Install Trivy first. The scan needs network access and
+any registry credentials.
+
+| Flag | What it does |
+|------|--------------|
+| `--platform` | Required. OS and architecture, for example `linux/amd64` |
+| `--fail-on low\|medium\|high\|critical` | Exit `1` for findings at or above this severity |
+| `-o FILE` | Write the normalized JSON report (default: stdout) |
+| `--sarif FILE` | Also write SARIF |
+| `--timeout-seconds N` | Scanner timeout, 1 to 900 (default 300) |
+
+Without `--fail-on`, findings are report-only and the command exits `0`. Exit
+`2` means the scan or report was incomplete.
+
+### Import an existing Trivy report
+
+If Trivy already runs in your pipeline, import its JSON report instead:
+
+```bash
+skylos ingest trivy -i trivy.json -o image-report.json --sarif image.sarif
+```
+
+This does not run Trivy, pull images or use the network. To gate on it, bind
+the report to the exact image:
+
+```bash
+skylos ingest trivy -i trivy.json \
+  --expect-image ghcr.io/acme/api@sha256:<digest> \
+  --expect-platform linux/amd64 \
+  --fail-on high
+```
+
+`--fail-on` needs `--expect-image`. It checks the findings in the report you
+supply. It does not prove the scan was complete.
+
+## Verify a Signed Cloud Verdict
+
+When CI uploads results to Skylos Cloud, Cloud can sign the check result for
+that commit. `skylos verify-verdict` checks the signature offline before you
+deploy.
+
+Get the verdict bundle from the scan page's **Download** button, or from the
+REST API (`GET /api/v1/verdicts`). Fetch it fresh for each deploy.
+
+Install the extra it needs:
+
+```bash
+pip install "skylos[verdict]"
+```
+
+Recommended deploy gate:
+
+```bash
+skylos verify-verdict verdict.json --commit "$SHA" \
+  --repository github.com/org/repo --require-repository-verified \
+  --require-trusted-upload --max-age 7d --require-passed
+```
+
+| Flag | What it requires |
+|------|------------------|
+| `--commit SHA` | The verdict is for this commit |
+| `--repository HOST/OWNER/REPO` | The verdict is for this repository |
+| `--project`, `--workspace` | The verdict is for this Skylos project or workspace |
+| `--require-repository-verified` | The upload came from GitHub OIDC bound to the repository |
+| `--require-trusted-upload` | The upload came from trusted CI, not a login token |
+| `--max-age 7d` | The verdict is newer than this |
+| `--require-passed` | The result is PASSED |
+| `--allow-override` | With `--require-passed`, also accept "Merge anyway" |
+| `--keys FILE_OR_URL` | Trusted public keys. Default: `https://skylos.dev/.well-known/skylos-verdict-keys.json` |
+| `--json` | Print one JSON object |
+
+Pass `-` as the bundle to read it from stdin. Use `--keys` with a local file
+to verify with no network at all.
+
+Exit codes: `0` verified (and passing, with `--require-passed`); `1` verified
+but not passing (only with `--require-passed`); `2` not verified, a mismatch,
+invalid input, keys unavailable, or `cryptography` missing.
+
+A verdict proves that the Skylos check ran under a policy with a result for the
+results uploaded for that commit. It does not prove the code is safe.
+
+:::note
+Verdicts exist only when the Skylos Cloud deployment has a signing key. If
+no signed verdict is available for your workspace, there is nothing to
+verify.
+:::
+
+## Related
+
+- [CLI Reference](./cli-reference)
+- [Configuration](./configuration)
+- [Quality Gate](./quality-gate)
+- [AI Defects](./ai-defects)

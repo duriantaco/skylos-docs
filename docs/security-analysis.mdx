@@ -4,8 +4,12 @@ description: "Multi-language SAST with taint analysis. Detect SQL injection, com
 ---
 
 :::info
-  **Enable security scanning:** `skylos . --danger` for static taint, dangerous-pattern, CI/CD, and edge deployment config checks, or `skylos agent scan . --security` for the verifier-backed security taskflow.
+  **Enable security scanning:** `skylos . --danger` (or `--security`) for static taint, dangerous-pattern, CI/CD, and edge deployment config checks, or `skylos agent scan . --security` for the verifier-backed security taskflow. `skylos . -a` turns on `--danger` together with secrets, quality, AI-defect and dependency checks.
 :::
+
+`--danger` covers Python, TypeScript/JavaScript, Java, Go, PHP, C# and Shell.
+Rust has 2 security rules and Dart has 3. There are no Kotlin security rules
+yet. See [Language Support](/language-support).
 
 ## CI/CD And Edge Deployment Config Security
 
@@ -29,25 +33,34 @@ and the full rule scope.
 ### Reading the Output
 
 ```
-───────────────────── Security Issues ─────────────────────
- #  Issue                    Severity   Message                              Location          Symbol
- 1  SQL injection            Critical   SQL injection: tainted input         api/db.py:45      handle_query
-    SKY-D211
- 2  Command injection        High       Command injection (shell=True)       utils/run.py:23   execute_cmd
-    SKY-D212
+──────────────────────────────── Security ────────────────────────────────
+┏━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┓
+┃ Type   ┃ Severity ┃ Rule          ┃ Message                                       ┃ Location     ┃
+┡━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━┩
+│ Review │ CRITICAL │ SQL injection │ Possible SQL injection: tainted or            │ api/db.py:11 │
+│        │          │ SKY-D211      │ string-built query.                           │              │
+│        │          │               │ Static source: request data                   │              │
+│        │          │               │ `request.args.get`                            │              │
+│        │          │               │ Static sink: SQL text passed to .execute()    │              │
+│        │          │               │ Guards not observed: parameterized SQL binding│              │
+│        │          │               │ Symbol: handle_query                          │              │
+└────────┴──────────┴───────────────┴───────────────────────────────────────────────┴──────────────┘
 ```
 
 | Column | Meaning |
 |--------|---------|
-| **Issue** | The vulnerability type with its rule ID (e.g. SKY-D211) |
+| **Type** | `Defect` when the evidence is strong, `Review` when a person should check it |
 | **Severity** | Risk level: Critical > High > Medium > Low |
-| **Message** | What was found and why it's dangerous |
+| **Rule** | The vulnerability type with its rule ID (e.g. SKY-D211) |
+| **Message** | What was found, the recorded source and sink, guards Skylos did not see, and the enclosing symbol |
 | **Location** | `file:line` where the issue occurs |
-| **Symbol** | The function or scope containing the vulnerable code |
+
+To replay the recorded steps of one finding, use
+[`skylos explain`](#explain-a-finding).
 
 ## Security Taskflow Audit
 
-`skylos agent scan . --security` adds a repo-aware review path on top of Skylos's static security engine:
+`skylos agent scan . --security` adds a repo-aware review path on top of Skylos's static security engine. It calls an LLM, so it needs `pip install "skylos[llm]"` and a provider key (or a local model):
 
 - `repo_map` builds repo context, entrypoint hints, trust boundaries, and framework-aware file facts
 - `audit` performs whole-file security review with explicit sources, sinks, and guards in prompt context
@@ -219,7 +232,7 @@ Skylos detects SQL injection across multiple frameworks:
 
 | Framework | Dangerous Pattern | Rule ID |
 |-----------|------------------|---------|
-| Raw Python | `cursor.execute(f"...{user_input}...")` | SKY-D210 |
+| Raw Python | `cursor.execute(f"...{user_input}...")` | SKY-D211 |
 | SQLAlchemy | `session.execute(text(f"...{user_input}..."))` | SKY-D217 |
 | Django ORM | `Model.objects.raw(f"...{user_input}...")` | SKY-D217 |
 | Pandas | `pd.read_sql(f"...{user_input}...", conn)` | SKY-D217 |
@@ -322,12 +335,14 @@ Beyond taint analysis, Skylos flags inherently dangerous patterns:
 |----------|------|---------|----------|
 | `eval()` | Arbitrary code execution | SKY-D201 | HIGH |
 | `exec()` | Arbitrary code execution | SKY-D202 | HIGH |
-| `pickle.load()` | Deserialization attack | SKY-D203 | CRITICAL |
-| `pickle.loads()` | Deserialization attack | SKY-D204 | CRITICAL |
-| `yaml.load()` | Code execution without SafeLoader | SKY-D205 | HIGH |
-| `hashlib.md5()` | Weak cryptographic hash | SKY-D206 | MEDIUM |
-| `hashlib.sha1()` | Weak cryptographic hash | SKY-D207 | MEDIUM |
-| `requests.get(verify=False)` | SSL verification disabled | SKY-D208 | HIGH |
+| `os.system()` | OS command execution | SKY-D203 | CRITICAL (LOW for a constant command) |
+| `pickle.load()` | Deserialization attack | SKY-D204 | CRITICAL |
+| `pickle.loads()` | Deserialization attack | SKY-D205 | CRITICAL |
+| `yaml.load()` | Code execution without SafeLoader | SKY-D206 | HIGH |
+| `hashlib.md5()` | Weak cryptographic hash | SKY-D207 | MEDIUM |
+| `hashlib.sha1()` | Weak cryptographic hash | SKY-D208 | MEDIUM |
+| `subprocess.*(..., shell=True)` | Shell command execution | SKY-D209 | HIGH |
+| `requests.get(verify=False)` | TLS verification disabled | SKY-D210 | HIGH |
 
 ---
 
@@ -356,11 +371,45 @@ The check is intentionally conservative: it requires webhook/provider evidence, 
 
 ---
 
+## Explain A Finding
+
+`skylos explain` replays the static steps Skylos recorded for a security
+finding, from source to sink. It reads a saved JSON report. It runs none of
+your code.
+
+```bash
+skylos . --danger --format json -o report.json
+skylos explain report.json --rule SKY-D211
+```
+
+```text
+SKY-D211
+api/db.py:11
+Possible SQL injection: tainted or string-built query.
+Recorded static trace: source_to_sink. Runtime behavior was not executed or verified.
+[1/7] source api/db.py:9: Imported Flask request input call: flask.request.args.get
+[2/7] assignment api/db.py:9: Assignment provides: uid
+...
+[7/7] sink api/db.py:11: Static finding location: SKY-D211
+```
+
+Narrow it with `--rule`, `--file`, `--line` or `--finding N` (the Nth match).
+`--interactive` steps through the trace with next, back and source.
+`--format json` prints the trace for scripts.
+
+---
+
 ## Secret Detection
 
 :::info
   **Enable secret scanning:** `skylos . --secrets`
 :::
+
+`--secrets` reads Python, TypeScript/JavaScript, Go, PHP (`.php` files),
+Kotlin, Rust, Dart, C#, and config files such as YAML, JSON, TOML and `.env`.
+It does not read `.java` files: Java secrets (`SKY-S101`) are reported by
+`--danger`, so use `-a` or add `--danger`. Shell scripts, Dockerfiles and C++
+files are not scanned for secrets.
 
 Skylos detects hardcoded credentials that should never be in source code:
 
@@ -373,17 +422,21 @@ Skylos detects hardcoded credentials that should never be in source code:
 | Generic | Common variable names | `api_key = "..."`, `password = "..."` |
 
 ```
-──────────────────────── Secrets ────────────────────────
- #  Provider  Message                    Preview           Location
- 1  aws       AWS Access Key detected    AKIA****EXAMPLE   config.py:12
- 2  stripe    Stripe Live Key detected   sk_live_****xyz   payments.py:8
+──────────────────────────────── Secrets ────────────────────────────────
+┏━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
+┃ Type   ┃ Severity ┃ Rule            ┃ Message                          ┃ Location    ┃
+┡━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━┩
+│ Review │ CRITICAL │ Secret detected │ Potential stripe secret detected │ config.py:2 │
+│        │          │ SKY-S101        │ Provider: stripe                 │             │
+│        │          │                 │ Preview: sk_l…EFGH               │             │
+└────────┴──────────┴─────────────────┴──────────────────────────────────┴─────────────┘
 ```
 
-| Column | Meaning |
+| Field | Meaning |
 |--------|---------|
 | **Provider** | The service the secret belongs to (e.g. AWS, Stripe, GitHub) or "generic" for high-entropy strings |
 | **Message** | Description of the detected credential |
-| **Preview** | A masked snippet of the secret |
+| **Preview** | A masked snippet: the first and last few characters only |
 | **Location** | `file:line` where the secret was found |
 
 ---
@@ -392,13 +445,13 @@ Skylos detects hardcoded credentials that should never be in source code:
 
 | Capability | Skylos | Bandit | Semgrep | Snyk Code |
 |------------|--------|--------|---------|-----------|
-| Taint analysis | ✅ | ❌ | ✅ | ✅ |
-| Framework awareness | ✅ | ❌ | Partial | ✅ |
-| Dead code detection | ✅ | ❌ | ❌ | ❌ |
-| Quality metrics | ✅ | ❌ | ❌ | ❌ |
-| AI-powered fixes | ✅ | ❌ | ❌ | ✅ |
-| Self-hosted | ✅ | ✅ | ✅ | ❌ |
-| Free | ✅ | ✅ | Partial | Partial |
+| Taint analysis | Yes | No | Yes | Yes |
+| Framework awareness | Yes | No | Partial | Yes |
+| Dead code detection | Yes | No | No | No |
+| Quality metrics | Yes | No | No | No |
+| AI-powered fixes | Yes (`skylos[llm]` and your model key) | No | Paid tier | Yes |
+| Runs locally | Yes | Yes | Yes | No |
+| Free | Yes | Yes | Partial | Partial |
 
 ---
 
@@ -427,7 +480,9 @@ jobs:
         run: skylos . --danger --secrets --gate
 ```
 
-With `fail_on_critical = true` (default), any CRITICAL finding blocks the PR.
+The gate fails on any CRITICAL security finding and on any secret. That rule
+cannot be turned off. Other limits come from `[tool.skylos.gate]`; see
+[Quality Gate](/quality-gate).
 
 ---
 

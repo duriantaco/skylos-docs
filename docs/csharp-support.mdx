@@ -12,15 +12,22 @@ normal Skylos workflow without requiring MSBuild, Roslyn, or the .NET SDK.
 | Area | Support |
 |:---|:---|
 | Extensions | `.cs` |
-| Dead code | Classes, methods, and direct references |
+| Dead code | Partial: classes, methods, and direct references |
 | Security | Selected ASP.NET/request input to process, SQL, HTTP, redirect, and filesystem sinks |
-| Quality | No dedicated C# quality rules yet |
+| Quality | Unreachable code after `return`, `throw`, `break`, or `continue` (`SKY-UC002`) |
+| Secrets | `.cs` files with `--secrets` or `-a` |
+| Dependencies | Direct NuGet `PackageReference` entries in `.csproj` with `--sca` |
 
 ## Dead Code Detection
 
 C# analysis recognizes class and method declarations, imports, and direct method
 references. Findings are normalized into the same report shape as other
 languages, so C# files appear in CLI, JSON, SARIF, MCP, and Cloud output.
+
+Findings are conservative. Unreferenced public types and methods are
+low-confidence candidates. Library APIs, protected members, and known framework
+entry points are treated as reachable. Whole-file reachability is not
+implemented.
 
 ```bash
 skylos .
@@ -44,6 +51,10 @@ skylos . --danger
 ## Limitations
 
 C# support is intentionally lightweight today. Skylos does not run MSBuild,
-Roslyn analyzers, NuGet restore, or .NET type resolution. Use `dotnet build`,
+Roslyn analyzers, NuGet restore, or .NET type resolution. Unreachable-code
+detection is direct-block only, not full control flow. C# has no inline
+suppression comment. `skylos verify` reports C# API proof as unsupported.
+Dependency scanning checks only exact `[version]` pins; ordinary NuGet versions
+are minimum bounds, so their vulnerability status stays unknown. Use `dotnet build`,
 `dotnet test`, Roslyn analyzers, and project-specific security checks alongside
 Skylos when you need compiler-level validation.

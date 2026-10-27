@@ -36,7 +36,7 @@ Before installing Skylos, ensure your environment meets the following requiremen
 * **Package Manager:** `pip` or `uv`.
 
 :::note
-**Browser Support:** Skylos is a CLI tool and does not require a web browser, although it can generate HTML reports that support Chrome, Edge, Firefox, and Safari.
+**Browser Support:** Skylos is a CLI tool and does not need a web browser. It has no HTML report; the outputs are terminal, JSON, SARIF, Markdown and CI formats. A browser opens only for the optional Skylos Cloud login.
 :::
 
 ## Step 1: Installation
@@ -100,13 +100,19 @@ max_args = 5
 ## Optional: Configure AI Access
 
 Skylos does not require an LLM for core static analysis. Configure a provider
-only if you want agent review or remediation workflows.
+only if you want agent review or remediation workflows. Those commands need
+the LLM extra:
+
+```bash
+pip install "skylos[llm]"
+```
 
 Skylos checks for keys in the following priority:
 
-1. **Environment Variables**: `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`.
-2. **System Keyring**: Keys saved via previous interactive sessions.
-3. **Interactive Prompt**: You will be prompted to paste a key if none is found.
+1. **Environment Variables**: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `MISTRAL_API_KEY`, `GROQ_API_KEY`, `XAI_API_KEY`, `TOGETHER_API_KEY` or `DEEPSEEK_API_KEY`.
+2. **System Keyring**: Keys saved with `skylos key add PROVIDER`.
+
+A local model (Ollama, LM Studio, vLLM) needs no key; see [AI Features](/ai-features).
 
 <Tabs>
   <TabItem value="bash" label="Bash" default>
@@ -141,7 +147,7 @@ If Skylos flags code you know is used (common with visitor patterns or dynamic d
 skylos . --trace
 ```
 
-This runs your test suite and records which functions were actually called, eliminating false positives from dynamic code.
+This runs your test suite with pytest and records which functions were actually called, so code your tests reach through dynamic calls is no longer flagged.
 
 See [Smart Tracing](/smart-tracing) for details.
 

@@ -42,6 +42,13 @@ Examples of covered sinks include:
 skylos . --danger
 ```
 
+Java hard-coded secrets (`SKY-S101`) come from this security pass. `--secrets`
+alone skips `.java` files, so use `--danger` (or `-a`) to find them:
+
+```bash
+skylos . --danger --secrets
+```
+
 ## Quality Rules
 
 Java quality rules use the same core thresholds as Python unless overridden:
@@ -51,11 +58,13 @@ Java quality rules use the same core thresholds as Python unless overridden:
 complexity = 12
 ```
 
-Supported Java quality findings include `SKY-Q301`, `SKY-Q302`, `SKY-C303`,
-`SKY-C304`, and `SKY-UC002`.
+Supported Java quality findings are `SKY-Q301`, `SKY-Q302`, `SKY-C303`,
+`SKY-C304`, and `SKY-UC002`. They run with `--quality` (or `-a`).
 
 ## Limitations
 
 Skylos does not run the Java compiler, resolve every build-system-specific
 classpath edge case, or perform type checking. It is a source scanner focused on
-dead code, high-signal security patterns, and quality gates.
+dead code, high-signal security patterns, and quality gates. Java has no inline
+suppression comment; use `[tool.skylos] ignore`, `skylos whitelist`, or a
+baseline. Dependency CVE scanning does not read Maven or Gradle files.

@@ -81,12 +81,12 @@ db.execute(final_query)                    # Sink -> ALERT!
 
 | Pattern | Safe? | Why |
 |---------|-------|-----|
-| `cursor.execute(query, (param,))` | ✅ | Parameterized query |
-| `cursor.execute(f"... {param}")` | ❌ | String interpolation |
-| `subprocess.run(["ls", filename])` | ✅ | List form, no shell |
-| `os.system(f"ls {filename}")` | ❌ | Shell injection |
-| `escape(user_input)` | ✅ | Sanitized |
-| `f"<div>{user_input}</div>"` | ❌ | Raw HTML |
+| `cursor.execute(query, (param,))` | Yes | Parameterized query |
+| `cursor.execute(f"... {param}")` | No | String interpolation |
+| `subprocess.run(["ls", filename])` | Yes | List form, no shell |
+| `os.system(f"ls {filename}")` | No | Shell injection |
+| `escape(user_input)` | Yes | Sanitized |
+| `f"<div>{user_input}</div>"` | No | Raw HTML |
 
 ---
 

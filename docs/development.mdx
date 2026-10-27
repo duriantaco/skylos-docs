@@ -1,113 +1,90 @@
 ---
 title: 'Development'
-description: 'Preview changes locally to update your docs'
+description: 'Preview and build the Skylos docs site locally before you open a pull request.'
 ---
+
+This page is for people who edit the Skylos docs. The site is built with
+[Docusaurus](https://docusaurus.io/).
 
 :::info
   **Prerequisites**:
-  - Node.js version 19 or higher
-  - A docs repository with a `docs.json` file
+  - Node.js 20 or newer
+  - A clone of the `skylos-docs` repository
 :::
 
-Follow these steps to install and run Mintlify on your operating system.
+### 1. Install dependencies
 
+From the repository root:
 
-### 1. Install the Mintlify CLI
-
-
-**npm:**
-
-
-```bash i -g mint
+```bash
+npm install
 ```
+
+The repository has no committed `package-lock.json`, so `npm ci` does not work.
 
 ### 2. Preview locally
 
+```bash
+npm start
+```
 
-Navigate to your docs directory where your `docs.json` file is located, and run the following command:
+A local preview opens at `http://localhost:3000`. It reloads when you save a
+page.
 
-
-**mint:**
-
+To use another port:
 
 ```bash
-# dev
+npm start -- --port 3333
 ```
 
-A local preview of your documentation will be available at `http://localhost:3000`.
-
-
-## Custom ports
-
-By default, Mintlify uses port 3000. You can customize the port Mintlify runs on by using the `--port` flag. For example, to run Mintlify on port 3333, use this command:
-
-
-**mint:**
-
-
-```bash dev --port 3333
-```
-
-If you attempt to run Mintlify on a port that's already in use, it will use the next available port:
-
-
-**Port:**
-
-
-```md 3000 is already in use. Trying 3001 instead.
-```
-
-## Mintlify versions
-
-Please note that each CLI release is associated with a specific version of Mintlify. If your local preview does not align with the production version, please update the CLI:
-
-
-**npm:**
-
-
-```bash mint update
-```
-
-## Validating links
-
-The CLI can assist with validating links in your documentation. To identify any broken links, use the following command:
-
-
-**mint:**
-
+### 3. Build before you open a pull request
 
 ```bash
-# broken-links
+npm run build
 ```
 
-## Deployment
+The build warns about broken internal links and anchors. Fix every warning before you
+push.
 
-If the deployment is successful, you should see the following:
+To check the built site:
 
-<img src="/images/checks-passed.png" alt="Screenshot of a deployment confirmation message that says All checks have passed." style={{ borderRadius: '0.5rem' }} />
-## Code formatting
+```bash
+npm run serve
+```
 
-We suggest using extensions on your IDE to recognize and format MDX. If you're a VSCode user, consider the [MDX VSCode extension](https://marketplace.visualstudio.com/items?itemName=unifiedjs.vscode-mdx) for syntax highlighting, and [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode) for code formatting.
+## Where things live
+
+| Path | What it holds |
+|:---|:---|
+| `docs/` | The pages, as `.mdx` files |
+| `sidebars.ts` | The sidebar order |
+| `docusaurus.config.ts` | Site settings, navbar and footer |
+| `static/` | Images and other files served as-is |
+
+## Writing style
+
+- Short sentences and plain words.
+- One idea per paragraph.
+- Put every command in a code block.
+- Check commands and flags against `skylos <command> --help` before you
+  document them.
 
 ## Troubleshooting
 
-
   <details>
-<summary>Details</summary>
+<summary>The build says a link is broken</summary>
 
-
-    This may be due to an outdated version of node. Try the following:
-    1. Remove the currently-installed version of the CLI: `npm remove -g mint`
-    2. Upgrade to Node v19 or higher.
-    3. Reinstall the CLI: `npm i -g mint`
+    Docusaurus checks every internal link and anchor and prints a warning. Open the page it names,
+    fix the path or heading, and run `npm run build` again.
   </details>
 
   <details>
-<summary>Issue: Encountering an unknown error</summary>
+<summary>The preview shows old content</summary>
 
-  
-    Solution: Go to the root of your device and delete the `~/.mintlify` folder. Then run `mint dev` again.
+    Clear the cache and start again:
+
+    ```bash
+    npm run clear
+    npm start
+    ```
   </details>
-
-
-Curious about what changed in the latest CLI version? Check out the [CLI changelog](https://www.npmjs.com/package/mintlify?activeTab=versions).

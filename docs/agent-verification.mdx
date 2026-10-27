@@ -30,8 +30,9 @@ skylos defend . --fail-on critical              # CI gate
 `skylos defend` exits `1` when the gate fails (`--fail-on`, `--min-score`, or
 policy `gate.*`), otherwise `0`. Without those settings, findings are
 report-only. Format never changes gating: a SARIF or md run with
-`--fail-on high` still writes the report and exits non-zero. The command
-requires a directory target.
+`--fail-on high` still writes the report and exits non-zero. The target must
+be a directory; it defaults to the current one. `--upload` sends the result to
+Skylos Cloud, and a failed upload also exits `1`.
 
 If discovery finds no supported integration, the empty result means none was
 recognized in the supported language scope. Its score alone is not proof that
@@ -41,23 +42,23 @@ an unsupported or unrecognized agent implementation has guardrails.
 
 Defense checks (weighted; drive the defense score and the gate):
 
-| Check | Severity (weight) | OWASP LLM | Verifies |
+| Check | Severity (weight) | OWASP LLM 2025 | Verifies |
 |---|---|---|---|
-| `no-dangerous-sink` | critical (8) | LLM02 | No `eval`/`exec`/`subprocess` sink in the LLM output scope |
-| `tool-scope` | critical (8) | LLM04 | Agent tools avoid dangerous calls |
-| `tool-schema-present` | critical (8) | LLM04 | Every agent tool has a typed schema |
+| `no-dangerous-sink` | critical (8) | LLM05 | No `eval`/`exec`/`subprocess` sink in the LLM output scope |
+| `tool-scope` | critical (8) | LLM06 | Agent tools avoid dangerous calls |
+| `tool-schema-present` | critical (8) | LLM06 | Every agent tool has a typed schema |
 | `untrusted-input-to-prompt` | critical (8) | LLM01 | Untrusted input cannot reach prompts unguarded |
 | `prompt-delimiter` | high (5) | LLM01 | Untrusted input is delimited inside prompts |
-| `output-validation` | high (5) | LLM02 | Model output is validated before use |
-| `rag-context-isolation` | high (5) | LLM01 | Retrieved context is isolated from instructions |
-| `output-pii-filter` | high (5) | LLM06 | PII filtering guards model output |
+| `output-validation` | high (5) | LLM05, LLM09 | Model output is validated before use |
+| `rag-context-isolation` | high (5) | LLM01, LLM08 | Retrieved context is isolated from instructions |
+| `output-pii-filter` | high (5) | LLM02 | PII filtering guards model output |
 | `model-pinned` | medium (3) | LLM03 | Model version is pinned, not floating |
-| `input-length-limit` | low (1) | LLM01 | Input length is limited before prompting |
+| `input-length-limit` | low (1) | LLM01, LLM10 | Input length is limited before prompting |
 
 Ops checks (scored separately as the ops score; never gate CI and never
 inflate the defense score):
 
-| Check | Severity | OWASP LLM | Verifies |
+| Check | Severity | OWASP LLM 2025 | Verifies |
 |---|---|---|---|
 | `logging-present` | medium | — | LLM calls are logged |
 | `cost-controls` | medium | LLM10 | `max_tokens`/cost limits are set |
@@ -114,7 +115,7 @@ Every non-table report carries an attestation block:
     "plugin_set": ["cost-controls", "…"],
     "owasp_framework": "llm",
     "owasp_version": "2025",
-    "skylos_version": "4.27.0",
+    "skylos_version": "5.1.1",
     "results_digest": "31bb…",
     "integrations_digest": "47e2…",
     "run_evidence_digest": "ce90…"
@@ -196,6 +197,8 @@ repos:
       - id: skylos-defend        # runs: skylos defend . --fail-on critical
 ```
 
+The hook runs when Python files are staged.
+
 GitHub code scanning:
 
 ```yaml
@@ -223,6 +226,10 @@ Returns compact JSON: `defense_score`, `ops_score`, `failed_checks[]` (with
 remediation), OWASP coverage summary, the attestation digest, and the gate
 verdict. The verification itself is deterministic static analysis — the
 calling agent gets a ground-truth verdict, not another model's opinion.
+
+Like every MCP tool except `analyze`, `verify_agent` needs a Skylos API key
+(`SKYLOS_API_KEY`). The check runs on your machine. See
+[MCP Server](/mcp-server).
 
 ## Scope and honesty
 

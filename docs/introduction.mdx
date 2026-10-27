@@ -3,25 +3,30 @@ title: "What is Skylos?"
 description: "Architecture, supported languages, and core concepts."
 ---
 
-**Skylos** is a developer-security platform that runs entirely in your local environment or CI/CD pipeline. Unlike SaaS scanners that require code uploads, Skylos performs Static Application Security Testing (SAST), deployment config checks, and runtime analysis on your infrastructure.
+**Skylos** is a static analysis CLI that runs on your machine or in your CI
+pipeline. It finds dead code, security flaws, secrets, vulnerable
+dependencies, quality problems, and mistakes common in AI-written code. You do
+not need an account, and your code is not uploaded to scan it.
+
+Skylos Cloud is optional. It stores findings you choose to upload and adds PR
+checks, history and team features.
 
 ## Core Capabilities
 
-Skylos is composed of four integrated engines:
+Skylos is composed of four integrated parts:
 
 
-  ### Scanner (SAST)
-    Analyzes AST (Abstract Syntax Tree) and security-relevant config files to find security flaws, deployment risks, dead code, and logic bugs without running the code.
-  
-  ### Auto-Pilot
-    A runtime agent that hooks into your Python environment to track real-world function usage and detect "Zombie Code."
-  
-  ### Gatekeeper
-    A policy enforcer for CI/CD that blocks deployments based on security severity or quality metrics.
-  
+  ### Scanner
+    Parses source and security-relevant config files to find security flaws, deployment risks, dead code, and logic bugs without running the code.
+
+  ### Runtime tracing (Python, optional)
+    `skylos . --trace` runs your pytest suite with call tracing, so code that is only called dynamically is not reported as dead.
+
+  ### Gate
+    `skylos . -a --gate` returns pass or fail for CI, based on severity and the limits in `[tool.skylos.gate]`.
+
   ### Fixer
-    An auto-remediation engine using LibCST and Generative AI (OpenAI/Anthropic) to repair code safely.
-  
+    `skylos clean` removes or comments out unused Python imports and functions with LibCST. Optional LLM workflows (`skylos agent remediate`) need `pip install "skylos[llm]"` and a model key or a local model.
 
 
 ## Supported Ecosystems
@@ -32,33 +37,34 @@ Skylos currently supports the following languages and frameworks.
 
 | Language | Static Analysis | Runtime Tracking | AI Repair |
 | :--- | :---: | :---: | :---: |
-| **Python** (3.10+) | ✅ | ✅ | ✅ |
-| **TypeScript** | ✅ | ❌ | ❌ |
-| **JavaScript** | ✅ | ❌ | ❌ |
-| **Java** | ✅ | ❌ | ❌ |
-| **Go** | ✅ | ❌ | ❌ |
-| **Kotlin** | ✅ | ❌ | ❌ |
-| **PHP** | ✅ | ❌ | ❌ |
-| **Rust** | ✅ | ❌ | ❌ |
-| **Dart** | ✅ | ❌ | ❌ |
-| **C#** | ✅ | ❌ | ❌ |
-| **Shell** | ✅ | ❌ | ❌ |
-| **Deployment Config** | ✅ | ❌ | ❌ |
+| **Python** (3.10+) | Yes | Yes | Yes |
+| **TypeScript** | Yes | No | No |
+| **JavaScript** | Yes | No | No |
+| **Java** | Yes | No | No |
+| **Go** | Yes | No | No |
+| **Kotlin** | Limited (private symbols, secrets) | No | No |
+| **PHP** | Yes | No | No |
+| **Rust** | Security; dead code experimental | No | No |
+| **Dart** | Yes (needs `skylos[dart]`) | No | No |
+| **C#** | Partial | No | No |
+| **C++** | Unused file-local functions only | No | No |
+| **Shell** | Security only | No | No |
+| **Deployment Config** | Security only | No | No |
 
-For per-language scanner scope, see [Language Support](/language-support).
+For per-language scanner scope and known limits, see [Language Support](/language-support).
 
 Java static analysis includes structured security-flow checks for servlet
 request data, Java HTTP clients, typed `RestTemplate` usage, and servlet
 redirects. Go security coverage includes selected HTTP, SQL, command, path,
 TLS, cookie, archive, and resource-leak checks. Deployment config coverage
-includes GitHub Actions, GitLab CI, Docker Compose edge runtime posture, and
-systemd edge service hardening.
+includes GitHub Actions, GitLab CI, Dockerfiles, Docker Compose edge runtime
+posture, and systemd edge service hardening.
 
 ### Frameworks
 
-Skylos includes specific heuristics to support "magic" patterns in these frameworks [cite: 478-480]:
+Skylos includes specific heuristics to support "magic" patterns in these frameworks:
 
-* **Web:** Django, Flask, FastAPI, Starlette, Pydantic, Spring (Boot/MVC), Next.js, React, and Flutter.
+* **Web:** Django, Flask, FastAPI, Starlette, Pydantic, Spring (Boot/MVC), Laravel, Drupal, Next.js, React, and Flutter.
 * **Async:** Uvicorn, Celery.
 * **Testing:** Pytest, Unittest.
 
@@ -66,8 +72,10 @@ Skylos includes specific heuristics to support "magic" patterns in these framewo
 
 Skylos operates on a **Local-First** model.
 
-* **No SaaS Account:** You do not need to create a Skylos account to run the scanner.
-* **Data Residency:** All scan results and usage telemetry (`.skylos_usage.json`) are stored on your local disk.
-* **AI Privacy:** When using `--fix` or `--audit`, code snippets are sent to your configured LLM provider (OpenAI or Anthropic) via their respective APIs. No code is stored by Skylos.
+* **No account needed:** You do not need a Skylos account to run the scanner.
+* **Results stay local:** Scan results are printed or written to files you choose (`-o`).
+* **Network lookups:** `-a`, `--sca` and `--ai-defects` send package names and versions (not code) to OSV.dev and package registries.
+* **AI privacy:** LLM features (`skylos agent ...`, `--verify-security`) send code snippets to the model provider you configure. With a local model, nothing leaves your machine. No code is stored by Skylos.
+* **Cloud is opt-in:** Only `--upload` or `skylos cloud` sends findings (not your repository) to Skylos Cloud.
 
 ---

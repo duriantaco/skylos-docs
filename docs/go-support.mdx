@@ -3,8 +3,24 @@ title: "Go Support"
 description: "Go dead code, selected security checks, and quality analysis support in Skylos."
 ---
 
-Skylos analyzes Go projects with a module-aware Go engine and tree-sitter-backed
-quality checks.
+Skylos analyzes Go projects with a module-aware Go engine (`skylos-go`) and
+tree-sitter-backed quality checks.
+
+## The Go Engine
+
+Go dead code and security checks need the native `skylos-go` engine. The PyPI
+wheels for Linux, macOS and Windows (x86_64 and arm64) include it. So do the
+container image and the GitHub Action.
+
+Check that it is installed:
+
+```bash
+skylos doctor
+```
+
+Without the engine, only Go quality checks run. The Go files are reported as
+not analysed, so the scan is incomplete. To use an engine you built yourself,
+set `SKYLOS_GO_BIN` to its path.
 
 ## File Coverage
 
@@ -13,7 +29,7 @@ quality checks.
 | Extensions | `.go` |
 | Dead code | Functions, methods, exported symbols, references, and package-level symbols |
 | Security | Selected SQL injection, command injection, path traversal, SSRF, weak crypto, weak randomness, TLS, cookie, redirect, archive, resource, and unsafe package checks |
-| Quality | Function complexity, nesting depth, function length, and parameter count |
+| Quality | Complexity (`SKY-Q301`), nesting depth (`SKY-Q302`), parameter count (`SKY-C303`), and function length (`SKY-C304`) |
 
 ## Module Awareness
 
@@ -38,5 +54,6 @@ equivalent.
 ## Limitations
 
 Go security and quality support is narrower than Python, TypeScript/JavaScript,
-and Java. Skylos does not replace `go test`, `go vet`, or compiler-level type
-checking.
+and Java. Go has no inline suppression comment; use `[tool.skylos] ignore`,
+`skylos whitelist`, or a baseline. Skylos does not replace `go test`, `go vet`,
+or compiler-level type checking.

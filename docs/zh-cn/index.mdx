@@ -43,17 +43,26 @@ skylos . --danger --quality --secrets
 | 语言 | 死代码 | 安全 | 质量 |
 |:---|:---:|:---:|:---:|
 | Python | 是 | 是 | 是 |
-| TypeScript / JavaScript | 是 | 是 | 是 |
-| Java | 是 | 是 | 是 |
+| TypeScript / JavaScript | 是 | 是 | 部分 |
+| Java | 是 | 是 | 部分 |
 | Go | 是 | 部分 | 部分 |
-| Kotlin | 是 | 部分 | 否 |
+| Kotlin | 仅 `private` 符号和导入 | 仅密钥扫描 | 否 |
 | PHP | 是 | 部分 | 否 |
-| Rust | 是 | 部分 | 否 |
+| Rust | 实验性 | 部分 | 否 |
 | Dart | 是 | 部分 | 否 |
-| C# | 是 | 部分 | 否 |
+| C# | 部分 | 部分 | 仅不可达代码 |
+| C++ | 仅文件内未使用函数 | 否 | 否 |
 | Shell | 否 | 部分 | 否 |
 
-“部分”表示 Skylos 覆盖该生态中高信号的安全或质量规则，但范围比 Python、TypeScript/JavaScript 和 Java 更窄。Kotlin 当前覆盖死代码和通用密钥扫描。
+“部分”表示 Skylos 覆盖该语言中高信号的安全或质量规则，但范围比 Python、TypeScript/JavaScript 和 Java 更窄。
+
+已知限制：
+
+- Rust 死代码是实验性的：置信度上限为 40，低于默认阈值 60，所以默认不显示。使用 `skylos . --confidence 40` 查看。
+- Kotlin 只报告 `private` 符号和未使用的导入；没有 Kotlin 安全规则。
+- Java 的硬编码密钥需要 `--danger`；只用 `--secrets` 会跳过 `.java` 文件。
+- Go 需要内置的 `skylos-go` 引擎；Dart 需要 `pip install "skylos[dart]"`。用 `skylos doctor` 检查。
+- 行内抑制注释只适用于 Python、TypeScript/JavaScript 和配置文件。
 
 ## Shell 脚本扫描
 

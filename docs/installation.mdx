@@ -28,20 +28,19 @@ uv pip install skylos
   </TabItem>
 </Tabs>
 
-Install optional LLM-powered agent workflows:
+Optional extras add features that need extra packages:
 
-```bash
-pip install "skylos[llm]"
-```
+| Extra | Adds | Install |
+|-------|------|---------|
+| `llm` | `skylos agent ...` LLM workflows and `--verify-security` | `pip install "skylos[llm]"` |
+| `lint` | Ruff, for `skylos lint` | `pip install "skylos[lint]"` |
+| `verdict` | Signature checks for `skylos verify-verdict` | `pip install "skylos[verdict]"` |
+| `dart` | Dart parsing (compiles C, so it needs a C compiler) | `pip install "skylos[dart]"` |
+| `test` | pytest, for `--trace` and fixture checks | `pip install "skylos[test]"` |
+| `all` | Every extra above | `pip install "skylos[all]"` |
 
-Install all published optional extras:
-
-```bash
-pip install "skylos[all]"
-```
-
-The published extras are defined in the Skylos `pyproject.toml`. At the time of
-writing they are `web`, `llm`, `test`, and `all`.
+LLM features also need a model-provider key or a local model. See
+[AI Features](./ai-features#setup).
 
 ## Container Image
 
@@ -62,6 +61,9 @@ docker run --rm \
 ```
 
 For CI, prefer a pinned release tag instead of `latest`.
+
+The image includes the Go engine and Dart support. It does not include the
+`llm` extra.
 
 ## Initialization
 
@@ -86,15 +88,22 @@ ignore = ["SKY-L002"] # List of Rule IDs to ignore
 
 # Gatekeeper Settings (skylos --gate)
 [tool.skylos.gate]
-fail_on_critical = true
-max_security = 0
+max_security = 0  # Default: 10
 max_quality = 10
 strict = false  # Set true to disable interactive bypass in CI
 ```
 
+Any critical finding or secret always fails the gate. You cannot turn that off
+in config.
+
 ## Verify Installation
 
-Run a scan on your current directory to verify everything is working.
+Check the version, then check the install and optional engines:
+
 ```bash
 skylos --version
+skylos doctor
 ```
+
+`skylos doctor` checks Python, the Go engine, Dart support, ripgrep, config
+files, CI setup and agent hooks.

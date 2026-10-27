@@ -54,13 +54,37 @@ flowchart TB
 
 ### What Gets Detected
 
-| Category | Example | Detection Method |
-|----------|---------|------------------|
-| **Unreachable functions** | `def helper(): ...` never called | No call references found |
-| **Unused imports** | `import json` but `json` never used | No name references found |
-| **Unused classes** | `class OldModel: ...` never instantiated | No instantiation or inheritance |
-| **Unused variables** | `result = compute()` but `result` never read | Assigned but never referenced |
-| **Unused parameters** | `def fn(a, b): return a` | Parameter `b` never used in body |
+| Category | Rule | Example | Detection Method |
+|----------|------|---------|------------------|
+| **Unused functions** | `SKY-U001` | `def helper(): ...` never called | No call references found |
+| **Unused imports** | `SKY-U002` | `import json` but `json` never used | No name references found |
+| **Unused variables** | `SKY-U003` | `result = compute()` but `result` never read | Assigned but never referenced |
+| **Unused classes** | `SKY-U004` | `class OldModel: ...` never instantiated | No instantiation or inheritance |
+| **Unused parameters** | `SKY-U006` | `def fn(a, b): return a` | Parameter `b` never used in body |
+| **Unused files** | `SKY-E003` | A TypeScript/JavaScript file nothing imports | No import of the file found |
+
+Unreachable code (`SKY-UC001`, `SKY-UC002`) and unused dependencies
+(`SKY-U005`) are dead-code findings too, but they only run with `--quality`.
+
+Unused parameters are capped at confidence 50, so they are hidden at the
+default threshold of 60. Use `--confidence 40` to see them.
+
+### Languages
+
+Coverage is not the same in every language:
+
+| Language | What dead-code detection covers |
+|----------|---------------------------------|
+| Python | Deepest support: functions, classes, imports, variables, parameters, framework rules |
+| TypeScript / JavaScript | Functions, classes, imports, unused files (`SKY-E003`), unnecessary exports (`SKY-E004`) |
+| Java, Go, PHP | Unused symbols; Go needs the bundled `skylos-go` engine |
+| Kotlin | Private symbols and imports only |
+| Rust | Experimental. Findings are capped at confidence 40, so they are hidden at the default threshold of 60. Use `--confidence 40` to see them |
+| Dart | Needs `pip install "skylos[dart]"` |
+| C# | Partial |
+| C++ | File-local functions only |
+
+See [Language Support](/language-support) for details.
 
 ---
 
@@ -75,25 +99,24 @@ Not all "unused" code is actually dead. A helper function might be:
 Skylos assigns a **confidence score** (0-100) to each finding, so you can filter out uncertain results.
 ```mermaid
 flowchart LR
-    A["Initial: 100%"] --> B{"Private name? _helper"}
-    B -->|Yes| C["-80%"]
-    B -->|No| D[Keep 100%]
-    
+    A["Initial: 100%"] --> G{"Framework decorator?"}
+    G -->|Yes| H["Not reported"]
+    G -->|No| B{"Private name? _helper"}
+    B -->|Yes| C["-10%"]
+    B -->|No| D[Keep]
+
     C --> E{"Dunder method? __str__"}
     D --> E
-    
+
     E -->|Yes| F["-100% (Excluded)"]
-    E -->|No| G{"Framework decorator?"}
-    
-    G -->|Yes| H["-40%"]
-    G -->|No| I{"In __init__.py?"}
-    
-    H --> I
+    E -->|No| I{"Function or class in __init__.py?"}
+
     I -->|Yes| J["-15%"]
     I -->|No| K[Final Score]
     J --> K
-    
+
     style F fill:#2ed573,color:#fff
+    style H fill:#2ed573,color:#fff
     style K fill:#ffa502,color:#fff
 ```
 
@@ -101,13 +124,34 @@ flowchart LR
 
 | Pattern | Penalty | Reason |
 |---------|---------|--------|
-| Private name (`_foo`) | -80 | Convention for internal use |
+| Private name (`_foo`, Python) | -10 | Convention for internal use |
 | Dunder (`__str__`) | -100 | Called implicitly by Python |
-| Underscore var (`_`) | -100 | Intentionally unused |
-| In `__init__.py` | -15 | Often public API re-exports |
-| Framework decorator | -40 | Called by framework |
-| Dynamic module | -40 | May use `getattr()` |
-| Test-related | -100 | Called by test runner |
+| Underscore var (`_`) | Not reported | Intentionally unused |
+| Function or class in `__init__.py` | -15 | Often public API re-exports |
+| Framework decorator (route, signal, fixture) | Not reported | Called by the framework |
+| Dynamic module | -10 | May use `getattr()` |
+| Test decorator | -100 | Called by test runner |
+
+### Confidence Caps
+
+Some findings can never reach 100%, because the code may still be used from
+outside the scan:
+
+| Finding | Highest confidence |
+|---------|--------------------|
+| Public Python function, class or variable | 90 |
+| Exported but never imported | 85 |
+| Public method (dynamic dispatch possible) | 80 |
+| Class attribute (frameworks may read it) | 80 |
+| File no import loads | 80 |
+| Only reachable through a dynamic lookup | 70 |
+| Default export | 60 |
+| Parameter | 50 |
+| Rust (experimental) | 40 |
+| Deprecated API kept for callers | 40 |
+
+The report shows the reason next to the score, for example
+`Confidence: 90% (public name)`.
 
 ### Using Confidence Threshold
 ```bash
@@ -285,12 +329,12 @@ flowchart LR
 
 | Feature | IDE "Unused" Warning | Skylos |
 |---------|---------------------|--------|
-| Cross-file analysis | ❌ Single file | ✅ Entire codebase |
-| Framework awareness | ❌ | ✅ Django, Flask, FastAPI, Pydantic |
-| Confidence scoring | ❌ | ✅ Filter uncertain findings |
-| CI/CD integration | ❌ | ✅ Block PRs, generate reports |
-| Batch removal | ❌ | ✅ Interactive selection |
-| Import tracking | Basic | ✅ Resolves re-exports |
+| Cross-file analysis | No, single file | Yes, entire codebase |
+| Framework awareness | No | Yes: Django, Flask, FastAPI, Pydantic and more |
+| Confidence scoring | No | Yes, filter uncertain findings |
+| CI/CD integration | No | Yes, block PRs and write reports |
+| Batch removal | No | Yes, interactive selection (Python) |
+| Import tracking | Basic | Yes, resolves re-exports |
 
 ---
 
@@ -325,8 +369,8 @@ Use comment-out mode when you want a reversible source marker:
 skylos clean . --apply --comment-out --types import,function --confidence 80
 ```
 
-`skylos clean` currently edits unused imports and unused functions only. It
-skips unsupported finding types and other languages, and uses Python LibCST
+`skylos clean` edits Python unused imports and unused functions only. It
+skips other finding types and other languages, and uses Python LibCST
 codemods rather than regex edits. With no mode flag, it interactively selects
 edits and can write after final confirmation. `--dry-run` never writes. A
 completed apply pass can still exit `0` after printing an individual transform
@@ -334,7 +378,8 @@ failure, so review its completion output.
 
 ### 4. Review in interactive mode
 
-Select what to remove:
+Select what to remove. Interactive mode needs an interactive terminal, so it
+does not run in CI:
 ```bash
 skylos . -i --dry-run
 ```
@@ -377,22 +422,25 @@ Search for `SKYLOS DEADCODE` later to permanently remove or restore.
 <Tabs>
   <TabItem value="table" label="Table (Default)" default>
 ```
-─────────────────── Unreachable Functions ───────────────────
- #   Name                    Location                 Conf
- 1   unused_helper           utils.py:42               90%
- 2   legacy_processor        core/processing.py:128    75%
-
-────────────────────── Unused Imports ───────────────────────
- #   Name                    Location
- 1   json                    api/views.py:3
- 2   Optional                models.py:1
+────────────────────────── Unused Functions ──────────────────────────
+┏━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓
+┃ Type   ┃ Severity ┃ Rule            ┃ Message                        ┃ Location   ┃
+┡━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩
+│ Review │ LOW      │ Unused function │ Unused function: unused_helper │ utils.py:5 │
+│        │          │ SKY-U001        │ Confidence: 90% (public name)  │            │
+│        │          │                 │ Evidence: likely dead — no     │            │
+│        │          │                 │ static references were found   │            │
+└────────┴──────────┴─────────────────┴────────────────────────────────┴────────────┘
 ```
 
 | Column | Meaning |
 |--------|---------|
-| **Name** | The unused function, import, class, or variable |
+| **Rule** | The finding type and rule ID |
+| **Message** | The unused symbol, its confidence score (0–100%) and the evidence. Higher confidence is safer to remove |
 | **Location** | `file:line` where it's defined |
-| **Conf** | Confidence score (0–100%) — how certain Skylos is that this is truly unused. Higher = safer to remove |
+
+Above the tables, the report shows a scan assessment (Risk, Maintainability,
+Dead code, Gate) and a coverage line that says which checks did not run.
 
   </TabItem>
   <TabItem value="tree" label="Tree">
@@ -400,13 +448,16 @@ Search for `SKYLOS DEADCODE` later to permanently remove or restore.
 skylos . --tree
 ```
 ```
-my-project/
-├── api/
-│   └── views.py
-│       ├── L3 Unused import: json
-│       └── L45 Unused function: old_endpoint
+my-project
 └── utils.py
-    └── L42 Unused function: unused_helper
+    ├── L1 Type: Review  Severity: LOW
+    │   SKY-U002 · Unused import
+    │   Unused import: json
+    │   Confidence: 100%
+    └── L5 Type: Review  Severity: LOW
+        SKY-U001 · Unused function
+        Unused function: unused_helper
+        Confidence: 90% (public name)
 ```
 
   </TabItem>
@@ -419,12 +470,21 @@ skylos . --json -o report.json
   "unused_functions": [
     {
       "name": "unused_helper",
-      "file": "utils.py",
-      "line": 42,
-      "confidence": 85
+      "full_name": "utils.unused_helper",
+      "type": "function",
+      "file": "/path/to/project/utils.py",
+      "line": 5,
+      "confidence": 90,
+      "references": 0,
+      "dead_code_classification": "likely_dead",
+      "dead_code_evidence": [...]
     }
   ],
-  "unused_imports": [...]
+  "unused_imports": [...],
+  "unused_classes": [...],
+  "unused_variables": [...],
+  "unused_parameters": [...],
+  "unused_files": [...]
 }
 ```
 
@@ -434,8 +494,8 @@ skylos . --json -o report.json
 skylos --format concise src/test.py
 ```
 ```text
-src/test.py:1  unused function
-src/test.py:5  unused class
+src/test.py:1  SKY-U001  unused function: old_handler
+src/test.py:5  SKY-U004  unused class: OldModel
 ```
 
 Concise output is designed for IDE terminals and scripts. It suppresses rich
@@ -444,20 +504,6 @@ exit `0`; scans with findings exit `1` unless `--force` is used.
 
   </TabItem>
 </Tabs>
-
----
-
-## Real-World Impact
-
-### Case Study: E-commerce Platform
-
-A 200K LOC Python codebase ran Skylos and found:
-
-- **47 unused functions** (3,200 lines of dead code)
-- **156 unused imports** (faster startup, smaller bundles)
-- **12 unused classes** (legacy models never migrated)
-
-**Result:** 15% reduction in codebase size, faster CI builds, easier onboarding for new developers.
 
 ---
 

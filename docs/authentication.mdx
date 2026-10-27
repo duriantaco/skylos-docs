@@ -75,12 +75,24 @@ Re-running `skylos login` opens the chooser again. If you complete the flow with
 
 Use API keys when you want explicit, non-browser auth.
 
-Get the key from:
-- `Dashboard -> Settings -> choose project -> API key`
+Get the key from the project page: **Settings** tab, **Project tokens**. An
+owner or admin can create up to 10 extra tokens there, label them, revoke them
+and rotate the primary token.
 
 The current UI behavior is:
 - a newly created key is only shown once
 - rotating the key revokes the old one immediately
+
+### Mark a CI token
+
+A token you store as a CI secret should be marked for CI. In **Project
+tokens**, select **Mark for CI** on it. The mark lasts 30 days.
+
+Uploads with a token that is not marked, and every upload with the token
+`skylos login` saves, are **unverified**. They are saved and shown in Skylos
+Cloud, but they don't publish a GitHub check or pull request status, mark
+issues fixed, or become the baseline for CI scans. Never mark a token that is
+on a developer machine.
 
 ### Save the key to the current repo
 
@@ -209,6 +221,14 @@ Skylos Cloud records upload attribution from the server-side auth path.
 
 If two people upload from different machines to the same project, Skylos does not rely only on a client-supplied name. Cloud records the resolved project, auth path, repo/project-root context, branch, commit metadata, and upload time.
 
+Each upload also gets a trust level:
+
+| Trust level | Comes from | Can publish checks and mark issues fixed |
+|---|---|---|
+| Verified CI upload | GitHub or GitLab OIDC, or a Skylos Cloud scan | Yes |
+| CI project token upload | A project token marked for CI | Yes |
+| Unverified | The `skylos login` token, or a token not marked for CI | No |
+
 For enterprise security review, see [Enterprise Trust](/enterprise-trust).
 
 ## Headless and Remote Environments
@@ -249,7 +269,7 @@ policy sync.
 
 ### A token stopped working
 
-The key may have been rotated or revoked. Generate a new one in dashboard settings and update your CI secrets.
+The key may have been rotated or revoked. Create a new one in the project's **Settings** tab under **Project tokens**, update your CI secret, and mark the new token for CI.
 
 ### I need to move this repo to a different cloud project
 

@@ -10,6 +10,19 @@ import TabItem from '@theme/TabItem';
 **Enable quality checks:** `skylos . --quality`
 :::
 
+Quality coverage depends on the language:
+
+| Language | Quality checks |
+|---|---|
+| Python | All quality rules |
+| TypeScript / JavaScript | A subset, including complexity, nesting and TypeScript typing rules |
+| Java, Go | Complexity (`SKY-Q301`), nesting (`SKY-Q302`), argument count (`SKY-C303`), function length (`SKY-C304`) |
+| C# | Unreachable code (`SKY-UC002`) only |
+| PHP, Rust, Dart, Kotlin | None yet |
+
+`--quality` also runs two dead-code checks that need it: unreachable code
+(`SKY-UC001`, `SKY-UC002`) and unused dependencies (`SKY-U005`).
+
 ## What Counts As Good Coding Practice
 
 Skylos treats a coding practice as enforceable only when it has a clear source of authority. That source can be a language standard, a security standard, an accepted ecosystem tool, a framework convention, or an explicit repository policy.
@@ -28,22 +41,15 @@ Taste-only preferences should not become default rules. They can still be enforc
 
 ## Why Quality Metrics Matter
 
-Complex code isn't just hard to read—it's statistically more likely to contain bugs.
-```mermaid
-xychart-beta
-    title "Defect Probability vs Complexity"
-    x-axis "Cyclomatic Complexity" [5, 10, 15, 20, 25, 30]
-    y-axis "Defect Probability %" 0 --> 100
-    line [5, 15, 35, 55, 75, 90]
-```
+Complex code is hard to read, hard to test, and easy to break when you change
+it. Skylos reports a function when its complexity goes over the limit
+(default 10):
 
-Research shows that functions with complexity above 10 have significantly higher defect rates. At 20+, the function is nearly impossible to test exhaustively.
-
-| Complexity | Risk Level | Description |
-|------------|------------|-------------|
-| 1-10 | **Low risk** | Easy to understand, test, and maintain |
-| 11-20 | **Moderate risk** | Consider refactoring when touching this code |
-| 21+ | **High risk** | Likely contains bugs, very hard to test |
+| Complexity | Skylos severity | Description |
+|------------|-----------------|-------------|
+| 1-10 | Not reported | Easy to understand, test, and maintain |
+| 11-14 | WARN | Consider refactoring when touching this code |
+| 15+ | HIGH | Hard to test; refactor before adding more |
 
 ---
 
@@ -74,10 +80,13 @@ flowchart TB
 | `if` / `elif` | +1 per branch |
 | `for` / `while` | +1 |
 | `try` / `except` | +1 per handler |
-| `with` | +1 |
 | `and` / `or` | +1 per operator |
 | Ternary `x if y else z` | +1 |
-| List/dict/set comprehension | +1 |
+| List/dict/set comprehension | +1, plus +1 per `if` clause |
+| `match` | +1 per `case` that can fail to match |
+
+A `with` block adds nothing. Nested functions, classes and lambdas are
+measured on their own.
 
 ### Example
 ```python
@@ -196,12 +205,13 @@ def bad_example():
 
 ### Severity Thresholds
 
+With the default limit of 3:
+
 | Depth | Severity | Action |
 |-------|----------|--------|
 | ≤3 | OK | No issue |
 | 4-5 | MEDIUM | Consider refactoring |
-| 6-8 | HIGH | Should refactor |
-| 9+ | CRITICAL | Must refactor |
+| 6+ | HIGH | Should refactor |
 
 ### Reducing Nesting
 ```python
@@ -229,7 +239,7 @@ def process_users(users):
 
 ## Structure Rules
 
-### Function Length (SKY-Q303)
+### Function Length (SKY-C304)
 
 Long functions usually do too much. They're hard to test and understand.
 ```toml
@@ -241,7 +251,7 @@ max_lines = 50  # Default
 **Rule of thumb:** If you can't see the whole function on one screen, it's probably too long.
 :::
 
-### Argument Count (SKY-Q304)
+### Argument Count (SKY-C303)
 
 Functions with many parameters are hard to call correctly and often indicate a missing abstraction.
 ```python
@@ -353,31 +363,49 @@ These checks are intended to catch bad coding practices that create review, secu
 
 ## Reading the Output
 
-When you run Skylos with `--quality`, you get a table like this:
+When you run Skylos with `--quality`, findings are grouped by how much
+evidence they have:
+
 ```
-────────────────────────── Quality Issues ──────────────────────────
- #   Type        Name                  Detail                           Location
- 1   Complexity  process_order         Complexity: 18 (max 10)          orders.py:45
- 2   Nesting     validate_input        Deep nesting: depth 6            validators.py:23
- 3   Structure   generate_report       Line count: 142, 142 lines       reports.py:10
- 4   Quality     "lokal"               repeated 12× (max 3)             PDF_in_Akte.py:588
- 5   Logic       create_cache          Mutable default argument         cache.py:5
- 6   Typing      create_user           missing return annotation        users.py:12
- 7   Framework Security create_user    mutating route has no auth guard api.py:34
+──────────────────────────────── Defects ────────────────────────────────
+──────────────────────────────── Quality ────────────────────────────────
+┏━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
+┃ Type   ┃ Severity ┃ Rule               ┃ Message                                      ┃ Location    ┃
+┡━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━┩
+│ Defect │ HIGH     │ Mutable default    │ Mutable default argument detected. This      │ orders.py:1 │
+│        │          │ argument           │ causes state leaks between calls.            │             │
+│        │          │ SKY-L001           │ Name: append_to                              │             │
+└────────┴──────────┴────────────────────┴──────────────────────────────────────────────┴─────────────┘
+
+──────────────────────────────── Advice ─────────────────────────────────
+┏━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Type   ┃ Advice priority ┃ Rule                      ┃ Count ┃ Top files     ┃
+┡━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ Advice │ MEDIUM          │ Function maintainability  │     1 │ orders.py (1) │
+│        │                 │ SKY-Q306 + SKY-Q302       │       │               │
+└────────┴─────────────────┴───────────────────────────┴───────┴───────────────┘
+Use --expand-advice for every location and message, or --format json for full records.
 ```
 
 **What each column means:**
 
 | Column | Meaning |
 |--------|---------|
-| **Type** | The category: Complexity, Nesting, Structure, Quality (duplicate literals, coupling, cohesion), Logic, Typing, Framework, Framework Security, or Repo Policy |
-| **Name** | The function, class, or string literal that triggered the finding |
-| **Detail** | The measured value and the threshold. For example: `Complexity: 18 (max 10)` means 18 branches were found but the limit is 10. `repeated 12× (max 3)` means a string literal appears 12 times — extract it to a named constant |
+| **Type** | `Defect`, `Review` or `Advice`: how strong the evidence is |
+| **Rule** | The finding type and its rule ID |
+| **Message** | What was found, the measured value and the limit, and the symbol |
 | **Location** | `file:line` where the finding starts |
 
-:::tip
-Below the table, Skylos prints a legend explaining each metric type. You can tune all thresholds in `pyproject.toml` under `[tool.skylos]`.
-:::
+Advice is grouped into counts. Add `--expand-advice` to list every location,
+or use `--format concise` for one line per finding:
+
+```text
+orders.py:1  SKY-L001  Mutable default argument detected. This causes state leaks between calls.
+orders.py:6  SKY-Q302  Nesting depth of 5 exceeds threshold of 3. Consider using early returns.
+orders.py:6  SKY-C303  Function has 7 required positional arguments (limit: 5). ...
+```
+
+You can tune the thresholds in `pyproject.toml` under `[tool.skylos]`.
 
 ---
 
@@ -396,12 +424,18 @@ ignore = ["SKY-L003"]  # Allow == None comparisons
 
 ### Per-Language Overrides
 
-TypeScript often has higher complexity in UI code:
+TypeScript often has higher complexity in UI code. You can set a separate
+complexity limit for TypeScript/JavaScript and for Java:
 ```toml
 [tool.skylos.languages.typescript]
 complexity = 15
-nesting = 4
+
+[tool.skylos.languages.java]
+complexity = 12
 ```
+
+Only `complexity` can be set per language. Other limits apply to every
+language.
 
 ---
 
@@ -427,7 +461,7 @@ For existing repos, start with advisory checks so teams see the signal without f
 - `mypy skylos` or your chosen mypy/pyright target
 - TypeScript compile/build scripts
 - `cargo fmt --check` and `cargo clippy` for Rust crates
-- `skylos . --danger --secrets --quality --diff-base origin/main --diff origin/main`
+- `skylos . --danger --secrets --quality --diff origin/main`
 
 Use the hard gate only after the findings are diff-aware, baseline-aware, or low enough to enforce.
 

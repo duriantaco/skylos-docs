@@ -10,9 +10,9 @@ security checks.
 
 | Area | Support |
 |:---|:---|
-| Extensions | `.php` |
+| Extensions | `.php`, plus Drupal `.module`, `.install`, `.inc`, `.theme`, `.profile`, `.engine`; Blade templates (`.blade.php`) are read for references |
 | Dead code | Classes, interfaces, traits, enums, functions, methods, constants, properties, imports, and includes |
-| Security | Selected user-input to filesystem/include sinks and unsafe deserialization |
+| Security | Selected request-input checks: SQL injection, filesystem/include paths, unsafe deserialization, and Drupal markup and inline Twig templates |
 | Quality | No dedicated PHP quality rules yet |
 
 ## Dead Code Detection
@@ -26,6 +26,7 @@ runtime entrypoints:
 - `__construct`, `__destruct`, `__invoke`, `__get`, `__set`, `__call`, and related magic methods
 - `setUp`, `tearDown`, `setUpBeforeClass`, and `tearDownAfterClass`
 - `test*` methods in PHPUnit-style test files or classes extending `TestCase`
+- Laravel and Drupal conventions, such as routes, controllers and Drupal hooks
 
 ## Security Scope
 
@@ -36,6 +37,8 @@ selected sinks:
 - `unserialize()`
 - file APIs such as `file_get_contents`, `file_put_contents`, `fopen`, `readfile`, `unlink`, `copy`, and `rename`
 - `include`, `include_once`, `require`, and `require_once`
+- SQL strings built from request input (`SKY-D211`), including Drupal request and Form API input
+- Drupal `Markup::create()` with request data (`SKY-D226`) and request data compiled as an inline Twig template (`SKY-D349`)
 
 ```bash
 skylos . --danger
@@ -44,5 +47,7 @@ skylos . --danger
 ## Limitations
 
 Skylos does not currently run PHP type checking, Composer autoload resolution,
-or dedicated PHP complexity rules. Use PHPStan, Psalm, or the PHP runtime test
+or dedicated PHP complexity rules. Secret scanning reads `.php` files only, not
+the Drupal extensions. PHP has no inline suppression comment, and dependency CVE
+scanning does not read `composer.lock`. Use PHPStan, Psalm, or the PHP runtime test
 suite alongside Skylos when you need compiler-like validation.

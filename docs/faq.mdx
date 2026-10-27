@@ -84,7 +84,7 @@ skylos path/to/file.py
 
 ### How do I exclude folders?
 ```bash
-skylos . --exclude-folder tests --exclude-folder migrations
+skylos . --exclude tests --exclude migrations
 ```
 
 Or in `pyproject.toml`:
@@ -100,6 +100,12 @@ Inline suppression:
 def function():  # noqa: skylos
     pass
 ```
+
+Inline comments work in Python, TypeScript/JavaScript (`// skylos: ignore`) and
+CI or container config files. Go, Java, PHP, Rust, Dart, C#, Kotlin and shell
+have no inline form: use `ignore`, the whitelist, a baseline or
+`skylos review`. A rule-scoped marker such as `# skylos: ignore[SKY-D211]` does
+not hide dead-code findings; use the blanket `# skylos: ignore` for those.
 
 Global suppression in `pyproject.toml`:
 ```toml
@@ -210,7 +216,7 @@ Current enterprise foundations include:
 - upload attribution
 - audit export foundations
 
-Full regulated procurement controls such as SAML SSO, SCIM, SOC 2 reporting, DPA automation, public status/SLA, and SIEM streaming are still on the enterprise roadmap.
+SAML single sign-on is available on Enterprise; Skylos registers your identity provider by hand. Full regulated procurement controls such as SCIM, SOC 2 reporting, DPA automation, public status/SLA, and SIEM streaming are still on the enterprise roadmap.
 
 See [Enterprise Trust](/enterprise-trust) for the current trust posture.
 
@@ -244,7 +250,9 @@ max_security = 0
 max_quality = 10
 ```
 
-If thresholds are exceeded, `skylos --gate` exits with code 1.
+If thresholds are exceeded, `skylos . -a --gate` exits with code 1. Any critical
+security issue or any secret always fails the gate; `fail_on_critical` can't be
+turned off.
 
 ### Can I bypass the gate?
 
@@ -253,7 +261,7 @@ In interactive terminals, you'll be prompted to bypass unless `strict = true`. I
 ### How do I set up the gate in CI?
 ```yaml
 - name: Quality Gate
-  run: skylos . --danger --quality --ai-defects --gate
+  run: skylos . -a --gate
 ```
 
 See [CI/CD Integration](/ci-cd) for full examples.
@@ -264,17 +272,14 @@ See [CI/CD Integration](/ci-cd) for full examples.
 
 ### How fast is Skylos?
 
-| Codebase Size | Time |
-|---------------|------|
-| 10K lines | < 2 seconds |
-| 100K lines | < 10 seconds |
-| 1M lines | < 60 seconds |
-
-Security scanning (`--danger`) adds ~20% overhead.
+Speed depends on the size of the repository and on which checks run. A plain
+`skylos .` runs dead-code checks only. `-a` adds every analyzer and asks OSV.dev
+and package registries about your dependencies, so it also depends on the
+network.
 
 ### How can I make it faster?
 
-Exclude non-essential folders, scan only changed files, or skip security scanning if you only need dead code detection.
+Exclude non-essential folders (`--exclude`), report only changed lines (`--diff origin/main`), or run only the checks you need instead of `-a`. `SKYLOS_JOBS` sets the number of workers.
 
 ---
 
@@ -282,23 +287,23 @@ Exclude non-essential folders, scan only changed files, or skip security scannin
 
 ### 'skylos' command not found
 
-Ensure you installed it with `pip install skylos` and your virtual environment is activated. Try `python -m skylos.cli .` as an alternative.
+Ensure you installed it with `pip install skylos` and your virtual environment is activated. Run `skylos doctor` to check the install. `python -m skylos` does not work; use the `skylos` command.
 
 ### Analysis takes forever
 
-You may be scanning a large directory. Use `--verbose` to check what's being analyzed and add `--exclude-folder` for large non-source directories.
+You may be scanning a large directory. Use `--verbose` to check what's being analyzed and add `--exclude` for large non-source directories.
 
 ### Getting different results locally vs CI
 
-Check for different Python versions, exclusion settings, or Skylos versions between environments. Pin the version in CI with `pip install skylos==2.6.0`.
+Check for different Python versions, exclusion settings, or Skylos versions between environments. Pin the version in CI, for example `pip install "skylos==5.1.1"`.
 
 ### Error parsing a file
 
-Skylos requires valid Python syntax. Verify with `python -m py_compile path/to/file.py` and fix any syntax errors.
+Skylos skips a file it cannot parse and lists it in the coverage line. If more than half of the files cannot be parsed, the scan is incomplete and exits `2`. For Python, check a file with `python -m py_compile path/to/file.py`.
 
 ### AI features not working
 
-Verify your API key is set (`echo $OPENAI_API_KEY`), the key is valid, and you have available credits/quota.
+Install the extra with `pip install "skylos[llm]"`. Then check that your provider key is set (`skylos key list`, or `echo $OPENAI_API_KEY`), that it is valid, and that the provider account has quota.
 
 ---
 

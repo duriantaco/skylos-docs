@@ -1,6 +1,6 @@
 ---
 title: "Language Support"
-description: "Scanner scope for Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, Shell, and security-relevant deployment config."
+description: "Scanner scope and known limits for Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, C++, Shell, and security-relevant deployment config."
 ---
 
 Skylos scans mixed-language repositories in one pass. Source files are discovered
@@ -13,14 +13,15 @@ server, and Cloud upload.
 | Language | Extensions | Dead Code | Security | Quality | Notes |
 |:---|:---|:---:|:---:|:---:|:---|
 | Python | `.py` | Yes | Yes | Yes | Strongest coverage, framework-aware analysis, optional runtime tracing, and AI repair |
-| TypeScript / JavaScript | `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs` | Yes | Yes | Yes | Tree-sitter parsing, package graph reachability, React and Next.js awareness |
-| Java | `.java` | Yes | Yes | Yes | Tree-sitter parsing, Java data-flow security checks, and method quality metrics |
-| Go | `.go` | Yes | Selected | Selected | Module-aware Go engine plus function quality metrics |
-| Kotlin | `.kt`, `.kts` | Yes | Secrets | No | Thin scanner for Kotlin symbols, imports, annotations, and secret scanning |
-| PHP | `.php` | Yes | Selected | No | PHP parser coverage with selected taint-style file and deserialization checks |
-| Rust | `.rs` | Yes | Selected | No | Rust parser coverage with selected command and filesystem checks |
-| Dart | `.dart` | Yes | Selected | No | Dart parser coverage with Flutter/test entrypoint handling and selected sink checks |
-| C# | `.cs` | Yes | Selected | No | C# symbol coverage plus selected ASP.NET, process, SQL, HTTP, redirect, and file sinks |
+| TypeScript / JavaScript | `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs` | Yes | Yes | Subset | Tree-sitter parsing, package graph reachability, React and Next.js awareness |
+| Java | `.java` | Yes | Yes | Selected | Tree-sitter parsing, Java data-flow security checks, and method quality metrics |
+| Go | `.go` | Yes | Selected | Selected | Needs the bundled `skylos-go` engine for dead code and security |
+| Kotlin | `.kt`, `.kts` | Private symbols | Secrets only | No | Reports only `private` symbols and unused imports; no Kotlin security rules |
+| PHP | `.php` | Yes | Selected | No | PHP parser coverage with selected SQL, file, include, and deserialization checks |
+| Rust | `.rs` | Experimental | Selected | No | Hidden at the default confidence; use `--confidence 40` to see Rust candidates |
+| Dart | `.dart` | Yes | Selected | No | Needs `pip install "skylos[dart]"`; Flutter and test entry points handled |
+| C# | `.cs` | Partial | Selected | Unreachable code only | C# symbol coverage plus selected ASP.NET, process, SQL, HTTP, redirect, and file sinks |
+| C++ | `.cpp`, `.cc`, `.cxx` | File-local functions | No | No | Reports only unused file-local functions; headers are read for references |
 | Shell | `.sh`, `.bash`, `.zsh`, `.ksh`, `.bats` | No | Selected | No | Static shell checks for command injection, SSRF, and path traversal |
 
 ## Config And Deployment Support
@@ -37,11 +38,42 @@ model as source-code rules.
 | Edge Docker Compose | `compose*.yml`, `compose*.yaml`, `docker-compose*.yml`, `docker-compose*.yaml` | privileged containers, host device/control mounts, GPU/device runtime, and host networking |
 | Edge systemd | `*.service` | root edge services, mutable `ExecStart` paths, missing sandboxing, broad capabilities, and broad device access |
 
-`Selected` means the scanner covers high-signal rules for that ecosystem, but
-the coverage is narrower than Python, TypeScript/JavaScript, and Java.
-`Secrets` means Skylos scans source files for hardcoded credentials through the
-shared secrets engine, but does not yet provide dedicated language-specific
-security sink rules for that ecosystem.
+`Selected` means the scanner covers a few high-signal rules for that language.
+Coverage is narrower than Python, TypeScript/JavaScript, and Java.
+
+`Secrets only` means `--secrets` scans the files for hard-coded credentials.
+There are no language-specific security rules.
+
+`Subset` and `Selected` quality: TypeScript/JavaScript has complexity, nesting,
+length, argument-count and a few logic rules. Java and Go have complexity
+(`SKY-Q301`), nesting (`SKY-Q302`), argument count (`SKY-C303`) and function
+length (`SKY-C304`). C# has only unreachable code (`SKY-UC002`).
+
+## Known Limits
+
+- **Rust dead code is experimental.** Candidates are capped at confidence 40.
+  The default threshold is 60, so they are not listed. The scan prints one line
+  that says so. Run `skylos . --confidence 40` to see them.
+- **Kotlin dead code covers only `private` symbols and imports.** Anything
+  visible outside its file is treated as used.
+- **Java secrets need `--danger`.** `--secrets` alone skips `.java` files. Use
+  `skylos . --danger --secrets` or `-a`.
+- **Secrets are not scanned** in shell scripts, Dockerfiles, or C++ files.
+  Literal secrets in GitHub Actions, GitLab CI and Dockerfile `ARG`/`ENV` are
+  covered by the config rules below when `--danger` is on.
+- **Go needs the `skylos-go` engine.** PyPI wheels, the container image and the
+  GitHub Action include it. Without it, only Go quality checks run and the Go
+  files are reported as not analysed. `skylos doctor` shows whether it is
+  installed.
+- **Dart needs the extra.** Install `pip install "skylos[dart]"` (needs a C
+  compiler). Without it, `.dart` files are reported as not analysed.
+- **`skylos verify` API proof** covers Python, TypeScript/JavaScript, Go and
+  Java. Other languages report it as unsupported, so the result is
+  `incomplete`.
+- **Inline suppression comments** work in Python, TypeScript/JavaScript and the
+  config files below. Go, Java, PHP, Rust, Dart, C#, Kotlin, C++ and shell have
+  no inline form. Use `[tool.skylos] ignore`, `skylos whitelist`, a baseline or
+  `skylos review` instead.
 
 ## Coverage By Language
 
@@ -50,12 +82,13 @@ security sink rules for that ecosystem.
 | Python | Deep dead-code analysis with framework awareness, runtime trace support, security rules, secrets, quality, technical debt, repository policy, and AI repair workflows |
 | TypeScript / JavaScript | Dead-code and package graph analysis, React/Next.js awareness, client-side secret exposure, browser/server security sinks, quality rules, and monorepo inventory |
 | Java | Parser-backed dead-code detection, dangerous-call security checks, taint-style sink checks, weak crypto detection, and method quality metrics |
-| Go | Module-aware scanning, Go-specific security rules, unified cross-language security IDs, and selected function quality checks |
-| Kotlin | Thin dead-code coverage for Kotlin functions, methods, classes, objects, interfaces, imports, annotation refs, `.kt` / `.kts` files, and shared secret scanning |
-| PHP | Dead-code detection for PHP symbols plus selected filesystem/include and unsafe deserialization checks |
-| Rust | Dead-code coverage for Rust symbols plus selected command execution and filesystem path security checks |
-| Dart | Dead-code coverage for Dart and Flutter-style projects plus selected process, HTTP, and filesystem checks |
-| C# | Dead-code coverage for C# classes and methods plus selected process, SQL, HTTP, redirect, and filesystem security checks |
+| Go | Module-aware scanning through the `skylos-go` engine, Go-specific security rules, unified cross-language security IDs, and function quality checks |
+| Kotlin | Unused `private` functions, methods and types, unused imports, and shared secret scanning of `.kt` / `.kts` files |
+| PHP | Dead-code detection for PHP symbols with Laravel and Drupal conventions, plus selected SQL, filesystem/include and unsafe deserialization checks |
+| Rust | Experimental dead-code candidates (hidden below confidence 40) plus command execution and filesystem path security checks |
+| Dart | Dead-code coverage for Dart and Flutter-style projects plus selected process, HTTP, and filesystem checks (needs `skylos[dart]`) |
+| C# | Conservative dead-code candidates for C# classes and methods, unreachable code after `return`/`throw`, plus selected process, SQL, HTTP, redirect, and filesystem security checks |
+| C++ | Unused file-local functions only |
 | Shell | Static security checks for CI/deploy/release scripts, focused on command injection, SSRF, and path traversal |
 
 ## How Scans Run
@@ -82,7 +115,7 @@ Across supported languages, Skylos tries to preserve the same workflow:
 
 - detect definitions and references for dead code analysis
 - report security findings with unified `SKY-D` rule IDs when rules describe the same weakness
-- honor global exclusions, confidence thresholds, inline ignores, and rule suppressions
+- honor global exclusions, confidence thresholds, and `[tool.skylos] ignore`; inline ignore comments only where the language has them (see [Known Limits](#known-limits))
 - include language counts and findings in JSON, SARIF, Cloud, and MCP output
 
 ## Language Details

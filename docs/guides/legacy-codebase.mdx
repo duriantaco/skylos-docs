@@ -15,11 +15,8 @@ You've inherited a codebase. It's big, it's messy, and nobody knows what's actua
 :::
 
 
-**git:**
-
-
-```bash status  # Should be clean
-git branch  # Create a cleanup branch
+```bash
+git status  # Should be clean
 git checkout -b cleanup/dead-code-removal
 ```
 
@@ -31,29 +28,21 @@ First, understand the scope of the problem.
 
 ### Step 1: Initial Scan
 
-
-**pip:**
-
-
-```bash install skylos
+```bash
+pip install skylos
 skylos . --json -o baseline.json
 ```
 
 ### Step 2: Review the Numbers
 
-
-**skylos:**
-
-
 ```bash
-# .
+skylos .
 ```
 
-```
-Skylos Python Static Analysis Results
-Analyzed 156 file(s)
+The summary near the top shows the counts:
 
-Unreachable: 47  Unused imports: 234  Unused params: 89  Unused vars: 56
+```text
+Unused functions: 47 Unused imports: 234 Unused params: 89 Unused vars: 56 ...
 ```
 
 **Don't panic.** These numbers are normal for legacy codebases.
@@ -78,30 +67,26 @@ Remove obvious dead code that's safe to delete.
 
 ### Step 1: Unused Imports
 
-Unused imports are the safest to remove—they can't break runtime behavior.
+Unused imports are usually the safest to remove. The exception is an import
+kept for its side effects, such as registering a plugin.
 
 ```bash
-# See unused imports
-skylos . --confidence 90 | grep -A 100 "Unused Imports"
+# See unused imports, one per line
+skylos . --confidence 90 --format concise | grep SKY-U002
 ```
 
-```
-────────────────────── Unused Imports ───────────────────────
- #   Name                    Location
- 1   json                    api/views.py:3
- 2   Optional                models.py:1
- 3   deprecated_lib          utils/helpers.py:5
+```text
+api/views.py:3  SKY-U002  unused import: json
+models.py:1  SKY-U002  unused import: Optional
+utils/helpers.py:5  SKY-U002  unused import: deprecated_lib
 ```
 
 ### Step 2: Preview Cleanup
 
 Use `skylos clean` to preview Python import cleanup without editing files:
 
-**skylos:**
-
-
 ```bash
-skylos clean . --dry-run --types imports --confidence 90
+skylos clean . --dry-run --types import --confidence 90
 ```
 
 The output is grouped by file and line:
@@ -121,7 +106,7 @@ utils/helpers.py
 
 ```bash
 # Remove matching imports without prompting
-skylos clean . --apply --types imports --confidence 90
+skylos clean . --apply --types import --confidence 90
 ```
 
 ### Step 4: Verify
@@ -147,20 +132,14 @@ Functions are riskier than imports. Proceed carefully.
 
 ### Step 1: List Candidates
 
-
-**skylos:**
-
-
 ```bash
-skylos . --confidence 80 | grep -A 100 "Unreachable Functions"
+skylos . --confidence 80 --format concise | grep SKY-U001
 ```
 
-```
-─────────────────── Unreachable Functions ───────────────────
- #   Name                    Location
- 1   legacy_handler          api/legacy.py:45
- 2   unused_helper           utils/helpers.py:120
- 3   old_validator           models/validators.py:30
+```text
+api/legacy.py:45  SKY-U001  unused function: legacy_handler
+utils/helpers.py:120  SKY-U001  unused function: unused_helper
+models/validators.py:30  SKY-U001  unused function: old_validator
 ```
 
 ### Step 2: Investigate Before Deleting
@@ -182,42 +161,35 @@ grep -r "legacy_handler" *.yaml *.json *.toml
 
 ### Step 3: Comment Out First (Safer)
 
-
-**skylos:**
-
-
 ```bash
 skylos clean . --apply --comment-out --types function --confidence 80
 ```
 
-This adds markers instead of deleting:
+This wraps the code in markers instead of deleting it:
 
 ```python
-# SKYLOS DEADCODE: def legacy_handler():
-# SKYLOS DEADCODE:     """Old handler, replaced in v2."""
-# SKYLOS DEADCODE:     pass
+# SKYLOS DEADCODE START (lines 45-47)
+# def legacy_handler():
+#     """Old handler, replaced in v2."""
+#     return None
+# SKYLOS DEADCODE END
 ```
+
+`skylos clean` edits Python files only.
 
 ### Step 4: Run Full Test Suite
 
-
-**pytest:**
-
-
 ```bash
-# Or your full CI command
-make test
+pytest
+# or your full CI command, e.g. make test
 ```
 
 ### Step 5: Verify in Staging
 
 If tests pass, deploy to staging:
 
-
-**git:**
-
-
-```bash add -A
+```bash
+git add -A
 git commit -m "chore: comment out potentially dead functions"
 git push origin cleanup/dead-code-removal
 # Deploy to staging
@@ -246,12 +218,8 @@ Framework code needs special attention due to implicit calling.
 
 ### Step 1: Lower Confidence Threshold
 
-
-**skylos:**
-
-
 ```bash
-skylos . --confidence 50 | grep -A 50 "Unreachable"
+skylos . --confidence 50 --format concise | grep SKY-U001
 ```
 
 You'll see more findings, but also more false positives.
@@ -283,19 +251,20 @@ def on_save():  # Called implicitly
 
 ### Step 3: Add Exclusions for False Positives
 
-```toml
-# pyproject.toml
-[tool.skylos]
-ignore = ["specific_false_positive_function"]
+Mark the name as intentionally used:
+
+```bash
+skylos whitelist specific_false_positive_function --reason "called by the plugin loader"
 ```
+
+This writes to `[tool.skylos.whitelist]` in `./pyproject.toml` (run it from
+the folder that holds that file). `[tool.skylos] ignore` is for rule IDs such
+as `SKY-L027`, not for function names.
 
 Or inline:
 
-
-**def:**
-
-
-```python framework_callback():  # noqa: skylos
+```python
+def framework_callback():  # skylos: ignore
     pass
 ```
 
@@ -306,27 +275,24 @@ Or inline:
 While you're cleaning up, address quality issues too.
 
 
-**skylos:**
-
-
 ```bash
-skylos . --quality
+skylos . --quality --format concise
 ```
 
-```
-────────────────────────── Quality Issues ──────────────────────────
- #   Type        Function              Detail                      Location
- 1   Complexity  process_order         McCabe=23 (target ≤10)      orders.py:45
- 2   Nesting     validate_all          Depth 7 (target ≤3)         validators.py:23
+```text
+orders.py:45  SKY-Q301  Cyclomatic complexity is 23 (threshold: 10). Consider splitting branches.
+validators.py:23  SKY-Q302  Nesting depth of 7 exceeds threshold of 3. Consider using early returns.
 ```
 
 ### Prioritize by Severity
 
+Complexity findings top out at HIGH. A complexity number is not an exploitable
+defect, so it is never CRITICAL.
+
 | Severity | Action |
 |----------|--------|
-| CRITICAL | Fix now (complexity 25+) |
-| HIGH | Fix soon (complexity 15-24) |
-| MEDIUM | Add to backlog |
+| HIGH | Fix soon (complexity 15 or more) |
+| MEDIUM or lower | Add to backlog |
 
 ### Quick Complexity Fixes
 
@@ -363,11 +329,14 @@ Don't let dead code accumulate again.
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/duriantaco/skylos
-    rev: v2.6.0
+    rev: v5.1.1
     hooks:
       - id: skylos-scan
         args: [".", "--confidence", "80", "--danger"]
 ```
+
+The `skylos-scan` hook reports findings but does not block the commit. Use the
+CI gate below to block.
 
 ### CI Gate
 
@@ -375,6 +344,13 @@ repos:
 # .github/workflows/quality.yml
 - name: Skylos Gate
   run: skylos . --danger --quality --ai-defects --gate
+```
+
+Dead code does not fail the gate unless you set a limit:
+
+```toml
+[tool.skylos.gate]
+max_dead_code = 0
 ```
 
 ### Scheduled Cleanup
@@ -394,8 +370,7 @@ jobs:
       - run: pip install skylos
       - run: |
           skylos . --json -o report.json
-          echo "## Monthly Skylos Report" >> $GITHUB_STEP_SUMMARY
-          skylos . >> $GITHUB_STEP_SUMMARY
+          skylos . --gate --summary --force
 ```
 
 ---
@@ -432,7 +407,7 @@ jobs:
     git checkout -- path/to/file.py
     
     # Add suppression
-    def not_actually_dead():  # noqa: skylos
+    def not_actually_dead():  # skylos: ignore
         pass
     ```
   </details>
@@ -441,14 +416,10 @@ jobs:
 <summary>Too many findings to review</summary>
 
     Raise the confidence threshold:
-    
-    
-**skylos:**
 
-
-```bash
-skylos . --confidence 90
-```
+    ```bash
+    skylos . --confidence 90
+    ```
     
     Focus on the highest-confidence items first.
   </details>
@@ -456,11 +427,20 @@ skylos . --confidence 90
   <details>
 <summary>Framework code keeps getting flagged</summary>
 
-    Skylos might not recognize your specific framework pattern. Add inline suppression:
-    
+    Skylos might not recognize your specific framework pattern. Declare it as an
+    entry point in config, so every handler with that decorator counts as used:
+
+    ```toml
+    [[tool.skylos.dead_code.entrypoints]]
+    decorators = ["custom_framework_decorator"]
+    reason = "Registered by our framework at startup"
+    ```
+
+    Or suppress one handler inline:
+
     ```python
-    @custom_framework_decorator  # noqa: skylos
-    def handler():
+    @custom_framework_decorator
+    def handler():  # skylos: ignore
         pass
     ```
   </details>
@@ -472,7 +452,7 @@ skylos . --confidence 90
     
     1. Revert immediately: `git revert HEAD`
     2. Add monitoring for that code path
-    3. Add suppression: `# noqa: skylos`
+    3. Add suppression: `# skylos: ignore` or `skylos whitelist NAME`
     4. Consider adding a test for the dynamic call
   </details>
 
@@ -481,15 +461,8 @@ skylos . --confidence 90
 
 ## Expected Results
 
-After completing this tutorial:
-
-| Metric | Before | After |
-|--------|--------|-------|
-| Unused imports | 234 | < 10 |
-| Dead functions | 47 | < 5 |
-| Lines of code | 50,000 | 42,000 |
-| Test coverage | 60% | 72% |
-| Build time | 45s | 38s |
+Results depend on the codebase. Track your own before and after numbers from
+the scan summary and `skylos . --json`.
 
 ---
 

@@ -3,7 +3,12 @@ title: "Configuration"
 description: "Configure Skylos via pyproject.toml. Set exclusions, confidence thresholds, quality gate rules, and framework-specific settings."
 ---
 
-Skylos uses `pyproject.toml` for configuration. Run `skylos init` to generate a configuration file with sensible defaults, or add the `[tool.skylos]` section to an existing file.
+Skylos reads settings from `[tool.skylos]` in `pyproject.toml`, or from a
+`skylos.toml` or `.skylos.toml` file. Run `skylos init` to add a full
+`[tool.skylos]` template to `pyproject.toml`, or add the section yourself.
+
+In `skylos.toml` and `.skylos.toml`, keys can sit at the top level or under
+`[skylos]` or `[tool.skylos]`.
 
 ## Configuration File
 ```toml
@@ -18,8 +23,8 @@ duplicate_strings = 3
 # Rules to ignore (by rule ID)
 ignore = []
 
-# AI model for --fix and --audit
-model = "gpt-4.1"
+# Extra folders or globs to skip
+exclude = []
 
 [tool.skylos.whitelist]
 # Glob patterns to ignore as unused
@@ -53,17 +58,16 @@ path = "src/**"
 reason = "project framework lifecycle hook"
 
 [tool.skylos.languages.typescript]
-# Language-specific overrides
+# Language-specific complexity limit
 complexity = 15
-nesting = 4
 
 [tool.skylos.languages.java]
 complexity = 12
 
 [tool.skylos.gate]
 # Quality gate settings
-fail_on_critical = true
-max_security = 0
+max_high = 5
+max_security = 10
 max_reliability = 0
 max_quality = 10
 strict = false
@@ -92,7 +96,19 @@ include_source = false
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `ignore` | list | `[]` | List of rule IDs to suppress (e.g., `["SKY-L002", "SKY-Q301"]`) |
-| `model` | string | `"gpt-4.1"` | LLM model for AI-powered features |
+| `exclude` | list | `[]` | Folders or globs to skip, added to the default excludes |
+| `include_generated` | bool | `false` | Also scan migrations, minified files and vendored files |
+| `addopts` | string or list | none | Default scan flags added to every `skylos PATH` run, for example `"--danger --secrets"`. Only an allow-listed set of flags is accepted |
+| `security_enabled`, `secrets_enabled`, `quality_enabled`, `ai_defects_enabled`, `sca_enabled` | bool | `false` | Turn that check on when you pass no check flag |
+| `root` | bool | `false` | Stop reading config files from parent folders |
+| `duplicate_strings` | int | `3` | Repeats before SKY-L027 flags a string |
+| `god_file_max_lines`, `god_file_max_definitions`, `god_file_max_top_level_definitions` | int | `500`, `40`, `25` | Limits for SKY-Q502 (god file) |
+| `check_circular` | bool | `true` | Report circular imports |
+| `typing_coverage_advice` | bool | `false` | Show type-annotation coverage advice (SKY-T101, SKY-T102) |
+| `license_deny`, `license_allow`, `license_exceptions`, `license_severity` | list / string | none | Dependency license policy. See [Dependencies and Supply Chain](./supply-chain#license-policy) |
+
+LLM commands take the model from `--model` or the provider settings, not from
+config. See [AI Features](./ai-features).
 
 ### Contribution Signals
 
@@ -130,11 +146,29 @@ The `[tool.skylos.gate]` section controls the quality gate behavior when using `
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `fail_on_critical` | bool | `true` | Block deployment if CRITICAL security issues or secrets are found |
-| `max_security` | int | `0` | Maximum allowed security findings before gate fails |
-| `max_reliability` | int | `0` | Maximum allowed deployment/runtime Reliability findings before the gate fails; evaluated separately from `max_security` |
-| `max_quality` | int | `10` | Maximum allowed quality findings before gate fails |
-| `strict` | bool | `false` | When `true`, prevents bypassing a failed gate interactively |
+| `max_high` | int | `5` | Maximum allowed high-severity findings |
+| `max_security` | int | `10` | Maximum allowed security findings |
+| `max_reliability` | int | `0` | Maximum allowed deployment/runtime Reliability findings; counted separately from `max_security` |
+| `max_quality` | int | `10` | Maximum allowed quality findings |
+| `max_ai_defects` | int | same as `max_quality` | Maximum allowed AI-defect findings |
+| `block_ai_defect_severities` | list | `["CRITICAL"]` | One AI defect at these severities fails the gate |
+| `max_dependency_vulnerabilities` | int | `0` | Maximum allowed dependency CVE findings |
+| `max_dead_code` | int | no limit | Maximum allowed dead-code findings |
+| `rules` | list | `[]` | Advice-only rule IDs to count in the gate, for example `["SKY-Q302"]` |
+| `strict` | bool | `false` | When `true`, a failed gate never asks "Continue anyway?" |
+
+Any critical security finding and any secret always fail the gate.
+`fail_on_critical`, `max_critical` and `max_secrets` cannot relax that.
+
+`[tool.skylos.gate.coverage]` controls incomplete scans: `require_complete`,
+`required` (for example `["sca", "custom_rules"]`) and
+`require_resolved_versions`.
+
+Do not set `require_defend` or `min_defend_score` under
+`[tool.skylos.gate.agent]`. Today the gate never reads `skylos defend`
+results, so either key fails the gate with "no defense data available". To
+gate on guardrails, run `skylos defend . --fail-on critical --min-score 70` as
+its own CI step.
 
 Release Reliability findings have their own JSON bucket, count, and gate
 threshold. See [Release Reliability](./release-reliability) for the Kubernetes
@@ -155,6 +189,10 @@ skylos whitelist dark_logic --reason "Called via globals() in dispatcher"
 # View current whitelist
 skylos whitelist --show
 ```
+
+`skylos whitelist` edits `pyproject.toml` in the current folder only. Run it
+from the folder that holds that file. It does not edit `skylos.toml`, and with
+no `pyproject.toml` it prints "No pyproject.toml found" and changes nothing.
 
 ### Whitelist Sections
 
@@ -183,7 +221,8 @@ Patterns with reasons - shows up in `skylos whitelist --show` and helps teams un
 
 #### `[tool.skylos.whitelist.temporary]`
 
-Patterns with expiration dates - Skylos warns when these expire to prevent whitelist rot:
+Patterns with expiration dates. After the `expires` date the entry stops hiding
+findings, so they are reported again. Write the date as `YYYY-MM-DD`:
 ```toml
 [tool.skylos.whitelist.temporary]
 "legacy_handler" = { reason = "Migration in progress - JIRA-123", expires = "2026-03-01" }
@@ -241,7 +280,11 @@ and `type` only narrow the match.
 
 ### Inline Ignores
 
-For one-off exceptions, use inline comments instead of config:
+For one-off exceptions, use inline comments instead of config. Inline comments
+work in Python, TypeScript/JavaScript (with `//`) and CI/config files. Go,
+Java, PHP, Rust, Dart, C#, Kotlin, C/C++ and shell have no inline form: use
+`ignore`, the whitelist, a baseline or `skylos review`.
+
 ```python
 # Single line ignore
 def dynamic_handler():  # skylos: ignore
@@ -262,7 +305,21 @@ def block_one():
 def block_two():
     pass
 # skylos: ignore-end
+
+# Only one rule on this line
+query = build(sql)  # skylos: ignore[SKY-D211] reviewed, input is constant
 ```
+
+Notes:
+
+- A rule-scoped marker such as `# skylos: ignore[SKY-D211]` hides only that
+  rule. It does not hide dead-code findings. Use the blanket
+  `# skylos: ignore` for those.
+- A bare `# noqa` does not hide HIGH or CRITICAL security (`SKY-D`) or secret
+  (`SKY-S`) findings.
+- `# noqa: F401` and `# noqa: F841` hide unused imports and unused variables.
+- `skylos: ignore-start` without `skylos: ignore-end` runs to the end of the
+  file.
 
 ### Whitelist Summary
 
@@ -288,31 +345,52 @@ nesting = 4
 complexity = 12
 ```
 
-Currently supported language overrides: `typescript` and `java`.
+Only `complexity` can be overridden, and only for `typescript` and `java`.
 
 ## Configuration Resolution
 
-Skylos searches for `pyproject.toml` by walking up from the target path to the filesystem root. The first file containing `[tool.skylos]` is used. If no configuration is found, Skylos applies the built-in defaults.
+Skylos looks for config in the scanned folder, then in each parent folder up to
+the folder that holds `.git`.
 
-This approach was chosen over per-directory configuration to keep analysis consistent across monorepos while still allowing project-level customization.
+- In one folder, the first of `.skylos.toml`, `skylos.toml` and
+  `pyproject.toml` (with `[tool.skylos]`) is used.
+- Files closer to the scanned path win, key by key. The tables `gate`,
+  `vibe`, `architecture`, `contribution`, `dead_code` and `masking` merge
+  per key. Other keys, lists included, are replaced.
+- `root = true` in a file stops the walk at that folder.
+- With no config, Skylos uses its built-in defaults.
+
+To use one file and skip discovery:
+
+```bash
+skylos . --config-file path/to/skylos.toml
+```
+
+`SKYLOS_CONFIG_FILE=path/to/skylos.toml` does the same.
+
+Some settings are read only from the repository root `pyproject.toml`:
+`nudges`, `hooks_allow_packages` and `[tool.skylos.hooks]`. The done gate
+(`[tool.skylos.done]`) and risk review (`[tool.skylos.approval]`) read the root
+config from the base commit, so a change cannot loosen its own check.
+
+A `.skylos/config.yaml` file holds policy synced from Skylos Cloud by
+`skylos sync pull`. It overrides the repository's gate limits, excludes and
+ignores. `skylos sync pull` also writes `.skylos/suppressions.json`, but local
+scans do not read that file today.
 
 ## Default Excluded Folders
 
 Skylos automatically excludes common non-source directories:
 ```
-__pycache__
-.git
-.pytest_cache
-.mypy_cache
-.tox
-htmlcov
-.coverage
-build
-dist
-*.egg-info
-venv
-.venv
+*.egg-info  .coverage  .git  .hg  .idea  .mypy_cache  .next  .nuxt
+.pytest_cache  .svn  .tox  .turbo  .venv  .vscode  __pycache__  build
+dist  htmlcov  node_modules  vendor  venv
 ```
+
+It also skips generated and vendored files by default: Django migrations,
+`*.min.js`, `*.min.css`, `static/**/lib/**` and files that open with a vendored
+licence banner. Use `--include-generated` or `include_generated = true` to scan
+them.
 
 To see the current exclusion list:
 ```bash

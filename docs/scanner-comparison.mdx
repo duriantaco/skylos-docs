@@ -117,7 +117,13 @@ then explicitly opt in to upload:
 skylos compare . --against incumbent.sarif --upload
 ```
 
-Open the project's **Scanner proof** tab to review the scorecard, comparable categories, review candidates, provenance, and tamper-evident receipt history.
+Scanner proof is turned on per Skylos Cloud deployment, and it has no menu
+item yet. When it is on, open `/dashboard/projects/<project-id>/scanner-proof`
+to review the scorecard, comparable categories, review candidates, provenance,
+and tamper-evident receipt history. When it is off, the upload is refused and
+`skylos compare` exits `2`.
+
+A Free workspace can store 3 receipts. More receipts need the Workspace plan.
 
 The upload is bounded and project-authenticated. It does **not** send source code, scanner messages, source snippets, fingerprints, or absolute local paths. Repository-relative evidence and aggregate comparison data are retained so the result can be reviewed without uploading the repository.
 

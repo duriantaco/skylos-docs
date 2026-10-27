@@ -16,6 +16,7 @@ paths.
 | Dead code | No dedicated shell dead-code analysis |
 | Security | Selected command injection, SSRF, and path traversal checks |
 | Quality | No dedicated shell quality rules yet |
+| Secrets | Not scanned |
 
 ## Security Scope
 
@@ -70,5 +71,6 @@ for `eval`, `source`, or shell `-c`.
 ## Limitations
 
 Skylos does not execute shell scripts, expand aliases, evaluate runtime
-conditionals, or emulate the target shell. Keep using ShellCheck, shell tests,
-and deployment-specific reviews alongside Skylos.
+conditionals, or emulate the target shell. Secret scanning does not read shell
+scripts, and shell has no inline suppression comment. Keep using ShellCheck,
+shell tests, and deployment-specific reviews alongside Skylos.

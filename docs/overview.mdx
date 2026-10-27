@@ -26,6 +26,8 @@ Use it when you want to:
 | Main source audit | `skylos . -a` | adds security, secrets, config, quality, AI-defect, and dependency checks |
 | Changed-code review | `skylos . -a --diff origin/main` | focuses on lines touched by a PR |
 | Change map for review | `skylos done map --base origin/main` | lists each changed Python or TypeScript/JavaScript function with old and new code, callers, removed security checks and what to read first; see [Change Map](/change-map) |
+| Done gate for agent work | `skylos done --base origin/main` | runs your tests, then blocks deleted or skipped tests, loosened settings, test-only shortcuts and new secrets; see [Done Gate](/done-gate) |
+| Agent hooks | `skylos agent install-hooks` | checks each Claude Code, Codex or Cursor edit, blocks secret reads and made-up package installs, and stops an early "done"; see [Agent Hooks](/agent-hooks) |
 | AI-code verification | `skylos verify` | scans the selected source target; separately compares supported Python working changes with Git HEAD |
 | Built GPU artifact preflight | `skylos preflight build/app` | compares exact local artifact evidence with the declared GPU fleet; OCI is `UNKNOWN` in the CLI |
 | Container vulnerability scan | `skylos image scan IMAGE@sha256:<digest> --platform linux/amd64` | uses separately installed Trivy plus registry network access; findings gate only with `--fail-on` |
@@ -72,24 +74,27 @@ becoming hard merge gates.
 
 Core static analysis runs on your machine without an API key or source upload.
 Cloud upload, LLM-assisted review, and remediation are optional. Dependency
-checks can query OSV or package registries, and direct image scanning contacts
-a registry through Trivy.
+checks query OSV.dev, AI-defect checks ask PyPI, npm and the Go proxy whether
+packages exist, and direct image scanning contacts a registry through Trivy.
 
 ## Language Support
 
-| Language | Dead Code | Security | Quality |
-|:---|:---:|:---:|:---:|
-| Python | Yes | Yes | Yes |
-| TypeScript / JavaScript | Yes | Yes | Yes |
-| Java | Yes | Yes | Yes |
-| Go | Yes | Selected | Selected |
-| Kotlin | Yes | Secrets | No |
-| PHP | Yes | Selected | No |
-| Rust | Yes | Selected | No |
-| Dart | Yes | Selected | No |
-| C# | Yes | Selected | No |
-| Shell | No | Selected | No |
-| Deployment config | No | Selected | No |
+| Language | Dead Code | Security | Secrets | Quality |
+|:---|:---:|:---:|:---:|:---:|
+| Python | Yes | Yes | Yes | Yes |
+| TypeScript / JavaScript | Yes | Yes | Yes | Subset |
+| Java | Yes | Yes | With `--danger` | 4 rules |
+| Go | Yes (bundled engine) | Selected | Yes | 4 rules |
+| Kotlin | Private symbols and imports | No | Yes | No |
+| PHP | Yes | Selected | `.php` files | No |
+| Rust | Experimental, hidden at default confidence | Selected | Yes | No |
+| Dart | Yes (`skylos[dart]`) | Selected | Yes | No |
+| C# | Partial | Selected | Yes | Unreachable code only |
+| C++ | File-local functions only | No | No | No |
+| Shell | No | Selected | No | No |
+| Deployment config | No | Selected | YAML, JSON, TOML, `.env` (not Dockerfiles) | No |
+
+"4 rules" means complexity, nesting, function length and argument count.
 
 For detailed scanner scope, see [Language Support](/language-support) and
 [Rules Reference](/rules-reference).
@@ -104,3 +109,6 @@ For detailed scanner scope, see [Language Support](/language-support) and
 - [Agent Verification](/agent-verification)
 - [Agent Behavior Testing](/agent-behavior-testing)
 - [AI Defense](/ai-defense)
+- [Done Gate](/done-gate)
+- [Agent Hooks](/agent-hooks)
+- [Dependencies and Supply Chain](/supply-chain)

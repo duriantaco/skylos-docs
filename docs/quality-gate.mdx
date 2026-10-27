@@ -1,15 +1,31 @@
 ---
 title: "Quality Gate"
-description: "Block new issues without stalling development. The industry-standard ratchet workflow with role-based governance."
+description: "Fail a CI step or a pull request on serious findings, and block only new issues with a baseline, a diff, or Skylos Cloud policy."
 ---
 
 ## What this is
 
-Skylos Quality Gate is a **ratchet**: it does **not** punish you for legacy tech debt. It only blocks the changes that make things worse.
+The quality gate turns a scan into a pass or fail. Run it before a merge or a
+deploy, and stop the step when the code gets worse.
+
+```bash
+skylos . -a --gate
+```
+
+The local gate fails on:
+
+- any critical security finding
+- any secret
+- any critical AI defect
+- counts above the limits in `[tool.skylos.gate]`
+
+Exit codes: `0` PASSED, `1` FAILED, `2` INCOMPLETE (a requested check could not
+finish).
+
+Use it as a **ratchet** so old debt does not block you. Only the changes that
+make things worse fail.
 
 > "We ignore your existing 500 bugs. We only block you if you add Bug #501."
-
-That means you can ship features *and* steadily improve code quality over time.
 
 ---
 
@@ -17,18 +33,34 @@ That means you can ship features *and* steadily improve code quality over time.
 
 ### The Ratchet
 
-Skylos compares the current scan against a baseline (usually your `main` branch).
+The local gate counts every finding the scan reports. To count only new ones,
+pick one of these:
+
+```bash
+# Save today's findings once, then report only new ones
+skylos baseline .
+skylos . -a --gate --baseline
+
+# Report only findings on lines changed since main
+skylos . -a --gate --diff origin/main
+```
+
+In Skylos Cloud, the policy on uploaded scans blocks new issues on the branch.
 
 - **Legacy issues**: already existed → shown, but don't block
 - **New issues**: introduced by your change → can block the gate
+
+`--gate` only checks the analyzers you turned on. Without `-a` (or `--danger`,
+`--secrets` and so on) it checks dead code only and prints that security was
+not scanned.
 
 ### Governance actions
 
 When a new issue appears, Skylos supports three resolution paths:
 
-1. **Fix** (preferred): change code and re-run the scan  
-2. **Suppress a specific finding** (adult workflow): mark *one* finding as False Positive / Accept Risk so it stops blocking  
-3. **Emergency Override** (last resort): unblock the *entire* scan with a logged reason (for hotfixes)
+1. **Fix** (preferred): change code and re-run the scan
+2. **Hide one finding**: mark it as a false positive or an accepted risk so it stops blocking. Locally, use an inline comment or `skylos review`. In Cloud, use **Not fixing**
+3. **Merge anyway** (last resort, Cloud): pass one failed pull-request check with a logged reason
 
 ---
 
@@ -37,30 +69,32 @@ When a new issue appears, Skylos supports three resolution paths:
 ### Developer
 - Runs Skylos locally before pushing
 - Fixes issues when possible
-- If blocked, uses the dashboard link to resolve (or escalates)
+- If blocked, opens the scan link to resolve (or escalates)
 
 ### Tech Lead / Security Lead
 - Reviews *new* findings introduced by PRs
-- Uses **per-finding suppression** for true false positives (with a reason, optional expiry)
-- Keeps overrides rare and justified
+- Hides true false positives one by one, with a reason and an expiry
+- Keeps "Merge anyway" rare and justified
 
-### CTO / Admin
-- Defines policy (strict mode, who can override/suppress, audit requirements)
-- Enables "no-bypass" rules for production branches
-- Reviews audit logs and recurring suppressions
+### Owner / Admin
+- Sets the workspace policy in **Governance → Policy**
+- Requires the Skylos check on protected branches
+- Reviews **Not fixing** decisions and the audit log
 
 ---
 
-## Free vs Pro/Enterprise
+## Local CLI vs Skylos Cloud
 
-| Capability | Free (Local) | Pro / Enterprise (Cloud) |
-|---|---|---|
-| Ratchet baseline | ✅ Local history / local baseline | ✅ Cloud baseline on `main` (team-wide) |
-| Blocking behavior | ✅ CLI exits non-zero (fail the step) | ✅ CLI can **wait/poll** for approval (unblocks instantly) |
-| Override method | `--force` (manual / insecure) | Dashboard override button (audit logged) |
-| Per-finding suppression | Limited / local-only | ✅ Persistent + team-governed + audited |
-| Strict mode | ❌ Anyone can bypass | ✅ Admin can disable `--force` |
-| CI/CD integration | Basic fail/pass | ✅ GitHub checks / commit status turns green on approval |
+The local gate is free and needs no account. Cloud adds a shared policy and a
+pull-request check. Cloud plans are Free, Workspace and Enterprise.
+
+| Capability | Local CLI | Cloud Free | Cloud Workspace / Enterprise |
+|---|---|---|---|
+| Ratchet | `skylos baseline` + `--baseline`, or `--diff` | Policy on uploads: block any new issue | Same, or allow a set number of new issues per category or severity |
+| Blocking | CLI exits `1` and the CI step fails | Pass/fail check on pull requests | Same |
+| Bypass | `--force` (local only, exits `0`) | None | **Merge anyway** with a reason, logged |
+| Hide one finding | Inline comment or `skylos review` | **Not fixing**: false positive or accepted risk, 25 per project, expiry of 7, 30 or 90 days | **Not fixing** with approvals |
+| Edit policy | `[tool.skylos.gate]` | Read-only policy | Edit policy, per-repository policies |
 
 ---
 
@@ -69,7 +103,7 @@ When a new issue appears, Skylos supports three resolution paths:
 Run Skylos as a gate before your deploy/test command. If the scan fails, the
 step exits non-zero and later CI steps do not run:
 ```bash
-skylos . --danger --secrets --quality --ai-defects --gate
+skylos . -a --gate
 ```
 ```mermaid
 flowchart LR
@@ -79,8 +113,8 @@ flowchart LR
     C -->|Yes| E[BLOCK]
     E --> F{Resolution}
     F -->|Fix code| B
-    F -->|Suppress finding| G[Recompute Gate]
-    F -->|Emergency Override| G
+    F -->|Hide finding| G[Recompute Gate]
+    F -->|Merge anyway| G
     G --> H{Gate passed?}
     H -->|Yes| D
     H -->|No| E
@@ -101,14 +135,16 @@ pip install skylos
 
 ### 2) Run locally (recommended before every push)
 ```bash
-skylos . --danger --secrets --quality --ai-defects
+skylos . -a
 ```
 
-If you're gating a deploy/test step, run Skylos first and only run deploy after
-the gate passes:
+`-a` turns on security, secrets, quality, AI defects and dependency CVEs.
+
+### 3) Gate a command
+
+Run the command only if the gate passes. Everything after `--` runs on PASSED:
 ```bash
-skylos . --danger --secrets --quality --ai-defects --gate
-./deploy.sh
+skylos . -a --gate -- ./deploy.sh
 ```
 
 ---
@@ -144,20 +180,18 @@ input.
 
 ## What a failure looks like
 
-If Skylos detects **new violations**, it blocks and prints an action link:
+When the gate fails, Skylos prints why and exits `1`:
 ```text
-QUALITY GATE FAILED
-  1 New Violation introduced
-   - app.py:23  SKY-D211  SQL Injection (string-built query)
-
-Action required:
-  https://app.skylos.dev/scans/123-abc
+ Quality Gate: FAILED
+   • 1 critical security issue
+       SKY-D211  app.py:9  Possible SQL injection: tainted or string-built query.
 ```
 
-### What happens next depends on your tier
+On an interactive terminal, a failed gate without `--strict` asks "Continue
+anyway?". In CI there is no prompt; the step fails.
 
-* **Free**: CLI exits with a failure code (your script stops)
-* **Pro/Enterprise**: CLI can **wait/poll** until the scan becomes approved
+In Cloud, an uploaded scan that fails the policy fails the Skylos check on the
+pull request. The check links to the scan page.
 
 ---
 
@@ -165,57 +199,64 @@ Action required:
 
 ### Option A — Fix the code (preferred)
 
-1. Open the scan
-2. Click the finding to see the snippet and context
-3. Fix the code
-4. Re-run:
+1. Read the finding (file, line, rule ID)
+2. Fix the code
+3. Re-run:
 ```bash
-skylos . --danger --secrets --quality --ai-defects --gate
+skylos . -a --gate
 ```
 
-5. Gate passes when there are **0 new unsuppressed** findings
+4. Gate passes when nothing over the limits is left
 
-### Option B — Suppress a specific finding (False Positive / Accept Risk)
+### Option B — Hide one finding (False Positive / Accepted Risk)
 
-Use this when the scanner is wrong *or* you accept the risk temporarily (hotfix pressure, mitigating controls exist, etc).
+Use this when the scanner is wrong *or* you accept the risk for a while.
 
-**Developer flow**
+**Locally**
 
-1. Click the scan link
-2. Select the blocking finding
-3. Click **Suppress**
-4. Choose a reason type:
-   * **False Positive** (scanner is incorrect)
-   * **Accept Risk** (known risk accepted temporarily)
-5. Add a reason (and optionally an expiry like "30 days")
+* Add an inline comment on the line, for example
+  `# skylos: ignore[SKY-D211] input is a constant`. See
+  [Configuration](./configuration#inline-ignores).
+* Or run `skylos review` to record a local decision. Local review decisions
+  are ignored in CI.
+
+**In Skylos Cloud**
+
+1. Open the issue from the scan page
+2. Choose **Not fixing**
+3. Pick **False positive** or **Accepted risk**, and add a reason
+4. On Free, pick an expiry of 7, 30 or 90 days. Free allows 25 per project
+5. On Workspace and Enterprise, the hide goes through approvals in
+   **Governance → Not fixing**
+
+That *specific* finding stops blocking the next scan.
+
+### Option C — Merge anyway (last resort, Cloud)
+
+Use only when you must ship and can't triage properly. This needs the
+Workspace or Enterprise plan.
+
+1. Open the failed pull-request check's scan page
+2. Choose **Merge anyway**
+3. Enter a reason (required)
 
 **Result**
 
-* That *specific* finding stops blocking the gate
-* The scan updates immediately
-* In Pro/Enterprise, your CLI wakes up and continues
-
-### Option C — Emergency Override (last resort)
-
-Use only when you must ship and can't triage properly.
-
-1. Click **Emergency Override**
-2. Enter a reason (required)
-
-**Result**
-
-* Entire scan becomes "passed"
-* Audit log records who approved it and why
+* The Skylos check on that pull request passes
+* The audit log records who did it and why
 
 ---
 
-## Strict Mode (Enterprise)
+## Strict, Force and Bypass
 
-Strict Mode disables local bypass flags so production controls can't be sidestepped.
+* `--force` (`-f`) makes a failed gate exit `0`. It is local only. It never
+  hides an incomplete scan, which still exits `2`.
+* `--strict` fails on any finding, and any coverage gap exits `2`.
+* `strict = true` in `[tool.skylos.gate]` turns off the "Continue anyway?"
+  prompt.
 
-* If Strict Mode is on:
-  * `--force` is rejected
-  * Approval must happen via dashboard governance
+To make bypass impossible, gate in CI and require the Skylos check on your
+protected branch. A developer's local `--force` does not change the CI result.
 
 ---
 
@@ -224,32 +265,33 @@ Strict Mode disables local bypass flags so production controls can't be sidestep
 ### pyproject.toml
 ```toml
 [tool.skylos.gate]
-enabled = true
+max_high = 5
+max_security = 10
+max_quality = 10
 max_reliability = 0
+max_dependency_vulnerabilities = 0
 
-# Free/local environments can allow manual bypass.
-# In Pro/Enterprise, strict mode is managed by the dashboard project settings.
+# true = never ask "Continue anyway?" on a failed gate
 strict = false
 ```
 
 Any Reliability finding blocks by default. This threshold is evaluated
-separately from Security.
+separately from Security. Critical findings and secrets always fail the gate.
+See [Configuration](./configuration#gate-configuration) for every key.
 
 ### Recommended policy defaults
 
 **For `main` / production deploys**
 
-* Strict Mode: **ON**
-* Allow override: **CTO/Security Lead only**
-* Require suppression reasons: **ON**
-* Prefer suppression over override: **ON**
-* Optional: suppression expiry default 30–90 days
+* Gate in CI with `skylos . -a --gate` (or Cloud policy) and require the check
+* "Merge anyway": owners and admins only, with a reason
+* Hide findings with a reason and an expiry (30 to 90 days)
+* Prefer hiding one finding over "Merge anyway"
 
 **For feature branches**
 
-* Strict Mode: optional
-* Allow suppression for false positives: **ON**
-* Allow override: optional (but track it)
+* Run `skylos . -a --diff origin/main` before pushing
+* Hide true false positives with a reason
 
 ---
 
@@ -264,9 +306,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      SKYLOS_TOKEN: ${{ secrets.SKYLOS_TOKEN }}
-      SKYLOS_API_URL: ${{ secrets.SKYLOS_API_URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -274,16 +313,15 @@ jobs:
         run: pip install skylos
 
       - name: Quality Gate
-        run: skylos . --danger --secrets --quality --ai-defects --gate
+        run: skylos . -a --gate
 
       - name: Deploy
         run: ./deploy.sh
 ```
 
-### Pro workflow behavior
-
-* If the gate fails, the job can **wait** for dashboard approval
-* When a lead suppresses/overrides, the PR/check turns green and the job continues
+If the gate fails, the job stops before Deploy. Fix the finding or hide it,
+then re-run the job. For pull-request gates, run `skylos cicd init`. See
+[CI/CD Integration](./ci-cd).
 
 ---
 
@@ -291,23 +329,27 @@ jobs:
 
 ### "Will this block me because my repo already has 500 issues?"
 
-No. The ratchet only blocks **new** issues introduced by your change.
+Not if you use the ratchet. Save a baseline (`skylos baseline .`) and gate
+with `--baseline`, or gate with `--diff origin/main`. Cloud policy blocks only
+new issues. A plain local `--gate` with no baseline counts every finding.
 
-### "When should we suppress vs override?"
+### "When should we hide a finding vs merge anyway?"
 
-* **Suppress** when it's a real false positive or a controlled accepted risk.
-* **Override** only when you must ship and can't triage (rare).
+* **Hide** when it's a real false positive or a controlled accepted risk.
+* **Merge anyway** only when you must ship and can't triage (rare).
 
 ### "What's the biggest mistake teams make?"
 
-Using override as the default. It defeats the point of the gate. Suppression is the safe release valve.
+Using "Merge anyway" as the default. It defeats the point of the gate. Hiding
+one finding with a reason is the safe release valve.
 
 ---
 
 ## Recommended rollout plan
 
-1. Turn on the ratchet in "warn mode" for 1–2 weeks (non-blocking)
-2. Enable blocking on `main`
-3. Enable Strict Mode for production
-4. Train leads on suppression vs override
-5. Track suppressions with expiry to force periodic re-review
+1. Run in "warn mode" for 1–2 weeks: `skylos cicd gate --advisory` or
+   `skylos cicd init --advisory-gate` reports without failing CI
+2. Save a baseline, then enable blocking on `main`
+3. Require the Skylos check on protected branches
+4. Train leads on hiding a finding vs "Merge anyway"
+5. Give every hide an expiry to force periodic re-review

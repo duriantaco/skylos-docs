@@ -6,13 +6,26 @@ description: "Dart dead code and selected security analysis support in Skylos."
 Skylos analyzes Dart source with tree-sitter parsing for dead code and selected
 security checks. This includes Dart and Flutter codebases.
 
+## Install
+
+Dart support is an optional extra. The parser has no prebuilt wheels, so it
+needs a C compiler:
+
+```bash
+pip install "skylos[dart]"
+```
+
+Without it, a scan that includes `.dart` files reports them as not analysed
+(`SKY-ANALYSIS-INCOMPLETE`) instead of skipping them silently. `skylos doctor`
+shows whether Dart support is installed. The container image includes it.
+
 ## File Coverage
 
 | Area | Support |
 |:---|:---|
 | Extensions | `.dart` |
 | Dead code | Classes, enums, functions, methods, static/final declarations, imports, and exports |
-| Security | Selected process execution, HTTP request, and filesystem/path checks |
+| Security | Command injection (`SKY-D212`), SSRF (`SKY-D216`), and path traversal (`SKY-D215`) |
 | Quality | No dedicated Dart quality rules yet |
 
 ## Dead Code Detection
@@ -42,5 +55,6 @@ skylos . --danger
 ## Limitations
 
 Skylos does not run the Dart analyzer, Flutter build tooling, or Dart type
-checking. Use `dart analyze`, Flutter tests, and package-specific tooling
-alongside Skylos.
+checking. It has no Dart quality rules, and Dart has no inline suppression
+comment. Dependency CVE scanning does not read `pubspec.lock`. Use
+`dart analyze`, Flutter tests, and package-specific tooling alongside Skylos.

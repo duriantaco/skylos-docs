@@ -67,3 +67,23 @@ max_lines = 50
 
 See [Configuration](/configuration) for whitelists, inline ignores, and quality
 gate settings.
+
+## Suppressing One Finding
+
+Put a Skylos comment on the line:
+
+```python
+handler = HANDLERS[name]  # skylos: ignore
+cursor.execute(sql)  # skylos: ignore[SKY-D211] reviewed: sql is a constant
+```
+
+Python accepts `# skylos: ignore`, `# skylos: ignore[SKY-...]`,
+`# noqa: skylos`, `# pragma: no skylos`, and a `# skylos: ignore-start` ...
+`# skylos: ignore-end` block.
+
+Two limits:
+
+- A rule-scoped `# skylos: ignore[SKY-U001]` does not hide dead-code findings.
+  Use the blanket `# skylos: ignore` or `skylos whitelist` for those.
+- A bare `# noqa` still hides dead-code, quality and low or medium findings,
+  but not a HIGH or CRITICAL security or secret finding.

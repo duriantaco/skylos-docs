@@ -141,7 +141,7 @@ except `analyze`, it requires a free Skylos API key (`SKYLOS_API_KEY`); the
 key check contacts Skylos Cloud, and the map itself is built locally. It costs
 no credits. `skylos done map` needs no key.
 
-`skylos done --map` prints the map after the done verdict in text and
+`skylos done --map` prints the map after the [done verdict](/done-gate) in text and
 markdown output. It never changes the verdict, the receipt or the exit code.
 For JSON, run `skylos done map --format json` separately.
 
@@ -154,7 +154,8 @@ For JSON, run `skylos done map --format json` separately.
   Dynamic calls, callbacks, registries and injected dependencies are not
   followed.
 - Tests are not run or matched to the changed code. To check that tests
-  cover the changed lines, use `skylos done` (SKY-A120, see [Rules Reference](/rules-reference)).
+  cover the changed lines, use [`skylos done`](/done-gate) (see
+  [SKY-A120](/rules-reference#sky-a120--changed-line-not-checked-by-tests)).
 - React props: a renamed or removed destructured prop is not compared with
   the JSX that passes it.
 - A deleted filter or check whose names say nothing about security (for

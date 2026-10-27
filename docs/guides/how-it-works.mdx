@@ -12,7 +12,7 @@ When you run `skylos .`, here's what happens:
 ```mermaid
 flowchart TB
     subgraph Phase1["Phase 1: Discovery"]
-        A[Find all .py files] --> B[Apply exclusion rules]
+        A[Find source files] --> B[Apply exclusion rules]
         B --> C[Load configuration]
     end
     
@@ -58,7 +58,7 @@ flowchart TB
 
 ## Security Taskflow (`skylos agent scan . --security`)
 
-The static pipeline above powers the baseline scan. The security-agent path adds a repo-aware taskflow on top of it:
+The static pipeline above powers the baseline scan. The security-agent path adds a repo-aware LLM taskflow on top of it. It needs `pip install "skylos[llm]"` and a model key (or a local model):
 
 ```mermaid
 flowchart LR
@@ -92,12 +92,17 @@ Skylos starts by mapping your project:
 
 ```python
 # Pseudocode
-files = glob("**/*.py")
+files = discover_source_files(path)  # .py, .ts, .js, .java, .go, .php, ...
 files = filter_exclusions(files, config.exclude)
 # Result: list of files to analyze
 ```
 
-**Default exclusions:** `__pycache__`, `.git`, `venv`, `.venv`, `node_modules`, `build`, `dist`
+**Default exclusions** include `__pycache__`, `.git`, `venv`, `.venv`,
+`node_modules`, `build`, `dist`, `vendor`, and tool caches. See the full list:
+
+```bash
+skylos . --list-default-excludes
+```
 
 These are skipped because they contain non-source files or third-party code you don't control.
 
@@ -105,7 +110,8 @@ These are skipped because they contain non-source files or third-party code you 
 
 ## Phase 2: Parsing
 
-Each file is parsed into an **Abstract Syntax Tree (AST)**—a structured representation of your code:
+Each file is parsed into a syntax tree: Python's own AST for Python, and
+tree-sitter grammars for most other languages. The Python example:
 
 ```mermaid
 flowchart LR
@@ -209,10 +215,8 @@ The taint "flows" through assignments. When it reaches a sink, we flag it.
 Walks function bodies counting decision points:
 
 
-**def:**
-
-
-```python example(x, y):      # Base: 1
+```python
+def example(x, y):      # Base: 1
     if x > 0:           # +1 = 2
         for i in y:     # +1 = 3
             if i:       # +1 = 4
@@ -261,9 +265,9 @@ flowchart LR
     style L fill:#2ed573,color:#fff
 ```
 
-This is why Skylos has far fewer false positives than tools that do simple "is it referenced?" checks.
+This cuts false positives compared with a plain "is it referenced?" check.
 
-### Reference Resolution (v3.5.1+)
+### Reference Resolution
 
 Beyond simple name matching, Skylos uses several strategies to reduce false positives:
 
@@ -289,12 +293,12 @@ flowchart LR
     B -->|No| C[Output report]
     B -->|Yes| D{Check thresholds}
     
-    D --> E{"CRITICAL\nissues?"}
+    D --> E{"Critical security,\nsecret, or critical\nAI defect?"}
     E -->|Yes| F["Gate FAIL"]
     E -->|No| G{"Exceeds\nmax_security?"}
     
     G -->|Yes| F
-    G -->|No| H{"Exceeds\nmax_quality?"}
+    G -->|No| H{"Exceeds other\n[tool.skylos.gate]\nlimits?"}
     
     H -->|Yes| F
     H -->|No| I["Gate PASS"]
@@ -319,10 +323,9 @@ Skylos is designed for speed:
 | **Lazy taint analysis** | Only runs when `--danger` is enabled |
 | **Early filtering** | Exclusions applied before parsing |
 
-**Typical performance:**
-- 10K LOC: < 2 seconds
-- 100K LOC: < 10 seconds
-- 1M LOC: < 60 seconds
+Scan time depends on repository size, languages, and the analyzers you turn on.
+`-a` also queries package registries and OSV for dependency checks, so it needs
+the network.
 
 ---
 
@@ -331,13 +334,10 @@ Skylos is designed for speed:
 Skylos uses a rule-based architecture:
 
 
-**class:**
-
-
 ```python
-# SkylosRule(ABC):
+class SkylosRule(ABC):
     @property
-    def rule_id(self): ...      # e.g., "SKY-D210"
+    def rule_id(self): ...      # e.g., "SKY-D211"
     
     @property
     def name(self): ...         # e.g., "SQL Injection"
@@ -352,6 +352,10 @@ Rules are organized by category:
 - `rules/ai_defect/` — Evidence-backed AI-code hallucination checks
 - `rules/quality/` — Complexity, nesting, structure
 - `rules/secrets.py` — Credential detection
+- `rules/sca/` — Dependency advisories and license policy
+- `rules/config/` — CI/CD, container and deployment config checks
+
+Your own YAML rules go in rule packs; see [Local Rule Packs](/custom-rules#local-rule-packs).
 
 ---
 

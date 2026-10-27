@@ -1,21 +1,40 @@
 ---
 title: "Rust Support"
-description: "Rust dead code and selected security analysis support in Skylos."
+description: "Rust security checks and experimental dead-code candidates in Skylos."
 ---
 
-Skylos analyzes Rust source with tree-sitter parsing for dead code and selected
-security checks.
+Skylos analyzes Rust source with tree-sitter parsing for selected security
+checks and experimental dead-code candidates.
 
 ## File Coverage
 
 | Area | Support |
 |:---|:---|
 | Extensions | `.rs` |
-| Dead code | Modules, structs, enums, traits, type aliases, functions, methods, fields, and imports |
-| Security | Selected command injection and path traversal checks |
+| Dead code | Experimental: hidden at the default confidence (see below) |
+| Security | Command injection (`SKY-D212`) and path traversal (`SKY-D215`) |
 | Quality | No dedicated Rust quality rules yet |
 
 ## Dead Code Detection
+
+Rust dead code is experimental. Every Rust candidate is capped at confidence
+40. The default threshold is 60, so `skylos .` lists none of them. The scan
+prints one line that says so:
+
+```text
+Rust dead code is experimental and is not listed at the default confidence
+threshold; use --confidence 40 to see Rust candidates.
+```
+
+To see the candidates:
+
+```bash
+skylos . --confidence 40
+```
+
+Treat them as leads, not facts. Trait-method calls, `pub` items used from other
+crates, re-exports, macros and `#[bench]` functions are not resolved. `rustc`'s
+own `unused_imports` and `dead_code` lints are more reliable for private items.
 
 Rust analysis understands module paths, `use` imports, public items, `impl`
 blocks, trait methods, derived behavior, test functions, and common implicit
@@ -41,5 +60,6 @@ skylos . --danger
 ## Limitations
 
 Skylos does not run `rustc`, Cargo resolution, borrow checking, or Rust type
-checking. Pair Skylos with `cargo check`, `cargo clippy`, and tests for full
-Rust validation.
+checking. It has no Rust quality rules, and Rust has no inline suppression
+comment. Dependency CVE scanning does not read `Cargo.lock`. Pair Skylos with
+`cargo check`, `cargo clippy`, and tests for full Rust validation.
