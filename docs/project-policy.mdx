@@ -9,13 +9,13 @@ If you want the end-to-end workflow, read [Cloud Workflow](/cloud-workflow).
 
 ## Where Project Policy Lives
 
-In the dashboard, project policy is managed here:
+In the dashboard, open **Policy** in the sidebar. It holds the workspace's default policy, which every repository uses unless it has its own.
 
-- **Dashboard → Settings → Analysis Configuration**
+A repository can get its own policy in that repository's **Settings**. Turn on **Apply to every repository (repositories can only be stricter)** on the Policy page to stop a repository saving a policy looser than the default.
 
-It is project-scoped, not organization-scoped.
+Saving a policy needs the Workspace plan, as an owner or admin. Free workspaces use the default policy: block any new issue.
 
-Project policy currently covers:
+The policy covers:
 
 - quality thresholds
 - gate enable/disable
@@ -25,6 +25,16 @@ Project policy currently covers:
 - project-scoped governance prompt rules
 - AI assurance
 
+## Change the Policy
+
+1. Open **Policy** and choose **Edit conditions**.
+2. Optionally start from a preset: **Recommended**, **Stricter on AI code** or **Strict**. A preset only fills in the form.
+3. Write a **Reason for change**.
+4. Choose **Preview impact**. It re-checks the latest scan of every repository that uses the policy and lists which would newly fail or pass. Nothing is saved.
+5. Choose **Save policy**. Each save is a version in **Policy history**, with who saved it, when and why. **Restore this version** saves an older version again as a new one.
+
+The **Apply to every repository** switch saves as soon as you flip it. It is recorded in the audit log, not in Policy history.
+
 ---
 
 ## Project Policy vs Local Repo Policy
@@ -33,12 +43,10 @@ These are related, but they are not the same thing.
 
 | Source | Scope | Typical Use |
 |--------|-------|-------------|
-| Dashboard project policy | One cloud project | Shared team policy for uploads, suppressions, and dashboard-managed enforcement |
-| `pyproject.toml` / `skylos-debt.yaml` / CLI flags | One repo checkout | Local scanning behavior and local `--gate` workflows |
+| Skylos Cloud policy | The workspace default, or one repository's own policy | The team's rules for uploads, pull request checks and suppressions |
+| `pyproject.toml` / `skylos-debt.yaml` / CLI flags | One repo checkout | Local scanning behavior and local `--gate` before you sync |
 
-Use the dashboard policy when you want the cloud project to be the source of truth.
-
-Use local repo config when you want repository-local defaults or local-only gating.
+Use the Cloud policy when the team should share one set of rules. After `skylos sync pull`, Skylos CLI 5.1.3 or later uses the Cloud gate for `skylos . --gate` in place of your local `[tool.skylos.gate]` limits.
 
 ---
 
@@ -257,27 +265,32 @@ If you only need a few project-specific governance instructions, use Project Pol
 
 ---
 
-## Project Policy vs Local `--gate`
+## Check a Branch Against the Policy
 
-Project policy is most relevant when you use the cloud upload path.
+Skylos Cloud applies the policy to every upload, including the pull request check.
 
-If you run:
-
-```bash
-skylos . --gate
-```
-
-you are using the local gate flow.
-
-If you run:
+From a laptop, check the current branch against it:
 
 ```bash
-skylos . --upload
+skylos cloud --gate
 ```
 
-you are sending results to Skylos Cloud, where project policy, suppressions, and AI assurance are applied to the uploaded findings.
+This scans, uploads the findings (not the repository), prints the branch's gate result and a link, and exits 1 when the policy fails the branch.
 
-For teams that want the dashboard to be the source of truth, the upload path is the important one.
+To check without uploading, pull the policy first (Skylos CLI 5.1.3 or later):
+
+```bash
+skylos sync pull
+skylos . -a --gate --diff origin/main
+```
+
+Skylos Cloud counts only issues that are new on the branch. `--diff origin/main` does the same locally; without it, every finding in the checkout counts, including old ones, and Skylos prints a reminder.
+
+One difference: Skylos Cloud also fails a branch on a critical security issue anywhere in the code. A local `--diff` check sees only the lines the branch changed, so use `skylos cloud --gate` when that matters.
+
+`skylos sync pull` needs a git remote, because reviewed findings are tied to the repository's remote URL.
+
+In CI, pass the Cloud policy with `SKYLOS_SYNCED_POLICY_FILE`; the pull request scan in the GitHub workflow from `skylos cicd init` does this for you. An uncommitted `.skylos/config.yaml` is ignored there, so a pull request's own build steps can't change its gate.
 
 ---
 
@@ -302,15 +315,13 @@ Then:
 
 ## Example Team Rollout
 
-1. Connect repo with `skylos login`
-2. Upload scans with `skylos . --danger --quality --ai-defects --upload`
-3. Open **Dashboard → Settings**
-4. Set gate to `zero-new`
-5. Save changes
-6. Run `skylos sync pull`
-7. Add CI with `skylos cicd init --upload`
-8. Review failed uploads in the dashboard
-9. Add suppressions only when a finding is a genuine false positive
+1. Run `skylos cloud` in the repository. It signs you in the first time and uploads a full scan.
+2. Open **Policy**, choose **Edit conditions** and start from **Recommended**.
+3. Write a reason, choose **Preview impact**, then **Save policy**.
+4. Add the pull request check with `skylos cicd init`.
+5. Developers check a branch with `skylos cloud --gate` before opening a pull request.
+6. Review failed checks in the dashboard.
+7. Add suppressions only when a finding is a genuine false positive.
 
 ---
 
@@ -322,7 +333,7 @@ They overlap, but they are not identical. Be explicit about which system is the 
 
 ### Forgetting to sync after dashboard changes
 
-If the team changes policy or suppressions in the dashboard, run:
+Uploads and pull request checks always use the current Cloud policy. Local `skylos . --gate` uses the copy from your last pull, so after the team changes policy or suppressions, run:
 
 ```bash
 skylos sync pull
