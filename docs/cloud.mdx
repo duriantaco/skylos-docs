@@ -73,9 +73,15 @@ job fails too. That gate is your project's policy in Skylos Cloud.
 `skylos . --gate` is a different, local gate: it uses the limits in your
 `[tool.skylos.gate]` config and uploads nothing.
 
-Set `SKYLOS_TOKEN` to a project token in CI systems without OIDC. Cloud rejects
-uploads from ordinary GitHub `pull_request` jobs, so for GitHub pull requests
-use the workflow from `skylos cicd init`. See [CI/CD Integration](/ci-cd).
+Set `SKYLOS_TOKEN` to a project token in CI systems without OIDC. In the
+project's Settings, select **Mark for CI** on that token. Uploads with an
+unmarked token are unverified: they show in Skylos Cloud, but they don't
+publish a check or mark issues fixed. Never mark a token that is on a
+developer machine.
+
+Skylos Cloud does not accept GitHub OIDC uploads from ordinary `pull_request`
+jobs. For a check on every GitHub pull request, use the workflow from
+`skylos cicd init`. See [CI/CD Integration](/ci-cd).
 
 ### The Manual Form: `--upload`
 
@@ -108,8 +114,8 @@ network request the CLI can make, see
 ## Do I Need A Key To Pass The Gate?
 
 No. A token only lets you upload. The gate passes when the issues that fail it
-are fixed. On the paid plans (Pro, Enterprise), a workspace admin or owner can
-override a failed gate in Skylos Cloud; they must give a reason, and it is
+are fixed. On the Workspace and Enterprise plans, a workspace admin or owner can
+override a failed gate in Skylos Cloud (Merge anyway); they must give a reason, and it is
 recorded with the scan.
 
 ## More Cloud Guides
@@ -122,7 +128,7 @@ If you want the full repo-to-dashboard flow, read:
 - [CI/CD Integration](/ci-cd)
 
 :::tip New Users
-Every new account gets **50 starter credits** and a **7-day Pro trial**. You can start with `skylos cloud` and add deeper GitHub integration later.
+Your first workspace gets a 14-day Workspace trial with 50 credits, and no card. You can start with `skylos cloud` and add deeper GitHub integration later.
 :::
 
 ## Use Local Only vs Add Cloud

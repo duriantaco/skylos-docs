@@ -414,7 +414,10 @@ On CI systems other than GitHub Actions, `skylos cloud --gate` is the one-line
 option. It runs every check, uploads the findings, and exits 1 when the Skylos
 Cloud gate (your project's policy in Skylos Cloud) fails. That is not the local
 `skylos . --gate`, which uses `[tool.skylos.gate]` and uploads nothing. Set
-`SKYLOS_TOKEN` to a project token as a secret in a trusted job:
+`SKYLOS_TOKEN` to a project token as a secret in a trusted job, and select
+**Mark for CI** on that token in the project's Settings. Without the mark, its
+uploads are unverified: they show in Skylos Cloud but don't publish a check or
+mark issues fixed.
 
 ```bash
 skylos cloud --gate

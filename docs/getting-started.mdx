@@ -26,8 +26,9 @@ skylos cicd init    # add a Skylos check to every pull request
 - `skylos cicd init` adds a Skylos check to every pull request. See [CI/CD Integration](/ci-cd).
 
 `skylos .` finds dead code. `skylos . -a` runs every check (security, secrets,
-quality, AI-code defects, dependencies) and still stays local, except that the
-dependency check asks OSV.dev about package names and versions.
+quality, AI-code defects, dependencies) and still stays local, except that it
+looks up package names online: OSV.dev for known CVEs, and PyPI or npm for
+packages that don't exist.
 
 The steps below go through each one in more detail.
 
@@ -194,7 +195,7 @@ To run only some checks, name them, for example
 `skylos cloud` sends and prints.
 
 :::tip
-Every new account gets **50 starter credits** and a **7-day Pro trial** — no credit card required.
+Your first workspace gets a 14-day Workspace trial with 50 credits, and no card. See [Billing & Credits](/billing).
 :::
 
 See [Authentication](/authentication) for CI/CD setup, OIDC, and advanced options.

@@ -26,7 +26,7 @@ For security-team review and procurement posture, read [Enterprise Trust](/enter
 | Scan, upload and see the gate | `skylos cloud` | Runs every check (`-a`) unless you name some, shows the findings, uploads them to Skylos Cloud, then prints this branch's quality gate and one link to it. The first run opens the browser login |
 | Connect or switch the current repo's cloud project | `skylos login` or `skylos project use` | Opens the browser chooser, lets you pick or create a project, verifies the token, and links this repo |
 | Upload with the manual flag | `skylos . --danger --upload` | The manual form of `skylos cloud`: runs the analysis you picked locally, then uploads findings and metadata to Skylos Cloud |
-| Keep local policy and suppressions in sync | `skylos sync pull` | Writes `.skylos/config.yaml` and `.skylos/suppressions.json` into the repo |
+| Keep local policy in sync | `skylos sync pull` | Writes `.skylos/config.yaml`, which later scans apply, and `.skylos/suppressions.json`, which local scans don't read yet |
 | See which project this repo uses | `skylos project status` | Shows the repo link and active project |
 | List known linked projects | `skylos project list` | Shows locally saved projects from `~/.skylos/credentials.json` |
 | Switch or remove the repo link | `skylos project use` / `skylos project unlink` | Rebinds the repo or removes only the repo-to-project link |
@@ -43,10 +43,10 @@ flowchart LR
     C -- No --> D[Browser login: pick or create the project]
     C -- Yes --> F[Skylos Cloud stores scan]
     D --> F
-    F --> G[Workspace views: Overview, Projects, Scans, Issues, Exceptions, Rules, Trends]
-    F --> H[Project settings: repo URL, policy, API key, GitHub App, notifications, team]
+    F --> G[Dashboard: Home, Pull requests, Issues, Policy, Not fixing, Audit evidence]
+    F --> H[Project settings: repo URL, policy, project tokens, GitHub App, notifications]
     H --> I[skylos sync pull]
-    I --> J[Repo gets .skylos/config.yaml and .skylos/suppressions.json]
+    I --> J[Repo gets .skylos/config.yaml]
     J --> K[CI runs skylos . --upload]
 ```
 
@@ -425,7 +425,7 @@ A clean team rollout usually looks like this:
 1. Start with local scans only.
 2. Run `skylos cloud` from a developer machine. The first run connects the repo; the upload checks the connection. This scan is unverified and cannot pass the Cloud GitHub gate.
 3. Set the project repo URL if you want GitHub-native features.
-4. Configure policy in `Dashboard -> Settings`.
+4. Configure policy in **Governance → Policy**.
 5. Run `skylos sync pull` so the repo has the latest synced config and suppressions.
 6. Install the GitHub App, then generate CI with `skylos cicd init`: PR checks plus default-branch OIDC uploads.
 7. Check that the expected PR jobs run, then require them in branch protection.
