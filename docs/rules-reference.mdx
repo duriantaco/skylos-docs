@@ -63,6 +63,7 @@ use the `SKY-A` prefix.
 | `SKY-D215` | Path Traversal | HIGH | Python, Java, Go, PHP, Rust, Dart, C#, Shell | Tainted input used in filesystem paths, include/file sinks, shell file commands, or redirection targets |
 | `SKY-D216` | SSRF | CRITICAL | Python, TS, Java, Go, Dart, C#, Shell | Tainted URL passed to HTTP clients, request builders, `curl`, or `wget` |
 | `SKY-D217` | SQL Injection (raw) | CRITICAL | Python | Tainted input in `sqlalchemy.text()`, `pandas.read_sql()`, Django `.raw()` |
+| `SKY-D218` | URL Scheme Audit | MEDIUM | Python | Dynamic urllib URL without a proven HTTP/HTTPS scheme restriction |
 | `SKY-D235` | Remote Command Execution Sink | HIGH | Python | User-controlled values flow into command execution sinks |
 | `SKY-D254` | HTTP Session Trust Boundary Violation | HIGH | Java | Servlet-controlled data crosses into HTTP session state (CWE-501) |
 | `SKY-D261` | Untrusted Input To LLM Prompt | HIGH | Python | Request-controlled data reaches an LLM prompt or message without a clear instruction/data boundary |
@@ -911,6 +912,36 @@ stmt = text(f"SELECT * FROM users WHERE name = '{name}'")
 stmt = text("SELECT * FROM users WHERE name = :name")
 result = conn.execute(stmt, {"name": name})
 ```
+
+---
+
+### SKY-D218 · URL Scheme Audit
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | Python |
+| **What** | Dynamic `urllib.request.urlopen` URL without a proven HTTP/HTTPS scheme restriction |
+| **Kind** | Review: attacker control is not established by this warning |
+
+`urllib` can open local files and other non-HTTP resources. Check whether URLs
+from callers or remote services should be restricted to HTTP/HTTPS.
+
+```python
+from urllib.parse import urlsplit
+from urllib.request import urlopen
+
+def download(url):
+    if urlsplit(url).scheme not in ("http", "https"):
+        raise ValueError("Unsupported URL scheme")
+    return urlopen(url)
+```
+
+The rule follows imported aliases and locally constructed `Request` objects.
+Explicit literal URLs and proven scheme guards are quiet. A guard must check
+the value that reaches the call; rebinding or replacing the parser invalidates
+that proof. Scheme checks do not restrict the destination host: `SKY-D216`
+separately checks for SSRF.
 
 ---
 
