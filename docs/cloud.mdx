@@ -43,28 +43,43 @@ Add the cloud when you need:
 
 ### Workspace Views
 
-Skylos Cloud currently gives you workspace-level navigation for:
-- `Overview`
-- `Projects`
-- `Scans`
-- `Issues`
-- `Exceptions`
-- `Rules`
-- `Trends`
+The workspace sidebar is grouped by job:
+- **Code:** `Home`, `Pull requests`, `Issues`
+- **AI agents:** `Agents` (when agent checks are on) and `Deep scans` (when available)
+- **Governance:** `Policy`, `Not fixing`, `Audit evidence`
+- **Workspace:** `Settings`, `Billing`
+
+### Pull Requests Board
+
+`Pull requests` has two layouts. **List** answers "can this pull request merge?" row by row. **Board** shows whose turn each pull request is, in five columns:
+
+| Column | What it means | Who acts |
+|---|---|---|
+| Scanning | A new commit was pushed, or its upload has not finished | Nobody yet; the card moves by itself |
+| Needs fixes | The quality gate or an agent check failed, or a reviewer asked for changes | The author pushes a fix |
+| Needs approval | The gate passed and only a protected-path sign-off is left | A member of the team that owns the path |
+| Ready to merge | The Skylos check is green on GitHub | The author merges on GitHub |
+| Merged | Merged in the last 7 days | Nobody |
+
+Click a card to open it. If you can approve, tick the protected paths you accept, write a note, and click **Approve selected**. Each approval is recorded in the audit log, covers that commit only, and re-publishes the Skylos check, which turns green once nothing else blocks. The author of a pull request, and anyone who committed to it, cannot approve it.
+
+**Request changes** saves your note against the current commit, posts it on the pull request on GitHub, and moves the card to **Needs fixes** until a new commit is scanned. It does not change the Skylos check. Viewers can open cards but cannot approve or request changes.
+
+**Waiting on you** narrows the board to the pull requests you can approve and the ones you opened that need fixes. Titles, merges, closed pull requests and new pushes come from the Skylos GitHub App; without it, cards use the branch name.
 
 ### Project Views
 
-Each project currently has tabs for:
+Each project has tabs for:
 - `Overview`
-- `Scans`
 - `Issues`
-- `Suppressions`
-- `Defense`
-- `Provenance`
-- `Scanner proof`
+- `Pull requests` (with the same List and Board layouts, for this project only)
+- `Scans`
 - `Settings`
 
-The **Scanner proof** tab stores bounded, tamper-evident comparison receipts from `skylos compare --upload`. Use it to evaluate Skylos beside an incumbent scanner on the same revision before changing a required gate. See [Scanner Comparison](/scanner-comparison).
+The project's **More** menu holds Trends, Code attribution, AI feature safeguards, Agent PR log, Technical debt, Investigate, Required controls and Not fixing.
+
+The **Scanner proof** page under Scans stores bounded, tamper-evident comparison receipts from `skylos compare --upload`. Use it to evaluate Skylos beside an incumbent scanner on the same revision before changing a required gate. See [Scanner Comparison](/scanner-comparison).
+
 
 ### Project Settings
 

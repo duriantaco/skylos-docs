@@ -166,23 +166,15 @@ If the CLI has a valid cloud token, it also asks Skylos Cloud for org-level cust
 
 ## 4. What Appears in Skylos Cloud
 
-Workspace navigation currently includes:
-- `Overview`
-- `Projects`
-- `Scans`
-- `Issues`
-- `Exceptions`
-- `Rules`
-- `Trends`
+Workspace navigation includes:
+- `Home`, `Pull requests`, `Issues`
+- `Agents` and `Deep scans`, when available
+- `Policy`, `Not fixing`, `Audit evidence`
+- `Settings`, `Billing`
 
-Each project currently has tabs for:
-- `Overview`
-- `Scans`
-- `Issues`
-- `Suppressions`
-- `Defense`
-- `Provenance`
-- `Settings`
+Each project has tabs for `Overview`, `Issues`, `Pull requests`, `Scans` and `Settings`, plus a **More** menu.
+
+Pull request scans appear under **Pull requests**. Switch it to **Board** to see whose turn each pull request is (Scanning, Needs fixes, Needs approval, Ready to merge, Merged) and to approve protected paths or request changes from one place. See [Pull Requests Board](/cloud#pull-requests-board).
 
 In practice, the cloud split looks like this:
 - CLI: runs analysis
