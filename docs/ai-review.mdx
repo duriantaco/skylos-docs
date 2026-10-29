@@ -1,0 +1,52 @@
+---
+title: "AI in Skylos"
+description: "AI review, coding agents and AI app safety: what each is, the command to run, and where it shows in Skylos Cloud"
+---
+
+Skylos uses the word "AI" for three different jobs. Each has one name in the CLI, these docs and Skylos Cloud.
+
+| Job | Name | CLI | Skylos Cloud |
+|---|---|---|---|
+| An AI double-checks the issues Skylos found | **AI review** | `skylos . -a --ai-review` | Each issue shows Confirmed by AI, AI disagrees, AI unsure or Found by AI only, on the PR board, in Issues and on the issue page. Deep scans are an AI review of a whole repository |
+| Rules for code that AI coding agents write | **Coding agents** | `skylos done`, `skylos agent install-hooks`, `skylos agent install-standards`, `skylos verify` | Coding agents, Agent checks, Policy › Coding agents, Bot approvals |
+| Safety of your own AI features | **AI app safety** | `skylos discover`, `skylos defend`, `skylos agent test` | AI app safety |
+
+## AI review
+
+```bash
+skylos . -a --ai-review      # local report
+skylos cloud --ai-review     # same, uploaded to Skylos Cloud
+```
+
+- High-severity security issues are checked several times by your model.
+- Unused-code issues are checked by your model, and by Jev when `TYPESAFE_API_KEY` is set. With only `TYPESAFE_API_KEY`, Jev reviews them alone.
+- Pick the model with `--model` and a self-hosted endpoint with `--api-base`.
+- **Nothing is hidden and blocking never changes.** The gate only uses Skylos's rules. An issue the AI disagrees with still blocks until someone fixes it or marks it Not fixing.
+- Without an LLM key or `TYPESAFE_API_KEY`, the scan prints one line and carries on unchanged.
+
+### In Skylos Cloud
+
+| Shown as | Meaning |
+|---|---|
+| Confirmed by AI | Skylos found it and the AI agrees. Fix these first. |
+| AI disagrees | The AI thinks it is a false positive. Check the reason, then fix it or mark it Not fixing. |
+| AI unsure | The reviewers split or could not decide. |
+| Found by AI only | Only `skylos agent scan` reports these. Skylos's rules did not find it, and it never blocks. |
+
+- **PR board:** each card shows the AI review of the pull request's new issues, for example "AI review: 2 confirmed · 1 AI disagrees". Open the card and choose **See each verdict**.
+- **Issues:** filter by **AI review** to list what the AI confirmed or disputed.
+- **Issue page and scan page:** the AI review panel lists each reviewer, its verdict and its reason.
+
+Only CI uploads (GitHub or GitLab OIDC, or a project key marked as a CI key) set an issue's AI state in Issues. An upload from a laptop login shows its verdicts on that scan only.
+
+### What is sent where
+
+`--ai-review` sends the flagged file (comments removed) and the rule's message to your own model provider with your key. With `TYPESAFE_API_KEY` set, it also sends the unused-code candidates and a bounded copy of your first-party source (at most 64 KB) to Jev. Nothing reaches Skylos Cloud unless you use `--upload` or `skylos cloud`.
+
+## Coding agents
+
+Use `skylos done` before an agent says it is finished, and agent-loop hooks to check every edit. In Skylos Cloud, the **Coding agents** page shows what agents wrote and why their pull requests were blocked, and **Policy › Coding agents** sets which paths need a team's approval.
+
+## AI app safety
+
+`skylos defend .` checks the code around each LLM call and agent tool for safeguards: input limits, prompt-injection isolation, output checks, tool permissions, PII filters, logging and cost limits. Upload it with `skylos defend . --upload`, or add it to CI with `skylos cicd init --defend`. Skylos Cloud lists every repository's latest score under **AI app safety**. See [Agent Verification](/agent-verification).
