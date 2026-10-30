@@ -7,32 +7,44 @@ Skylos Cloud currently has three real auth paths:
 
 | Auth path | Best for | Main command |
 |---|---|---|
-| Browser login | Humans linking a repo to a project | `skylos login` |
+| Browser login | Humans linking a repo to a project | first run of `skylos cloud`, or `skylos login` |
 | API key | CI, headless systems, explicit manual control | `skylos sync connect <token>` or `SKYLOS_TOKEN=...` |
 | GitHub OIDC | Secretless GitHub Actions uploads | `skylos . --upload` with `id-token: write` |
 
 ## Quick Start
 
 ```bash
-skylos . --upload
+skylos cloud
 ```
 
-On the first interactive run, Skylos will:
+On the first run in a terminal, `skylos cloud` will:
 1. open the browser
 2. let you sign in and choose or create a project
 3. verify the returned token
 4. store the repo link
 5. upload the scan
 
-If you want to connect before running a scan, use:
+`skylos . --upload` does the same on its first interactive run.
+
+To connect before running a scan, or to switch this repo to another project,
+use:
 
 ```bash
 skylos login
 ```
 
+### Without a terminal
+
+A non-interactive run cannot open the browser. With no terminal and no login,
+`skylos cloud` stops before scanning and exits 1 with "Not connected to Skylos
+Cloud. Run skylos login in a terminal, or set SKYLOS_TOKEN to a project token
+(create one in your project's Settings on skylos.dev)." In GitHub Actions or
+GitLab CI, `skylos cloud` uses the CI identity (OIDC) or `SKYLOS_TOKEN`.
+
 ## Browser Authentication
 
-`skylos login` is the preferred human workflow.
+The first run of `skylos cloud` uses this browser flow for you. Run
+`skylos login` yourself to connect before a scan or to switch project.
 
 ```bash
 skylos login
@@ -50,10 +62,12 @@ Files written:
 - `<repo>/.skylos/link.json`
 
 Linking saves the project and credentials for future uploads. A plain
-`skylos .` scan does not upload; add `--upload` to send its report to Cloud.
+`skylos .` scan does not upload; run `skylos cloud` or add `--upload` to send
+its report to Cloud.
 
 ```bash
 skylos .
+skylos cloud
 skylos . --upload
 ```
 
@@ -97,6 +111,7 @@ skylos sync connect
 ### Use the key for a single run
 
 ```bash
+SKYLOS_TOKEN=sk_live_xxx... skylos cloud
 SKYLOS_TOKEN=sk_live_xxx... skylos . --upload
 ```
 
@@ -214,6 +229,7 @@ For enterprise security review, see [Enterprise Trust](/enterprise-trust).
 ## Headless and Remote Environments
 
 If browser auth is unavailable, Skylos falls back to manual token entry.
+See [Without a terminal](#without-a-terminal) for `skylos cloud`.
 
 Use one of these:
 
@@ -224,12 +240,12 @@ skylos sync connect
 or:
 
 ```bash
-SKYLOS_TOKEN=sk_live_xxx... skylos . --upload
+SKYLOS_TOKEN=sk_live_xxx... skylos cloud
 ```
 
 ## Troubleshooting
 
-### `skylos . --upload` opens a browser unexpectedly
+### `skylos cloud` or `skylos . --upload` opens a browser unexpectedly
 
 The CLI could not find a usable token and is trying to connect interactively.
 
