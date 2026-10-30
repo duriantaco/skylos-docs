@@ -43,6 +43,8 @@ Skylos analysis runs in the CLI, not in the browser dashboard.
 When you run:
 
 ```bash
+skylos cloud
+# or the manual form
 skylos . --upload
 ```
 
@@ -56,6 +58,9 @@ the CLI sends analysis results and scan metadata to Skylos Cloud. It does not up
 | rule ids and severity | git history as source blobs |
 | branch and commit metadata | local dependency caches |
 | upload identity metadata | arbitrary local files outside the scan result |
+| code snippets of up to 7 lines (none for secrets) | |
+| git author email of each flagged line | |
+| a map of your functions and classes (names, files, lines, sizes, which calls which) | |
 | gate and summary data | |
 
 Some features can include contextual evidence, snippets, or metadata where needed to explain a finding. Treat uploaded scan results as sensitive security data.

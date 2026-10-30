@@ -19,6 +19,7 @@ Trivy.
 | Built GPU artifact gate | `skylos preflight build/app` | Exact artifact report: exit `0` PASS, `1` FAIL, `2` UNKNOWN |
 | Workflow security review | `skylos . --danger` | Scans `.github/workflows/*` and local action metadata |
 | Cloud upload with dashboard policy | `skylos . --upload` | Uses project policy, suppressions, and cloud history |
+| Cloud gate in one line on other CI systems | `skylos cloud --gate` | Every check, upload, and exit `1` when the Skylos Cloud gate fails; set `SKYLOS_TOKEN` |
 | GitHub required checks | `skylos cicd init` plus branch protection | PR quality gate and Done run without Cloud credentials; the GitHub App provides a separate Cloud-managed PR gate |
 
 ## GitHub Actions Workflow Security
@@ -38,10 +39,13 @@ preserve this category.
 See [GitHub Actions Security](/github-actions-security) for setup guidance and
 the full scanner scope.
 
-This workflow-configuration scanner is GitHub Actions-specific. GitLab CI,
-CircleCI, Jenkins, and other providers can still run Skylos as a CLI gate, but
-Skylos does not currently parse their CI configuration files for provider-level
-misconfiguration rules.
+`--danger` also checks `.gitlab-ci.yml` for GitLab CI misconfigurations
+(SKY-D314 to SKY-D323 in the [rules reference](/rules-reference)), plus
+Dependabot config, Dockerfiles, Docker Compose files and systemd units.
+
+It does not parse Jenkins, CircleCI, Bitbucket Pipelines, Azure Pipelines or
+Buildkite configuration for misconfiguration rules. Those CIs still run the
+Skylos pull request gate; see [Other CI Providers](#other-ci-providers).
 
 ## GitHub Actions with OIDC
 
@@ -358,7 +362,9 @@ Keep policy sync and its credentials out of ordinary PR test jobs.
 ### `skylos cicd init`
 
 Use `skylos cicd init` from **Skylos 4.46.0 or newer** to scaffold the workflow
-described here.
+described here. On GitLab CI, Jenkins, Bitbucket Pipelines, Azure Pipelines
+and CircleCI it sets up that CI's gate instead (Skylos 5.1.0 or newer); see
+[Other CI Providers](#other-ci-providers).
 
 Examples:
 
@@ -402,14 +408,226 @@ The GitHub App is the GitHub-native enforcement layer.
 Recommended order:
 1. get uploads working first
 2. save the exact GitHub repo URL on the project
-3. install the GitHub App from `Dashboard -> Settings`
-4. add branch protection that requires the Skylos status check
+3. install the GitHub App: in the project's Settings, step 1 of **Merge
+   blocking on GitHub** is **Connect GitHub**
+4. open or update a pull request so the **Skylos Quality Gate** check runs on it
+5. require the check: in the project's Settings, step 4 of **Merge blocking on
+   GitHub** has **Download ruleset**
 
-The project settings surface also includes an auto-configure toggle that can allow Skylos to update branch protection and open a workflow PR after install. That is a workspace-level GitHub automation choice, not a requirement for basic uploads.
+### Require the check with a ruleset
+
+The ruleset Skylos gives you requires **Skylos Quality Gate** from the Skylos
+App on your default branch. A workflow job with the same name can't pass it.
+
+1. In the project's Settings, select **Download ruleset**.
+2. On GitHub, open the repository's **Settings -> Rules -> Rulesets**, select
+   **New ruleset -> Import a ruleset**, choose the file, then select **Create**.
+3. Back in Skylos, select **Check again**. The step shows **Done**.
+
+If you connected a GitHub organization, the repository also shows
+**Enforcing** under **Repository coverage** on the Posture page.
+
+Skylos offers the file only after the check has run on a pull request, so the
+rule never waits for a check that can't arrive. Direct pushes to the default
+branch need a passing check too. To let admins skip it, add them to the
+ruleset's bypass list on GitHub.
+
+"Merge anyway" in Skylos (Workspace and Enterprise plans) updates the same
+check, so it still works with the ruleset.
+
+If the repository uses a merge queue, Skylos doesn't offer the ruleset yet:
+Skylos doesn't check merge-queue commits, so the queue would wait forever.
+
+Skylos only reads branch protection and rulesets; it never changes them. The
+auto-configure toggle in the project settings (Workspace and Enterprise plans,
+off by default) only opens the workflow pull request after you connect GitHub.
 
 ## Other CI Providers
 
+Skylos runs on any CI. `skylos cicd init` finds the CI your repository uses and
+sets up the pull request gate for it. CIs other than GitHub Actions need
+Skylos 5.1.0 or newer; check with `skylos --version`.
+
+| Repository has | `skylos cicd init` sets up |
+|:---|:---|
+| `.github/workflows/` | GitHub Actions: writes `.github/workflows/skylos.yml` |
+| `.gitlab-ci.yml` | GitLab CI |
+| `Jenkinsfile` | Jenkins |
+| `bitbucket-pipelines.yml` | Bitbucket Pipelines |
+| `azure-pipelines.yml` | Azure Pipelines |
+| `.circleci/config.yml` | CircleCI |
+| `.buildkite/`, `.travis.yml`, `.drone.yml`, `.woodpecker.yml`, `.teamcity/` | prints the commands to add |
+| no CI file | the CI of origin's host (github.com, gitlab.com, bitbucket.org, dev.azure.com), else GitHub Actions |
+
+If the CI file does not exist yet, Skylos writes it. If it exists, Skylos does
+not edit it: it prints the block to add and where it goes. Pick a CI with
+`--ci github|gitlab|jenkins|bitbucket|azure|circleci|other`.
+
+A repository with `.github/workflows/` gets the GitHub workflow, as before.
+Skylos also names any other CI file it found and the `--ci` command for it.
+Without `.github/workflows/`, two or more of the GitLab, Jenkins, Bitbucket,
+Azure and CircleCI files and no `--ci` make Skylos write nothing and ask you
+to pick.
+
+Every generated config runs the same gate on the lines the pull request changes,
+and fails the build when the gate fails:
+
+```bash
+skylos . --danger --quality --ai-defects --secrets --sca --baseline --gate --diff
+```
+
+`--baseline` hides findings saved in `.skylos/baseline.json`. Commit one with
+`skylos baseline .` if you want that. Without the file, Skylos prints "No
+baseline found" and checks every changed line.
+
+The config installs the Skylos version you ran `skylos cicd init` with, for
+example `skylos[dart]==5.1.1`. Change that pin when you upgrade.
+
+Then:
+
+1. Commit the file, or the block Skylos printed, on a branch and open a pull request.
+2. Check that the Skylos gate runs on it.
+3. Make that check required before merging, in your code host's branch protection.
+
+`skylos doctor` shows which CI files run Skylos. Run in CI, it also shows which
+branch `--diff` compares with.
+
+To upload to Skylos Cloud from a CI other than GitHub Actions, use
+`skylos cloud --gate`. It runs every check, uploads the findings, and exits 1 when the Skylos
+Cloud gate (your project's policy in Skylos Cloud) fails. That is not the local
+`skylos . --gate`, which uses `[tool.skylos.gate]` and uploads nothing. Set
+`SKYLOS_TOKEN` to a project token as a secret in a trusted job, and select
+**Mark for CI** on that token in the project's Settings. Without the mark, its
+uploads are unverified: they show in Skylos Cloud but don't publish a check or
+mark issues fixed.
+
+```bash
+skylos cloud --gate
+```
+
 ### GitLab CI
+
+The `skylos` job runs in merge request pipelines with `GIT_DEPTH: "0"`, fetches
+the target branch and runs the gate. If your `.gitlab-ci.yml` declares
+`stages:`, it needs a `test` stage. For the merge request Code Quality widget,
+see [GitLab Code Quality](https://github.com/duriantaco/skylos/blob/main/docs/gitlab-code-quality.md).
+
+### Jenkins
+
+The `Skylos` stage runs only in pull request builds (`when { changeRequest() }`)
+of a Multibranch Pipeline job. It installs Skylos in a virtualenv under
+`$WORKSPACE_TMP`, outside the checkout, so the install is not part of the diff.
+The agent needs `python3` 3.10 or newer.
+
+The stage fetches the target branch only when the clone does not have it. If
+that fetch fails on a private repository, the shell step has no Git
+credentials. Use the "merge with the target branch" pull request strategy,
+which fetches it during checkout, or give the step credentials.
+
+Jenkins does not own the pull request; your code host does. Make the Jenkins
+status check required there.
+
+### Bitbucket Pipelines
+
+The step runs in pull request pipelines with `clone: depth: full` and fetches
+the destination branch before the scan.
+
+### Azure Pipelines
+
+The pipeline checks out with `fetchDepth: 0`, which brings in the target branch.
+It does not run its own `git fetch`, because Azure does not keep checkout
+credentials for later steps. For Azure Repos, add the pipeline as the target
+branch's Build validation policy.
+
+### CircleCI
+
+The job skips builds without an open pull request. CircleCI does not expose the
+pull request's target branch, so the job compares with your default branch:
+the `--default-branch` you pass, else origin's HEAD, else `main`. Change the
+branch in the file if pull requests go elsewhere.
+
+### Other CIs
+
+`skylos cicd init --ci other` prints the three commands to add to a pull
+request build step. The step needs Python 3.10 or newer. With Skylos 5.1.1
+and `main` as the default branch, they are:
+
+```bash
+python -I -m pip install skylos==5.1.1
+git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+skylos . --danger --quality --ai-defects --secrets --sca --baseline --gate --diff origin/main
+```
+
+### Dart files
+
+The Jenkins and "other CI" commands install plain `skylos`. Dart support,
+`skylos[dart]`, is built from source and needs a C compiler, which many Jenkins
+agents do not have. To scan Dart files, install `skylos[dart]` on an agent that
+has one.
+
+Without it, Skylos skips the Dart files and reports coverage as incomplete. The
+gate still decides on the other files. It stops with exit 2 only when most of
+the files in scope could not be analyzed, or when you add `--strict` or set
+`require_complete = true` under `[tool.skylos.gate.coverage]`.
+
+The GitLab, Bitbucket, CircleCI and Azure configs run on images with a compiler
+and install `skylos[dart]`.
+
+### Which branch `--diff` compares with
+
+With no value, `--diff` compares with the pull request's target branch:
+
+| CI | Target branch from | Pull request build when |
+|:---|:---|:---|
+| GitHub Actions | `GITHUB_BASE_REF` | `GITHUB_BASE_REF` is set |
+| GitLab CI | `CI_MERGE_REQUEST_TARGET_BRANCH_NAME` | `GITLAB_CI=true` and the variable is set |
+| Jenkins | `CHANGE_TARGET` | `CHANGE_ID` is set (Multibranch Pipeline) in a Jenkins build: `JENKINS_URL`, `JENKINS_HOME` or a `jenkins-` `BUILD_TAG` |
+| Bitbucket Pipelines | `BITBUCKET_PR_DESTINATION_BRANCH` | the variable is set |
+| Azure Pipelines | `SYSTEM_PULLREQUEST_TARGETBRANCH` | `SYSTEM_PULLREQUEST_PULLREQUESTID` is set |
+| Buildkite | `BUILDKITE_PULL_REQUEST_BASE_BRANCH` | `BUILDKITE_PULL_REQUEST` is a number |
+| Travis CI | `TRAVIS_BRANCH` | `TRAVIS_PULL_REQUEST` is a number |
+| Drone | `DRONE_TARGET_BRANCH` | `DRONE_BUILD_EVENT=pull_request` |
+| Woodpecker | `CI_COMMIT_TARGET_BRANCH` | `CI=woodpecker` and `CI_PIPELINE_EVENT=pull_request` |
+
+Each variable counts only inside its own CI and only on a pull request build.
+Anywhere else, `--diff` compares with `origin/main`. On CircleCI, TeamCity and
+other CIs, pass the branch: `--diff origin/develop`.
+
+The target branch has to be in the clone. Many CIs clone only the pull request
+branch, or only recent history. When it is missing, Skylos stops with exit 2
+and prints the command to run first, for example:
+
+```text
+On Jenkins, run this before the scan: git fetch --no-tags origin +refs/heads/develop:refs/remotes/origin/develop
+```
+
+In a shallow clone that command includes `--unshallow`.
+
+### Uploading to Skylos Cloud from other CIs
+
+`skylos cicd init` adds Cloud uploads only for GitHub Actions, through GitHub
+OIDC. On other CIs, add a separate full scan with `--upload` and a
+`SKYLOS_TOKEN` secret.
+
+Diff-scoped reports cannot be uploaded. A scan with `--upload` and `--diff` or
+`--diff-base` stops with "diff-scoped results cannot be uploaded as a full
+scan". Keep the gate step and the upload step separate.
+
+Use a project token made for CI, not the one `skylos login` saved on a laptop.
+Until an owner or admin selects **Mark for CI** on that token (project
+Settings, **Project tokens**), its uploads are unverified. Unverified scans
+are stored and shown, but they don't post a pull request check or status,
+mark issues fixed, or become the baseline. Tokens saved by `skylos login`
+can't be marked.
+
+For Bitbucket and Azure pull request checks, see
+[Bitbucket and Azure Pipelines](https://github.com/duriantaco/skylos/blob/main/docs/bitbucket-azure-pipelines.md).
+For GitLab, see
+[GitLab managed uploads](https://github.com/duriantaco/skylos/blob/main/docs/gitlab-managed-uploads.md).
+Skylos Cloud posts merge request comments on GitLab only on the Workspace and
+Enterprise plans.
+
+GitLab CI:
 
 ```yaml
 skylos:
@@ -421,7 +639,7 @@ skylos:
     SKYLOS_TOKEN: $SKYLOS_TOKEN
 ```
 
-### CircleCI
+CircleCI:
 
 ```yaml
 - run:
@@ -431,7 +649,7 @@ skylos:
       SKYLOS_TOKEN: $SKYLOS_TOKEN
 ```
 
-### Jenkins
+Jenkins:
 
 ```groovy
 stage('Skylos Scan') {

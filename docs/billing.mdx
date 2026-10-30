@@ -9,7 +9,7 @@ Skylos uses **credit packs** — one-time purchases, no subscriptions, no recurr
 
 Every new Skylos account gets:
 
-- **50 starter credits** — enough for 50 scan uploads
+- **50 starter credits** — for compute actions such as AI triage, fix PRs and scan comparisons (scan uploads are free)
 - **7-day Pro trial** — full access to all Pro features
 
 No credit card required. Start scanning and explore the cloud dashboard immediately.
@@ -24,6 +24,7 @@ No credit card required. Start scanning and explore the cloud dashboard immediat
 | `skylos . --format json` / `pretty` / `concise` / `--tree` | Same — all local output formats are free |
 | MCP `analyze` / `security_scan` / `quality_check` / `secrets_scan` | Local analysis tools — run on your machine |
 | Dashboard viewing (read-only) | No friction to see results |
+| Scan uploads (`--upload`, CI) and storing results | Uploads never cost credits, on any plan; plan limits cap projects and how long scans are kept |
 | All languages (Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, Shell) | Languages are adoption multipliers, not paywalls |
 
 ## What Costs Credits
@@ -32,7 +33,6 @@ Only **compute-heavy cloud actions** cost credits:
 
 | Action | Credits |
 |--------|---------|
-| Scan upload (`--upload`) | 1 |
 | Scan comparison (diff between two scans) | 2 |
 | PR auto-fix (LLM-generated fix) | 3 |
 | AI issue triage (LLM analysis) | 5 |
@@ -100,7 +100,7 @@ Custom pricing for teams that need:
 - Compliance reports
 - Audit logs
 - Priority support and SLA
-- Unlimited credits (no per-scan charges)
+- Unlimited credits
 
 Contact `founder@skylos.dev`.
 
@@ -121,7 +121,6 @@ Balance: 1,500 credits
 
 Recent activity:
   +2500   Purchased 2500 credits (builder pack)
-  -1      Scan upload
   -5      AI issue triage
   -10     AI code remediation
 
@@ -146,15 +145,15 @@ Go to [skylos.dev/dashboard/billing](https://skylos.dev/dashboard/billing) to se
 
 ## What Happens at Zero Credits
 
-### CLI Upload
+### Scan Uploads
 
 ```bash
 skylos . --upload
 ```
 
-- CLI warns: `0 credits remaining. Buy more: https://skylos.dev/dashboard/billing`
-- Server returns 402 (Payment Required)
-- **Local scanning still works** — only the cloud upload is gated
+Uploads keep working at zero credits. They never cost credits, so results are
+still stored and your PR checks and merge gate keep working. Only compute
+actions stop until you add credits.
 
 ### MCP Server
 
@@ -169,17 +168,15 @@ Other MCP tools (`analyze`, `security_scan`, `quality_check`, `secrets_scan`) ru
 
 ### CI/CD
 
-Same as CLI upload — the scan runs locally, but the cloud upload (which stores results and posts PR comments) requires credits.
+Same as CLI upload — uploads from CI are free, so a workspace with 0 credits keeps its PR checks and merge gate.
 
 ---
 
 ## Low Credit Warning
 
-When your balance drops below 50 credits, you'll see a warning after each upload:
-
-```
-Credits remaining: 12. Top up at skylos.dev/dashboard/billing
-```
+Uploads do not use credits, so a low balance never blocks them. Check your
+balance any time with `skylos credits` or on the
+[billing page](https://skylos.dev/dashboard/billing).
 
 ---
 
@@ -195,10 +192,10 @@ Yes. Pro is time-bound — each credit pack extends your Pro duration. When it e
 Yes. 30-day money-back guarantee on all packs. Contact `founder@skylos.dev` or request through the payment provider.
 
 **What happens if my balance hits zero mid-CI-run?**
-The scan still runs locally. The upload to the cloud dashboard will fail with a 402 error. Your CI pipeline won't break — the scan results are still available in the build output.
+Nothing changes for the scan. Uploads never cost credits, so the upload, PR checks and merge gate keep working. Only compute actions, such as AI triage and fix PRs, stop until you add credits.
 
 **Is there a free trial?**
 Yes! Every new account gets **50 starter credits** and a **7-day Pro trial** — no credit card required. Local scanning is also free forever with no limits.
 
 **What's the difference between plan-gated and credit-gated?**
-Pro features (trends, team collaboration, integrations) require an active Pro subscription but don't cost credits. Compute actions (scan upload, AI triage, etc.) cost credits regardless of plan.
+Pro features (trends, team collaboration, integrations) require an active Pro subscription but don't cost credits. Compute actions (AI triage, fix PRs, scan comparisons, etc.) cost credits regardless of plan. Scan uploads never cost credits.

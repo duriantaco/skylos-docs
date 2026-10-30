@@ -12,6 +12,26 @@ This guide covers the fastest path from installation to a useful local scan.
 Skylos works as a local CLI first; cloud upload, LLM review, and CI gates are
 optional layers you can add later.
 
+## The Three Commands
+
+```bash
+pip install skylos
+skylos .            # find problems; your code and findings stay on your machine
+skylos cloud        # optional: track results per branch on Skylos Cloud
+skylos cicd init    # add a Skylos check to every pull request
+```
+
+- `skylos .` finds problems. Your code and findings stay on your machine.
+- `skylos cloud` is optional. It tracks results per branch on [Skylos Cloud](/cloud).
+- `skylos cicd init` adds a Skylos check to every pull request. See [CI/CD Integration](/ci-cd).
+
+`skylos .` finds dead code. `skylos . -a` runs every check (security, secrets,
+quality, AI-code defects, dependencies) and still stays local, except that it
+looks up package names online: OSV.dev for known CVEs, and PyPI or npm for
+packages that don't exist.
+
+The steps below go through each one in more detail.
+
 :::tip What Skylos catches that other tools miss
 The [Skylos tutorial](https://skylos.dev/docs/tutorial) walks through eight checks we didn't find in other tools as of October 2026 (for example, risky pull requests that need a person's approval even when an AI reviewer approved, and agents that hard-code test answers), each with a one-minute demo you can paste.
 :::
@@ -147,7 +167,8 @@ See [Smart Tracing](/smart-tracing) for details.
 
 ## Step 4: Add CI Or Cloud Later
 
-Generate a GitHub Actions workflow:
+Set up a pull request gate for your CI (GitHub Actions, GitLab CI, Jenkins,
+Bitbucket Pipelines, Azure Pipelines or CircleCI):
 
 ```bash
 skylos cicd init
@@ -158,16 +179,24 @@ tokens, annotations, and branch protection.
 
 ## Optional: Connect to Cloud
 
-Upload your scan results to the Skylos Cloud dashboard for history tracking, team collaboration, and trend visualization.
+Track your results per branch on the Skylos Cloud dashboard for history tracking, team collaboration, and trend visualization.
 
 ```bash
-skylos . --upload
+skylos cloud
 ```
+
+`skylos cloud` runs every check (`-a`), shows the findings, uploads them to
+Skylos Cloud, then prints this branch's quality gate and one link to it. It sends findings,
+not your repository.
 
 On first run, the browser opens automatically — sign in with GitHub, pick a project, and you're done. No API keys to copy or config files to edit.
 
+To run only some checks, name them, for example
+`skylos cloud --danger --secrets`. See [Cloud Platform](/cloud) for what
+`skylos cloud` sends and prints.
+
 :::tip
-Every new account gets **50 starter credits** and a **7-day Pro trial** — no credit card required.
+Your first workspace gets a 14-day Workspace trial with 50 credits, and no card. See [Billing & Credits](/billing).
 :::
 
 See [Authentication](/authentication) for CI/CD setup, OIDC, and advanced options.
