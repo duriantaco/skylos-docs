@@ -51,9 +51,9 @@ When a new issue appears, Skylos supports three resolution paths:
 
 ---
 
-## Free vs Pro/Enterprise
+## Free vs Workspace/Enterprise
 
-| Capability | Free (Local) | Pro / Enterprise (Cloud) |
+| Capability | Free (Local) | Workspace / Enterprise (Cloud) |
 |---|---|---|
 | Ratchet baseline | ✅ Local history / local baseline | ✅ Cloud baseline on `main` (team-wide) |
 | Blocking behavior | ✅ CLI exits non-zero (fail the step) | ✅ CLI can **wait/poll** for approval (unblocks instantly) |
@@ -157,7 +157,7 @@ Action required:
 ### What happens next depends on your tier
 
 * **Free**: CLI exits with a failure code (your script stops)
-* **Pro/Enterprise**: CLI can **wait/poll** until the scan becomes approved
+* **Workspace/Enterprise**: CLI can **wait/poll** until the scan becomes approved
 
 ---
 
@@ -193,7 +193,7 @@ Use this when the scanner is wrong *or* you accept the risk temporarily (hotfix 
 
 * That *specific* finding stops blocking the gate
 * The scan updates immediately
-* In Pro/Enterprise, your CLI wakes up and continues
+* In Workspace/Enterprise, your CLI wakes up and continues
 
 ### Option C — Emergency Override (last resort)
 
@@ -228,7 +228,7 @@ enabled = true
 max_reliability = 0
 
 # Free/local environments can allow manual bypass.
-# In Pro/Enterprise, strict mode is managed by the dashboard project settings.
+# In Workspace/Enterprise, strict mode is managed by the dashboard project settings.
 strict = false
 ```
 
@@ -280,7 +280,7 @@ jobs:
         run: ./deploy.sh
 ```
 
-### Pro workflow behavior
+### Workspace workflow behavior
 
 * If the gate fails, the job can **wait** for dashboard approval
 * When a lead suppresses/overrides, the PR/check turns green and the job continues
