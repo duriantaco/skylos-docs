@@ -84,7 +84,7 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           routeBasePath: '/',
-          editUrl: 'https://github.com/duriantaco/skylos/tree/main/docs/',
+          editUrl: 'https://github.com/duriantaco/skylos-docs/tree/main/',
         },
         blog: {
           showReadingTime: true,
