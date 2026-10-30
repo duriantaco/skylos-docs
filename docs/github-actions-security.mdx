@@ -248,19 +248,15 @@ pinning policy, and code-owner review for workflow changes.
 
 ## Other CI Providers
 
-Skylos can run in Jenkins, GitLab CI, CircleCI, Buildkite, and other CI systems
-as a normal CLI gate:
+Skylos runs in Jenkins, GitLab CI, Bitbucket Pipelines, Azure Pipelines,
+CircleCI, Buildkite, and other CI systems as a pull request gate.
+`skylos cicd init` sets it up for the CI your repository uses; see
+[Other CI Providers](/ci-cd#other-ci-providers).
 
-```bash
-skylos . --danger --secrets --quality --gate
-```
-
-The workflow-configuration scanner on this page is GitHub Actions-specific. It
-does not currently parse `Jenkinsfile`, `.gitlab-ci.yml`, CircleCI config, or
-Buildkite pipeline definitions for CI/CD misconfiguration rules.
-
-Use the non-GitHub CI examples in [CI/CD Integration](/ci-cd) to run Skylos
-against repository source code, secrets, and quality issues from those systems.
+The workflow-configuration scanner on this page covers GitHub Actions. Skylos
+also checks `.gitlab-ci.yml` (SKY-D314 to SKY-D323). It does not parse
+`Jenkinsfile`, CircleCI, Bitbucket Pipelines, Azure Pipelines, or Buildkite
+configuration for CI/CD misconfiguration rules.
 
 ## Related Docs
 
