@@ -18,7 +18,7 @@ account.
 Your first workspace gets a **Workspace trial**:
 
 - **14 days** of the Workspace plan
-- **50 credits** for compute actions such as AI triage, fix PRs and scan comparisons (scan uploads are free)
+- **50 credits** for compute actions such as scan comparisons, AI fix PRs and MCP remediation (scan uploads are free)
 - No card, and nothing renews or charges you
 
 The trial is given once per account and once per GitHub user. Later
@@ -51,7 +51,6 @@ Only compute actions in Skylos Cloud cost credits:
 | Scan comparison (diff between two scans) | 2 |
 | AI fix PR | 3 |
 | Weekly cleanup PR | 3 |
-| AI issue triage | 5 |
 | MCP AI remediation (`remediate` tool) | 10 |
 | Deep scan, where your workspace offers it (refunded if no report is made) | 10 |
 | Compliance report | 500 |
@@ -150,12 +149,12 @@ skylos credits
 Output:
 ```
 My Org (Workspace plan)
-Balance: 1,040 credits
+Balance: 1,038 credits
 
 Recent activity:
   +1000  Purchased 1000 credits (team pack)
-  -5  Used feature: AI issue triage
-  -10  Used feature: MCP remediation
+  -2  Used feature: Compare two scans side by side
+  -10  Used feature: MCP AI remediation
 
 Buy credits: https://skylos.dev/dashboard/billing
 ```
@@ -230,10 +229,10 @@ Yes. Each purchase turns it on for 12 months. When it ends, the workspace moves 
 Refunds follow the Lemon Squeezy checkout terms, the law, and any written agreement with Skylos. Contact `founder@skylos.dev`. A full refund removes that purchase's credits.
 
 **What happens if my balance hits zero mid-CI-run?**
-Nothing changes for the scan. Uploads never cost credits, so the upload, PR checks and merge gate keep working. Only compute actions, such as AI triage and fix PRs, stop until you add credits.
+Nothing changes for the scan. Uploads never cost credits, so the upload, PR checks and merge gate keep working. Only compute actions, such as scan comparisons and AI fix PRs, stop until you add credits.
 
 **Is there a free trial?**
 Yes. Your first workspace gets a 14-day Workspace trial with 50 credits, and no card. Local scanning is free with no limits.
 
 **What's the difference between plan-gated and credit-gated?**
-Plan features (longer history, team review, integrations, PR comments) need the Workspace plan but don't cost credits. Compute actions (AI triage, fix PRs, scan comparisons, etc.) cost credits on every plan, Free and Enterprise included. Scan uploads never cost credits.
+Plan features (longer history, team review, integrations, PR comments) need the Workspace plan but don't cost credits. Compute actions (scan comparisons, AI fix PRs, MCP remediation, compliance reports) cost credits on every plan, Free and Enterprise included. Scan uploads never cost credits.
