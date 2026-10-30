@@ -18,7 +18,7 @@ skylos . -a --ai-review      # local report
 skylos cloud --ai-review     # same, uploaded to Skylos Cloud
 ```
 
-- High-severity security issues are checked several times by your model.
+- High-severity security issues in Python files are checked several times by your model. Security issues in other languages are not AI-reviewed yet.
 - Unused-code issues are checked by your model, and by Jev when `TYPESAFE_API_KEY` is set. With only `TYPESAFE_API_KEY`, Jev reviews them alone.
 - Pick the model with `--model` and a self-hosted endpoint with `--api-base`.
 - **Nothing is hidden and blocking never changes.** The gate only uses Skylos's rules. An issue the AI disagrees with still blocks until someone fixes it or marks it Not fixing.
