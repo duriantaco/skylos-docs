@@ -1,106 +1,160 @@
 ---
 title: "Billing & Credits"
-description: "How credits work, pricing, and what costs credits in Skylos"
+description: "Skylos Cloud plans, credit packs, the Workspace pass, credit costs, limits and refunds"
 ---
 
-Skylos uses **credit packs** — one-time purchases, no subscriptions, no recurring charges. Each purchase also extends your **Pro access** (see [How Pro Works](#how-pro-works) below).
+Skylos Cloud has three plans: **Free**, **Workspace** and **Enterprise**.
 
-## New User Onboarding
+You pay once for a credit pack or the Workspace pass. Nothing renews. There are no subscriptions and no seats. Credits never expire.
 
-Every new Skylos account gets:
+The live price list is at [skylos.dev/pricing](https://skylos.dev/pricing).
 
-- **50 starter credits** — enough for 50 scan uploads
-- **7-day Pro trial** — full access to all Pro features
-
-No credit card required. Start scanning and explore the cloud dashboard immediately.
-
----
-
-## What's Free
-
-| Action | Why Free |
-|--------|----------|
-| `skylos .` (local CLI scan) | Adoption funnel — local scanning is always free |
-| `skylos . --format json` / `pretty` / `concise` / `--tree` | Same — all local output formats are free |
-| MCP `analyze` / `security_scan` / `quality_check` / `secrets_scan` | Local analysis tools — run on your machine |
-| Dashboard viewing (read-only) | No friction to see results |
-| All languages (Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, Shell) | Languages are adoption multipliers, not paywalls |
-
-## What Costs Credits
-
-Only **compute-heavy cloud actions** cost credits:
-
-| Action | Credits |
-|--------|---------|
-| Scan upload (`--upload`) | 1 |
-| Scan comparison (diff between two scans) | 2 |
-| PR auto-fix (LLM-generated fix) | 3 |
-| AI issue triage (LLM analysis) | 5 |
-| MCP AI remediation (`remediate` tool) | 10 |
-| Compliance report (PCI DSS, SOC2, HIPAA) | 500 |
-
-## Credit Packs
-
-| Pack | Credits | Price | Per-Credit | Pro Access |
-|------|---------|-------|------------|------------|
-| **Starter** | 500 | $9 | $0.018 | 30 days |
-| **Builder** | 2,500 | $39 | $0.016 | 90 days |
-| **Team** | 10,000 | $129 | $0.013 | 180 days |
-| **Scale** | 50,000 | $499 | $0.010 | 365 days |
-
-Volume discount up to 45%. Credits never expire.
-
-**30-day money-back guarantee** on all packs.
-
----
-
-## How Pro Works
-
-Pro is **time-bound** — each credit pack purchase includes a Pro access duration.
-
-**How it works:**
-- Buy any credit pack → you get Pro access for the pack's duration
-- Pro duration **stacks** — buying another pack extends your expiry date
-- If Pro expires, you drop back to the Free plan (your credits are still there)
-- Buy any pack to **reactivate** Pro immediately
-
-**Example:**
-1. Buy Starter pack → Pro for 30 days (expires April 3)
-2. On March 20, buy Builder pack → Pro extended by 90 days (now expires July 2)
-3. Credits from both packs are combined in your balance
-
-:::tip
-Your credits never expire — only Pro access is time-bound. If Pro lapses, buy any pack to reactivate and your existing credits are still available.
+:::tip No account needed
+The CLI, the agent hooks and the PR gate in your own CI are free and need no account.
 :::
 
 ---
 
-## Pro Features
+## Free
 
-These features are **plan-gated** (require an active Pro subscription), not credit-gated:
+Free costs $0 and needs no card. In Skylos Cloud it includes:
 
-- **Advanced gate modes** — server-controlled GitHub checks that can't be bypassed
-- **Full trend charts** — track security and quality metrics over time
-- **Team collaboration** — shared dashboard, team-wide suppressions
-- **Slack & Discord notifications** — get alerts on new findings
-- **Suppression governance** — manage false positives across the team
-- **SARIF export** — import results into GitHub Security tab
-- **Inline PR comments** — findings posted directly on PR diffs
-- **Findings export** — download results as CSV/JSON
-- **Custom rules** — up to 50 organization-specific rules
-- **90-day scan history** — full history retention (Free: 7 days)
+| Free | Limit |
+|------|-------|
+| Projects | 1 |
+| Stored scans | Newest 10 per project |
+| Pass/fail check on pull requests | Included |
+| Issues marked "not fixing" | Up to 25 per project |
+| Custom rules | Up to 3, no Python rules |
+| Cloud scans | 5 a day |
+
+Credits work on Free too. If the workspace has credits, every credit action works.
+
+## Free Trial
+
+An account's first workspace gets a **14-day Workspace trial** and **50 credits**.
+
+- No card. Nothing renews or charges you.
+- One trial per account and per GitHub user.
+- On day 15 the workspace moves to Free. Settings and issues stay. Unused credits stay.
+
+---
+
+## What You Can Buy
+
+Prices are in US dollars. Lemon Squeezy is the merchant of record and adds sales tax or VAT at checkout. Every purchase is a one-time payment.
+
+| Purchase | Price | Credits | Per credit | Workspace plan | People |
+|----------|-------|---------|------------|----------------|--------|
+| **Starter pack** | $9 | 50 | $0.180 | 12 months | Up to 3 |
+| **Builder pack** | $39 | 250 | $0.156 | 12 months | Up to 3 |
+| **Team pack** | $129 | 1,000 | $0.129 | 12 months | Up to 3 |
+| **Scale pack** | $499 | 5,000 | $0.100 | 12 months | Up to 3 |
+| **Workspace pass** | $990 once, per workspace | 1,000 | n/a | 12 months | Unlimited |
+
+- "Up to 3 people" counts the owner, members and pending invites.
+- A credit pack bought by a workspace with more than 3 people adds credits only, with no Workspace time.
+- The Workspace pass is the only purchase with unlimited members.
+- Credits never expire and work on every plan, Free included.
+
+**Founding Team offer:** the first 10 teams, until 31 March 2027, pay $499 through the Scale pack checkout. They get its 5,000 credits plus 12 months of Enterprise. See [skylos.dev/pricing](https://skylos.dev/pricing).
+
+---
+
+## The Workspace Plan
+
+Any purchase turns on the Workspace plan for 12 months from that purchase. It adds:
+
+- Up to 10 projects
+- 500 stored scans per project
+- 50 custom rules, Python rules included
+- 50 Cloud scans a day
+- Approvals and overrides
+- Audit evidence and exports
+- Teams, integrations and inline PR comments
+
+### Buying Again During a Term
+
+A purchase made while a term is running starts a new 12 months from that purchase. If you already hold a later end date, you keep it. Terms do not add up beyond that.
+
+**Example:**
+1. Buy a Starter pack on 1 January. Workspace runs until 1 January next year.
+2. Buy a Builder pack on 1 June. Workspace now runs until 1 June the year after.
+3. Credits from both packs add up in one balance.
+
+### When the 12 Months End
+
+- Nothing is charged.
+- The workspace moves to Free.
+- Settings and issues stay.
+- New scans then keep the newest 10 per project.
+- Your credits stay.
+
+Buy any pack or the Workspace pass to turn Workspace on again.
+
+Workspaces that bought before 14 October 2026 keep Workspace with no end date and no member limit.
+
+---
+
+## What Costs Credits
+
+The app shows the cost before every charged action. Every plan pays the same costs, Enterprise included.
+
+| Action | Credits | Notes |
+|--------|---------|-------|
+| Compare two scans | 2 | Charged only when the result is ready |
+| AI fix PR (**Fix in PR**, or **Create cleanup PR** on a finding) | 3 | Refunded if it fails or the AI says the finding is a false positive |
+| Weekly dead-code cleanup PR | 3 | Automatic, opt-in per project. Skipped when credits run out |
+| MCP remediation (`remediate` tool) | 10 | Needs a project API key |
+| Deep scan | 10 | Plus the model cost on your workspace's own Anthropic key. Refunded if no report. Shown only where deep scans are available |
+| Compliance report | 500 | Once per framework and project selection. Downloads and retries are free |
+
+## What Never Costs Credits
+
+- Local CLI scans, in every language and output format
+- Scan uploads (`skylos . --upload`), Claude Security uploads included
+- Cloud scans of your GitHub repositories
+- PR checks and the merge gate
+- MCP scan tools (`analyze`, `security_scan`, `quality_check`, `secrets_scan`, `provenance_scan`). They need a project API key, except `analyze`, which allows 5 calls a day without one.
+
+---
+
+## When Credits Run Out
+
+- A credit action is refused before it starts (HTTP 402, "Insufficient credits"). Nothing is charged.
+- The button points to Billing.
+- The weekly cleanup PR is skipped.
+- Free actions keep working: uploads, Cloud scans, PR checks and the merge gate.
+
+A CI upload never fails for lack of credits, because uploads and PR checks are free.
+
+The MCP `remediate` tool returns:
+
+```
+Insufficient credits. Required: 10, available: 0. Buy credits at https://skylos.dev/dashboard/billing
+```
+
+---
+
+## Refunds
+
+- Cancel any purchase within 14 days. You get the price back, minus the value of the credits spent from it.
+- One credit is worth the pack price divided by its credits. Example: you buy a Builder pack ($39, 250 credits) and spend 20 credits. The refund is $39 − 20 × $0.156 = $35.88.
+- After 14 days, refunds are at Skylos's discretion.
+- To ask, email `founder@skylos.dev` with your order number, or contact Lemon Squeezy.
+
+Full terms: [skylos.dev/terms#payments](https://skylos.dev/terms#payments).
 
 ---
 
 ## Enterprise
 
-Custom pricing for teams that need:
-- Unlimited repos and history (365-day retention)
-- SSO/SAML
-- Compliance reports
-- Audit logs
-- Priority support and SLA
-- Unlimited credits (no per-scan charges)
+- From $5,000 a year, on a written agreement with invoice billing.
+- 5,000 credits a year, added by hand.
+- Unlimited members and up to 9,999 projects.
+- Everything in Workspace, plus an audit export of who wrote each change: a person or an AI agent.
+
+When an Enterprise term ends, the workspace keeps Workspace while a 12-month term of its own is running. Otherwise it moves to Free.
 
 Contact `founder@skylos.dev`.
 
@@ -116,89 +170,47 @@ skylos credits
 
 Output:
 ```
-[My Org] (pro plan — expires 2026-06-15)
-Balance: 1,500 credits
+My Org (Workspace plan)
+Balance: 245 credits
 
 Recent activity:
-  +2500   Purchased 2500 credits (builder pack)
-  -1      Scan upload
-  -5      AI issue triage
-  -10     AI code remediation
+  -3  Used feature: AI fix pull request
+  -2  Used feature: Compare two scans side by side
+  +250  Purchased 250 credits (builder pack)
 
 Buy credits: https://skylos.dev/dashboard/billing
 ```
 
+It prints **Low credits!** when the balance is under 10. Requires `skylos login` first.
+
 ### Dashboard
 
-Go to [skylos.dev/dashboard/billing](https://skylos.dev/dashboard/billing) to see your balance, Pro expiry date, recent transactions, and buy more credits.
+Go to [skylos.dev/dashboard/billing](https://skylos.dev/dashboard/billing) to see your balance, when your Workspace plan ends, recent transactions, and to buy more.
 
 ---
 
 ## How Purchasing Works
 
-1. Go to **skylos.dev/dashboard/billing** (or run `skylos credits` in the CLI to get the link)
-2. Pick a credit pack
-3. You're redirected to a secure checkout page (powered by Lemon Squeezy)
-4. After payment, credits are added to your account instantly
-5. Your Pro access is extended by the pack's duration
-
----
-
-## What Happens at Zero Credits
-
-### CLI Upload
-
-```bash
-skylos . --upload
-```
-
-- CLI warns: `0 credits remaining. Buy more: https://skylos.dev/dashboard/billing`
-- Server returns 402 (Payment Required)
-- **Local scanning still works** — only the cloud upload is gated
-
-### MCP Server
-
-The `remediate` tool returns an error:
-
-```
-Insufficient credits. Required: 10, available: 0.
-Buy credits at https://skylos.dev/dashboard/billing
-```
-
-Other MCP tools (`analyze`, `security_scan`, `quality_check`, `secrets_scan`) run locally and don't require credits.
-
-### CI/CD
-
-Same as CLI upload — the scan runs locally, but the cloud upload (which stores results and posts PR comments) requires credits.
-
----
-
-## Low Credit Warning
-
-When your balance drops below 50 credits, you'll see a warning after each upload:
-
-```
-Credits remaining: 12. Top up at skylos.dev/dashboard/billing
-```
+1. Open **Billing** at [skylos.dev/dashboard/billing](https://skylos.dev/dashboard/billing). `skylos credits` prints the link.
+2. Pick a credit pack or the Workspace pass.
+3. Pay on the Lemon Squeezy checkout page. Tax is added there.
+4. Credits are added to the workspace, and the Workspace plan runs for 12 months from the purchase.
 
 ---
 
 ## FAQ
 
 **Do credits expire?**
-No. Credits never expire. Buy them once, use them whenever.
+No. They work on every plan, Free included.
 
-**Does Pro access expire?**
-Yes. Pro is time-bound — each credit pack extends your Pro duration. When it expires, you drop to Free but keep your credits. Buy any pack to reactivate.
-
-**Can I get a refund?**
-Yes. 30-day money-back guarantee on all packs. Contact `founder@skylos.dev` or request through the payment provider.
+**Does anything renew?**
+No. Every purchase is a one-time payment. When the 12 months end, the workspace moves to Free and nothing is charged.
 
 **What happens if my balance hits zero mid-CI-run?**
-The scan still runs locally. The upload to the cloud dashboard will fail with a 402 error. Your CI pipeline won't break — the scan results are still available in the build output.
+Nothing breaks. Uploads, PR checks and the merge gate never cost credits.
 
-**Is there a free trial?**
-Yes! Every new account gets **50 starter credits** and a **7-day Pro trial** — no credit card required. Local scanning is also free forever with no limits.
+**Can I get a refund?**
+Yes, within 14 days, minus the value of the credits you spent. See [Refunds](#refunds).
 
-**What's the difference between plan-gated and credit-gated?**
-Pro features (trends, team collaboration, integrations) require an active Pro subscription but don't cost credits. Compute actions (scan upload, AI triage, etc.) cost credits regardless of plan.
+**What's the difference between plan limits and credits?**
+The plan sets limits and features: projects, stored scans, custom rules, team features. Credits pay for compute actions, on any plan.
