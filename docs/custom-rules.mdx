@@ -19,7 +19,7 @@ They are:
 - reusable across projects in the same organization
 - stored with severity and category metadata
 - available as YAML-based pattern rules
-- optionally available as Python rules on paid plans
+- optionally available as Python rules on the Workspace and Enterprise plans
 
 Typical use cases:
 
@@ -50,13 +50,13 @@ Current limits:
 | Plan | Rule Limit | Python Rules |
 |------|------------|--------------|
 | Free | 3 | No |
-| Pro | 50 | Yes |
-| Enterprise | Unlimited practical limit | Yes |
+| Workspace | 50 | Yes |
+| Enterprise | No limit | Yes |
 
 Two important plan nuances:
 
-- The dashboard can allow Free users to create a small number of rules.
-- The sync endpoint returns custom rules only on paid plans.
+- On Free, sync returns up to 3 turned-on YAML rules, oldest first. Python rules and rules past the limit are not run, and the sync response says how many were skipped.
+- Any purchase turns on the Workspace plan for 12 months. See [Billing & Credits](/billing).
 
 If you are documenting rollout internally, say which plan the team is on.
 
@@ -84,7 +84,7 @@ Good for:
 - context-aware matching
 - rules that need richer code inspection
 
-Python rules require a paid plan.
+Python rules need the Workspace or Enterprise plan.
 
 ---
 
@@ -235,7 +235,7 @@ They sync through the dedicated custom-rules path and are organization-scoped. T
 - enabled rules can be reused across projects in the same organization
 - they should be documented as org standards, not as one-off project toggles
 
-If you are on the Free plan, do not assume rule sync will behave the same as a paid plan. The current sync endpoint returns custom rules only for paid plans.
+On the Free plan, sync returns up to 3 turned-on YAML rules, oldest first. Python rules and any rules past the limit are skipped.
 
 ---
 

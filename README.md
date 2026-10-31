@@ -66,14 +66,14 @@ for this chooser or `skylos commands` for the installed command-family map.
 
 ---
 
-## Free vs Pro/Enterprise
+## Free vs Workspace/Enterprise
 
 Skylos' core source analysis and local artifact preflight are free and can run
 offline. Package-registry verification, SCA/OSV, direct container image scans,
-Cloud features, and hosted LLM providers require network access. Pro/Enterprise
+Cloud features, and hosted LLM providers require network access. Workspace/Enterprise
 adds team governance and CI/CD workflow features.
 
-| Capability | Free (Local) | Pro / Enterprise |
+| Capability | Free (Local) | Workspace / Enterprise |
 |------------|--------------|------------------|
 | Dead code detection | ✅ | ✅ |
 | Security scanning (`--danger`) | ✅ | ✅ |
@@ -89,7 +89,7 @@ adds team governance and CI/CD workflow features.
 | **Baseline** | Local history | Cloud baseline on `main` (team-wide) |
 | **GitHub check status** | Basic pass/fail | Updates on approval |
 
-### When to use Pro/Enterprise
+### When to use Workspace/Enterprise
 
 - **Teams** needing shared baselines across developers
 - **Compliance** requiring audit logs for overrides and suppressions  

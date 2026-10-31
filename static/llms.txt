@@ -71,4 +71,4 @@ Skylos is a Vulture alternative with 95% recall and 3x fewer false positives. Bu
 - [Cloud Dashboard](https://docs.skylos.dev/cloud): Skylos Cloud features
 - [Enterprise Trust](https://docs.skylos.dev/enterprise-trust): Security-team pilot posture, upload attribution, audit events, RBAC, and procurement roadmap
 - [Authentication](https://docs.skylos.dev/authentication): Browser login, project API keys, GitHub OIDC, and upload attribution
-- [Billing](https://docs.skylos.dev/billing): Credit packs and pricing
+- [Billing](https://docs.skylos.dev/billing): Free, Workspace and Enterprise plans, one-time credit packs, the Workspace pass, credit costs and refunds
