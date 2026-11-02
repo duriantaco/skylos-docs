@@ -86,7 +86,7 @@ use the `SKY-A` prefix.
 
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
-| `SKY-D226` | XSS | CRITICAL | Python, TS, Go | `mark_safe()`, `innerHTML`, `outerHTML`, `document.write()`, `dangerouslySetInnerHTML` |
+| `SKY-D226` | XSS | CRITICAL | Python, TypeScript/JavaScript, Go, Java | `mark_safe()`, `innerHTML`, `outerHTML`, `document.write()`, `dangerouslySetInnerHTML` |
 | `SKY-D227` | XSS (Template) | HIGH | Python | Template uses `\|safe` filter or disables autoescape |
 | `SKY-D228` | XSS (HTML Build) | HIGH | Python, TS, Go | HTML string built with unescaped user input |
 | `SKY-D230` | Open Redirect | HIGH | Python, TS, Go, Java, C# | User-controlled URL in `redirect()` / `res.redirect()` / `http.Redirect` / `sendRedirect` / ASP.NET redirect sinks |
@@ -810,8 +810,8 @@ Command::new("git").arg("status").output()?;
 # Bad
 model = AutoModel.from_pretrained("org/model", trust_remote_code=True)
 
-# Reported as MEDIUM: the reviewed commit is pinned
-model = AutoModel.from_pretrained("org/model", trust_remote_code=True, revision="<commit sha>")
+# Reported as MEDIUM: illustrative 40-hex SHA; use a reviewed commit
+model = AutoModel.from_pretrained("org/model", trust_remote_code=True, revision="0123456789abcdef0123456789abcdef01234567")
 
 # Good
 model = AutoModel.from_pretrained("org/model")
@@ -1653,7 +1653,7 @@ Skylos validates package/version existence for `package.json` and `go.mod` manif
 | | |
 |---|---|
 | **Severity** | CRITICAL |
-| **Languages** | Python, TypeScript |
+| **Languages** | Python, TypeScript/JavaScript, Go, Java |
 | **What** | Untrusted content rendered without escaping |
 | **Risk** | Script injection, session hijacking |
 
@@ -1706,7 +1706,7 @@ el.textContent = userInput
 | | |
 |---|---|
 | **Severity** | HIGH |
-| **Languages** | Python |
+| **Languages** | Python, TypeScript/JavaScript, Go |
 | **What** | HTML string built with unescaped user input |
 
 ```python
