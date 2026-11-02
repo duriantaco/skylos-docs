@@ -63,6 +63,7 @@ use the `SKY-A` prefix.
 | `SKY-D215` | Path Traversal | HIGH | Python, Java, Go, PHP, Rust, Dart, C#, Shell | Tainted input used in filesystem paths, include/file sinks, shell file commands, or redirection targets |
 | `SKY-D216` | SSRF | CRITICAL | Python, TS, Java, Go, Dart, C#, Shell | Tainted URL passed to HTTP clients, request builders, `curl`, or `wget` |
 | `SKY-D217` | SQL Injection (raw) | CRITICAL | Python | Tainted input in `sqlalchemy.text()`, `pandas.read_sql()`, Django `.raw()` |
+| `SKY-D218` | URL Scheme Audit | MEDIUM | Python | Dynamic urllib URL without a proven HTTP/HTTPS scheme restriction |
 | `SKY-D235` | Remote Command Execution Sink | HIGH | Python | User-controlled values flow into command execution sinks |
 | `SKY-D254` | HTTP Session Trust Boundary Violation | HIGH | Java | Servlet-controlled data crosses into HTTP session state (CWE-501) |
 | `SKY-D261` | Untrusted Input To LLM Prompt | HIGH | Python | Request-controlled data reaches an LLM prompt or message without a clear instruction/data boundary |
@@ -83,10 +84,11 @@ use the `SKY-A` prefix.
 | `SKY-D227` | XSS (Template) | HIGH | Python | Template uses `\|safe` filter or disables autoescape |
 | `SKY-D228` | XSS (HTML Build) | HIGH | Python | HTML string built with unescaped user input |
 | `SKY-D230` | Open Redirect | HIGH | Python, TS, Go, Java, C# | User-controlled URL in `redirect()` / `res.redirect()` / `http.Redirect` / `sendRedirect` / ASP.NET redirect sinks |
-| `SKY-D231` | CORS Misconfiguration | HIGH | Python | Wildcard origins, credential leaks, overly permissive headers |
+| `SKY-D231` | CORS Misconfiguration | HIGH | Python | Wildcard origins with credentials or open write routes, echoed `Origin` without an allowlist |
 | `SKY-D232` | JWT Vulnerabilities | CRITICAL | Python | `algorithms=['none']`, `verify=False`, weak secrets |
 | `SKY-D234` | Mass Assignment | HIGH | Python | Django `Meta.fields = '__all__'` exposes all model fields |
 | `SKY-D282` | Webhook Signature Verification Issue | HIGH | Python, TS | Matching request payload is not proven verified before body trust or event side effects |
+| `SKY-D283` | Unauthenticated Control, Destructive or Admin Route | HIGH | Python | A route that controls a device or the host, deletes data, acts as admin or runs commands, with nothing that authenticates the caller |
 | `SKY-D510` | Prototype Pollution | HIGH | TS | `__proto__` access |
 
 #### TypeScript-Specific Security
@@ -911,6 +913,36 @@ stmt = text(f"SELECT * FROM users WHERE name = '{name}'")
 stmt = text("SELECT * FROM users WHERE name = :name")
 result = conn.execute(stmt, {"name": name})
 ```
+
+---
+
+### SKY-D218 · URL Scheme Audit
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | Python |
+| **What** | Dynamic `urllib.request.urlopen` URL without a proven HTTP/HTTPS scheme restriction |
+| **Kind** | Review: attacker control is not established by this warning |
+
+`urllib` can open local files and other non-HTTP resources. Check whether URLs
+from callers or remote services should be restricted to HTTP/HTTPS.
+
+```python
+from urllib.parse import urlsplit
+from urllib.request import urlopen
+
+def download(url):
+    if urlsplit(url).scheme not in ("http", "https"):
+        raise ValueError("Unsupported URL scheme")
+    return urlopen(url)
+```
+
+The rule follows imported aliases and locally constructed `Request` objects.
+Explicit literal URLs and proven scheme guards are quiet. A guard must check
+the value that reaches the call; rebinding or replacing the parser invalidates
+that proof. Scheme checks do not restrict the destination host: `SKY-D216`
+separately checks for SSRF.
 
 ---
 
@@ -1930,6 +1962,31 @@ export async function POST(req: Request) {
 ```
 
 Verification evidence includes provider helpers such as `construct_event` / `constructEvent`, explicit HMAC verification, `hmac.compare_digest`, `createHmac`, and `crypto.timingSafeEqual`.
+
+---
+
+### SKY-D283 · Unauthenticated Control, Destructive or Admin Route
+
+| | |
+|---|---|
+| **Severity** | HIGH, CRITICAL when the app listens on every interface, the module has no auth at all and the handler performs the action |
+| **Languages** | Python (FastAPI, Flask, Quart, Starlette, Sanic) |
+| **What** | A POST, PUT, PATCH or DELETE route whose name, path or method says it controls a device or the host (arm, takeoff, reboot, shutdown), deletes data, acts as admin or runs commands, and nothing on the route, in its handler or in its module authenticates the caller |
+| **Risk** | Anyone who can reach the server can trigger the action |
+
+```python
+# Bad
+@app.post("/control/reboot")
+def reboot():
+    os.system("reboot")
+
+# Good
+@app.post("/control/reboot", dependencies=[Depends(require_operator)])
+def reboot():
+    os.system("reboot")
+```
+
+Auth evidence includes guard decorators, `Depends` / `Security` / `Header` / `Cookie` parameters, 401/403 or login-redirect handling, reading request credentials, auth middleware and credential-checking hooks. A route that something may authenticate stays the MEDIUM `SKY-F102` review. GET routes are never reported. `ignore` for `SKY-F102` and a bare `# noqa` do not hide `SKY-D283`.
 
 ---
 
