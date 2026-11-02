@@ -31,7 +31,7 @@ Use it when you want to:
 | Container vulnerability scan | `skylos image scan IMAGE@sha256:<digest> --platform linux/amd64` | uses separately installed Trivy plus registry network access; findings gate only with `--fail-on` |
 | Combined repo report | `skylos suite` | runs static, debt, defense, and provenance checks; findings are report-only |
 | Dead-code cleanup | `skylos clean --dry-run` | previews Python import/function edits without writing files |
-| CI gate | `skylos cicd init` | generates a GitHub Actions workflow |
+| CI gate | `skylos cicd init` | sets up the pull request gate for GitHub Actions, GitLab CI, Jenkins, Bitbucket Pipelines, Azure Pipelines or CircleCI |
 | Pre-deployment agent verification | `skylos defend . --format md` | reports guardrails for recognized Python and TypeScript/JavaScript integrations; gating is opt-in |
 | Runtime agent behavior test | `skylos agent test --allow-contract-endpoint` | checks responses, tool selection, refusals, and source IDs against a contract |
 | Agent review | `skylos agent scan .` | optional LLM-assisted review and fix suggestions |
