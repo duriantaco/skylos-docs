@@ -582,13 +582,12 @@ skylos credits
 
 Output:
 ```
-[My Org] (pro plan)
-Balance: 1,500 credits
+My Org (Workspace plan)
+Balance: 990 credits
 
 Recent activity:
-  +10000  Purchased 10000 credits (team pack)
-  -1      Scan upload
-  -10     AI code remediation
+  +1000  Purchased 1000 credits (team pack)
+  -10  Used feature: MCP AI remediation
 
 Buy credits: https://skylos.dev/dashboard/billing
 ```
@@ -686,7 +685,7 @@ skylos cicd review --input skylos-report.json --pr 42
 
 | Flag | Description |
 |------|-------------|
-| `--upload` | Upload scan results and metadata to Skylos Cloud. Uses `SKYLOS_TOKEN`, GitHub OIDC, or saved `skylos login` credentials. Costs 1 credit. |
+| `--upload` | Upload scan results and metadata to Skylos Cloud. Uses `SKYLOS_TOKEN`, GitHub OIDC, or saved `skylos login` credentials. Uploads never cost credits. |
 | `--strict` | Exit with code 1 if quality gate fails (use in CI to block merges) |
 | `--force`, `-f` | Bypass quality gate locally (still uploads if `--upload` is set) |
 
