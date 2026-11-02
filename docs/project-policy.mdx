@@ -272,10 +272,10 @@ you are using the local gate flow.
 If you run:
 
 ```bash
-skylos . --upload
+skylos cloud
 ```
 
-you are sending results to Skylos Cloud, where project policy, suppressions, and AI assurance are applied to the uploaded findings.
+or add `--upload` to a scan, you are sending results to Skylos Cloud, where project policy, suppressions, and AI assurance are applied to the uploaded findings.
 
 For teams that want the dashboard to be the source of truth, the upload path is the important one.
 
@@ -302,15 +302,14 @@ Then:
 
 ## Example Team Rollout
 
-1. Connect repo with `skylos login`
-2. Upload scans with `skylos . --danger --quality --ai-defects --upload`
-3. Open **Dashboard → Settings**
-4. Set gate to `zero-new`
-5. Save changes
-6. Run `skylos sync pull`
-7. Add CI with `skylos cicd init --upload`
-8. Review failed uploads in the dashboard
-9. Add suppressions only when a finding is a genuine false positive
+1. Run `skylos cloud`; the first run connects the repo and uploads a scan
+2. Open **Governance → Policy** in the dashboard
+3. Set gate to `zero-new`
+4. Save changes
+5. Run `skylos sync pull`
+6. Add CI with `skylos cicd init --upload`
+7. Review failed uploads in the dashboard
+8. Add suppressions only when a finding is a genuine false positive
 
 ---
 
