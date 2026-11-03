@@ -1,18 +1,18 @@
 ---
 title: "PHP Support"
-description: "PHP dead code and selected security analysis support in Skylos."
+description: "PHP dead code and security analysis support in Skylos."
 ---
 
-Skylos analyzes PHP source with tree-sitter parsing for dead code and selected
-security checks.
+Skylos analyzes PHP source with tree-sitter parsing for dead code and follows
+request data within each function or file into security sinks.
 
 ## File Coverage
 
 | Area | Support |
 |:---|:---|
-| Extensions | `.php` |
+| Extensions | `.php`, and Drupal `.module`, `.install`, `.inc` and `.theme` files |
 | Dead code | Classes, interfaces, traits, enums, functions, methods, constants, properties, imports, and includes |
-| Security | Selected user-input to filesystem/include sinks and unsafe deserialization |
+| Security | Request data into command and code execution, file inclusion, XSS, SQL (including Laravel), SSRF, deserialization and file paths |
 | Quality | No dedicated PHP quality rules yet |
 
 ## Dead Code Detection
@@ -29,13 +29,79 @@ runtime entrypoints:
 
 ## Security Scope
 
-PHP security checks track request-controlled values from superglobals such as
-`$_GET`, `$_POST`, `$_REQUEST`, `$_COOKIE`, `$_FILES`, and `filter_input()` into
-selected sinks:
+Skylos follows request data through each PHP function or file, including
+branches, loops, `switch`, `try` and early exits (`return`, `exit`, `die`).
 
-- `unserialize()`
-- file APIs such as `file_get_contents`, `file_put_contents`, `fopen`, `readfile`, `unlink`, `copy`, and `rename`
-- `include`, `include_once`, `require`, and `require_once`
+### Request Data
+
+- `$_GET`, `$_POST`, `$_REQUEST`, `$_COOKIE`
+- the client-sent parts of `$_FILES` (`name`, `type`, `full_path`; not
+  `tmp_name`, `size` or `error`)
+- the `$_SERVER` keys the client sends (`HTTP_*`, `REQUEST_URI`,
+  `QUERY_STRING`, `PHP_SELF`, `PATH_INFO`, ...); not `REMOTE_ADDR`,
+  `DOCUMENT_ROOT` or `SERVER_NAME`
+- `file_get_contents('php://input')`, `getallheaders()`, and `filter_input()`
+  unless it validates an int, float or boolean
+- Laravel `$request->input()/query()/get()/post()/all()/header()/cookie()/route()/json()`,
+  `request()` and `old()`
+- Symfony request bags, PSR-7 request getters, CodeIgniter input, and Drupal
+  Form API input
+
+Function and method parameters are not request data on their own, so a Laravel
+route parameter such as `show($id)` is not reported. Numeric casts, typed
+getters such as `$request->integer()`, and lookups such as `User::find(...)`
+or `->fetch*()` carry no request text.
+
+### Rules
+
+| Rule | What is reported |
+|:---|:---|
+| [SKY-D212](/rules-reference#sky-d212--command-injection) (CRITICAL) | request data in `exec`, `system`, `shell_exec`, `passthru`, `popen`, `proc_open`, backticks or the program of `pcntl_exec`; `escapeshellcmd()` does not make it safe |
+| [SKY-D203](/rules-reference#sky-d203--ossystem) (HIGH) | a command built from other non-constant values; a fixed command, or one whose values are all `escapeshellarg()` results or numbers, is LOW and hidden by default |
+| [SKY-D201](/rules-reference#sky-d201--eval) | `eval`, `create_function`, `preg_replace` with `/e`: CRITICAL with request data, HIGH otherwise; string `assert` with request data: HIGH |
+| [SKY-D255](/rules-reference#sky-d255--file-inclusion) (CRITICAL) | request data in the path of `include`, `require`, `include_once` or `require_once` |
+| [SKY-D228](/rules-reference#sky-d228--xss-html-build) (HIGH) | request data printed with `echo`, `print`, `<?= ?>`, `printf`, `die`/`exit` or `print_r`/`var_export`/`var_dump`, checked against the HTML context it lands in |
+| [SKY-D226](/rules-reference#sky-d226--xss) (HIGH) | Blade `{!! request(...) !!}` and Drupal `Markup::create()` of request data |
+| [SKY-D211](/rules-reference#sky-d211--sql-injection) (CRITICAL) | request data in SQL: mysqli, PDO, pg, `$wpdb`, Laravel `DB::raw/select/statement/unprepared` and `*Raw()` builder methods, Doctrine DBAL/DQL |
+| [SKY-D216](/rules-reference#sky-d216--ssrf) (CRITICAL) | a request URL in `curl_init`, `CURLOPT_URL`, `curl_setopt_array`, `get_headers`, `fsockopen` or Laravel `Http::`; a fixed `https://host/` prefix is safe |
+| [SKY-D204](/rules-reference#sky-d204--sky-d205--unsafe-deserialization) (CRITICAL) | `unserialize()` of request data without `['allowed_classes' => false]` or a class list |
+| [SKY-D215](/rules-reference#sky-d215--path-traversal) (HIGH) | request data in file paths, such as `file_get_contents`, `file_put_contents`, `fopen`, `readfile`, `unlink`, `copy` and `rename` |
+| SKY-D349 (CRITICAL) | request data compiled as a Drupal `inline_template` |
+
+Before this release, request data in `include`/`require` was reported as
+SKY-D215.
+
+### Safe Patterns
+
+Skylos recognises these when they come before the use:
+
+- `htmlspecialchars()`, `htmlentities()`, `esc_html()`, `esc_attr()` and `e()`
+  for element text and quoted attributes; `esc_url()` and `urlencode()` for
+  links; `strip_tags()` only for element text. `htmlspecialchars()` inside
+  `href` or a `<script>` block is still reported.
+- `escapeshellarg()` for a whole, unquoted command argument. It does not make
+  a value safe inside quotes, as the program name, or as the code of `sh -c`,
+  `cmd /c`, `powershell -Command`, `eval` or `python -c`.
+- Prepared statements and bound parameters (`DB::select($sql, [$v])`,
+  `$stmt->execute([$v])`); quoting functions (`PDO::quote()`,
+  `$wpdb->prepare()`, `pg_escape_literal()`) anywhere; SQL escaping such as
+  `mysqli_real_escape_string()` only inside a quoted SQL literal.
+- `basename()` for file paths and includes.
+- `(int)` casts and builtins that return numbers, booleans or hashes.
+- Allow-list checks: `in_array(...)`, `array_key_exists(...)`,
+  `ctype_digit()`/`ctype_alnum()`, `is_numeric()`,
+  `filter_var(..., FILTER_VALIDATE_INT)`, `=== 'value'`, and `preg_match()`
+  with a pattern anchored at both ends that allows only letters, digits, `_`
+  and `-`. They clean a variable in the guarded branch and after an early exit.
+- Output after `header('Content-Type: application/json')` on every path is not
+  HTML and is not reported as XSS.
+
+An application's own sanitiser is not recognised. Suppress such a line with a
+reason:
+
+```php
+echo my_app_sanitize($_GET['q']); // skylos: ignore[SKY-D228] sanitised by my_app_sanitize
+```
 
 ```bash
 skylos . --danger
@@ -43,6 +109,17 @@ skylos . --danger
 
 ## Limitations
 
-Skylos does not currently run PHP type checking, Composer autoload resolution,
-or dedicated PHP complexity rules. Use PHPStan, Psalm, or the PHP runtime test
-suite alongside Skylos when you need compiler-like validation.
+- No flow across functions or files, through properties (`$this->prop`), or
+  into Blade variables set by a controller (`{!! $html !!}`).
+- Route parameters (`show($id)`) are not sources.
+- Not covered: Twig `|raw` and `autoescape false`, Laravel `response($html)`
+  and controller string returns, Guzzle URLs, `call_user_func` and variable
+  functions, `extract($_GET)`, phpseclib `$ssh->exec`, and query wrappers such
+  as YOURLS `fetchObjects($sql)`.
+- Mass assignment, open redirect, XXE, header injection, file upload with a
+  client-chosen name, and weak crypto have no PHP rules yet.
+- `htmlspecialchars()` without flags is treated as safe in quoted attributes,
+  which matches PHP 8.1 defaults; before PHP 8.1 it does not escape `'`.
+- Skylos does not run PHP type checking, Composer autoload resolution, or
+  dedicated PHP complexity rules. Use PHPStan, Psalm, or the PHP runtime test
+  suite alongside Skylos when you need compiler-like validation.

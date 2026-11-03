@@ -1,46 +1,114 @@
 ---
 title: "Kotlin Support"
-description: "Kotlin dead code and secret scanning support in Skylos."
+description: "Kotlin dead code, security and secret scanning support in Skylos."
 ---
 
-Skylos provides a thin Kotlin scanner for dead-code detection and shared secret
-scanning. It is designed to make Kotlin files visible to the normal Skylos
-workflow without requiring Gradle, the Kotlin compiler, or Android build tools.
+Skylos scans Kotlin with a lexer, not a Kotlin parser or compiler. It reports
+unused private declarations and imports, follows request data within a function
+into security sinks, checks Android WebView settings, and scans for secrets. It
+does not need Gradle, the Kotlin compiler, or Android build tools.
 
 ## File Coverage
 
 | Area | Support |
 |:---|:---|
 | Extensions | `.kt`, `.kts` |
-| Dead code | Classes, objects, interfaces, enum classes, functions, methods, imports, calls, constructor-style refs, and annotations |
-| Security | Shared secret scanning for hardcoded credentials |
+| Dead code | `private` classes, objects, interfaces, functions and methods, and unused imports; non-private declarations are treated as used |
+| Security | Spring, servlet, Ktor and WebFlux request data into command, SQL, path, SSRF, open redirect, HTML response, deserialization, XXE and SpEL/JNDI sinks; Android WebView settings; secret scanning |
 | Quality | No dedicated Kotlin quality rules yet |
 
 ## Dead Code Detection
 
-Kotlin analysis recognizes common declarations and references used by the
-dead-code engine:
+Skylos reports only `private` types and functions and unused imports. Every
+non-private declaration is treated as used, because code outside the scan can
+call it.
 
-- top-level functions
-- class, object, interface, and enum class declarations
-- member functions
-- imports and aliased imports
-- direct calls and constructor-style calls
-- annotation references
+Any use in code counts as a reference:
+
+- type positions, `::class`, `is` and `as` checks
+- callable references such as `::foo`
+- trailing-lambda and infix calls
+- string templates (`$name`, `${expr}`)
+- KDoc links (`[Foo]`, `@see Foo`) to imported names; a KDoc link to a private
+  function does not keep it live
+
+Operator-convention imports (`getValue`, `setValue`, `plus`, `component1` and
+the rest) are never reported, wildcard imports are not reported, and a
+`private operator fun` is treated as used.
 
 Skylos treats common framework-managed Kotlin entrypoints as live, including:
 
 - `main`
 - JUnit-style `@Test`
 - Kotlin/Java override hooks such as `@Override`
-- Compose `@Composable`
+- Compose `@Composable` and `@Preview`
 - selected Spring-style annotations such as `@Controller`, `@RestController`,
   `@GetMapping`, `@PostMapping`, and `@Bean`
+- `@JvmStatic`, Hilt/Dagger `@Provides` and `@Binds`, `@JavascriptInterface`,
+  `@BindingAdapter`, `@Subscribe` and `@OnLifecycleEvent`
+- classes annotated `@AndroidEntryPoint`, `@HiltViewModel`, `@Module` or
+  `@Serializable`
 - common Android lifecycle methods such as `onCreate`, `onStart`, `onResume`,
   `onPause`, `onStop`, `onDestroy`, `onCreateView`, and `onViewCreated`
 
+Same-named classes and functions in different files are separate definitions.
+A reference reaches the ones in its own file, its package or its imports.
+
 ```bash
 skylos .
+```
+
+## Security Scope
+
+Kotlin security reuses the Java source and sink tables. Flow is tracked within
+one function or route lambda.
+
+### Request Data
+
+- Spring handler parameters: `@RequestParam`, `@PathVariable`, `@RequestBody`,
+  `@RequestHeader`, and unannotated non-scalar parameters of `@*Mapping`
+  methods in `@Controller`/`@RestController` classes
+- servlet `HttpServletRequest` getters, in call or property form
+- Ktor `call.parameters`, `call.request.queryParameters`, `headers`, `cookies`
+  and `uri`, `call.receive<T>()` and `call.receiveText()`
+- WebFlux `ServerRequest` accessors
+
+Scalar parameter types and numeric conversions (`toInt()`, `toLongOrNull()`,
+`Integer.parseInt`, `UUID.fromString`) stop the flow.
+
+### Rules
+
+| Rule | What is reported |
+|:---|:---|
+| [SKY-D212](/rules-reference#sky-d212--command-injection) | request data in `Runtime.exec` or `ProcessBuilder`, including string templates |
+| [SKY-D203](/rules-reference#sky-d203--ossystem) | `Runtime.exec` with a non-constant command (HIGH); a fixed command is LOW and hidden by default |
+| [SKY-D211](/rules-reference#sky-d211--sql-injection) | request data in SQL, including string templates (CRITICAL); SQL built from a non-constant template or `+` without proven request data (HIGH) |
+| [SKY-D215](/rules-reference#sky-d215--path-traversal) | request data in a file path; `File(x).name`, `.parent`, `.path` or `.absolutePath` alone is not reported |
+| [SKY-D216](/rules-reference#sky-d216--ssrf) | request data as the URL of `URL`, OkHttp, Ktor `HttpClient`, RestTemplate or WebClient |
+| [SKY-D230](/rules-reference#sky-d230--open-redirect) | Spring `"redirect:"` views, `RedirectView`, servlet `sendRedirect`, Ktor `respondRedirect` |
+| [SKY-D226](/rules-reference#sky-d226--xss) (HIGH) | request data written to a servlet response writer or Ktor `respondText(..., ContentType.Text.Html)` |
+| [SKY-D204](/rules-reference#sky-d204--sky-d205--unsafe-deserialization) | `ObjectInputStream` |
+| [SKY-D233](/rules-reference#sky-d233--unsafe-deserialization) | `XMLDecoder`, Jackson default typing, Kryo |
+| [SKY-D236](/rules-reference#sky-d236--xml-external-entity-xxe) | XML parsers used without disabling DTDs or external entities |
+| [SKY-D237](/rules-reference#sky-d237--expression-jndi-or-script-injection) | request data in SpEL expressions or JNDI lookups |
+| [SKY-D257](/rules-reference#sky-d257--android-webview-javascript-bridge) | `addJavascriptInterface` where the class or file turns WebView JavaScript on (HIGH) |
+| [SKY-D258](/rules-reference#sky-d258--android-webview-file-url-access) | `allowFileAccessFromFileURLs` or `allowUniversalAccessFromFileURLs` set to `true` (MEDIUM) |
+
+For SSRF and open redirect, a literal prefix that already fixes the scheme and
+host (`"https://api.example.com/users/" + id`) is safe.
+
+For XSS, an HTML encoder (Apache Commons `escapeHtml4`, Spring `HtmlUtils.htmlEscape`,
+OWASP Encoder) counts only when the call resolves to that library through an
+import or a qualified name; a function of your own with the same name does not.
+HTML escaping covers element text and ordinary quoted attributes, not a value
+that starts a URL attribute such as `href` (a `javascript:` URL still works
+there) unless a fixed scheme and host come first.
+
+`setJavaScriptEnabled(true)` alone, `setAllowFileAccess(true)` and WebView
+debugging are not reported.
+
+```bash
+skylos . --danger
 ```
 
 ## Secret Scanning
@@ -55,8 +123,22 @@ skylos . -a
 
 ## Limitations
 
-Kotlin support is intentionally thin today. Skylos does not run Gradle, the
-Kotlin compiler, Android build tooling, or Kotlin type resolution. It also does
-not yet provide Kotlin-specific command, SQL, SSRF, filesystem, or quality
-rules. Use Kotlin compiler checks, Android lint, Detekt, and project tests
-alongside Skylos.
+- Skylos does not run Gradle, the Kotlin compiler, Android build tooling, or
+  Kotlin type resolution.
+- Helper functions are not followed: request data passed to a private helper
+  that builds SQL is SKY-D211 HIGH, not CRITICAL. Flow across files is not
+  followed.
+- Matching is by name: a local `val` or parameter named like an import or a
+  private function keeps it live.
+- Unused private properties, constructors and `internal` visibility are not
+  reported.
+- `@Composable` functions are entry points, so unused private composables are
+  not reported.
+- Not covered by security checks: LDAP, XPath, XStream, SnakeYAML, weak hashes
+  and random numbers, cookies, Exposed `exec`, the Ktor client `url { }`
+  builder, Android intents and `loadUrl` with intent data.
+- Dependency scanning reads `gradle.lockfile`, not `build.gradle.kts`; see
+  [Dependency Files](/language-support#dependency-files---sca).
+
+Use Kotlin compiler checks, Android lint, Detekt, and project tests alongside
+Skylos.

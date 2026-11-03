@@ -46,14 +46,14 @@ skylos . --danger --quality --secrets
 | TypeScript / JavaScript | 是 | 是 | 是 |
 | Java | 是 | 是 | 是 |
 | Go | 是 | 部分 | 部分 |
-| Kotlin | 是 | 部分 | 否 |
-| PHP | 是 | 部分 | 否 |
+| Kotlin | 部分 | 部分 | 否 |
+| PHP | 是 | 是 | 否 |
 | Rust | 是 | 部分 | 否 |
 | Dart | 是 | 部分 | 否 |
 | C# | 是 | 部分 | 否 |
 | Shell | 否 | 部分 | 否 |
 
-“部分”表示 Skylos 覆盖该生态中高信号的安全或质量规则，但范围比 Python、TypeScript/JavaScript 和 Java 更窄。Kotlin 当前覆盖死代码和通用密钥扫描。
+“部分”表示 Skylos 覆盖该生态中高信号的规则，但范围比 Python、TypeScript/JavaScript 和 Java 更窄。Kotlin 死代码只报告 `private` 声明和未使用的导入；安全检查覆盖 Spring、servlet、Ktor 和 WebFlux 请求数据以及 Android WebView 设置，并包含通用密钥扫描。
 
 ## Shell 脚本扫描
 

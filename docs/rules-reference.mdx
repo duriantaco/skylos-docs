@@ -42,36 +42,37 @@ use the `SKY-A` prefix.
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
 | `SKY-D200` | Dangerous Call (base) | varies | Python | Generic dangerous function call |
-| `SKY-D201` | `eval()` | HIGH | Python, TS | Dynamic code execution via `eval()` |
+| `SKY-D201` | `eval()` | HIGH–CRITICAL | Python, TS, PHP | Dynamic code execution via `eval()`; PHP also `create_function`, `preg_replace` with `/e` and string `assert()` |
 | `SKY-D202` | Dynamic Exec | HIGH | Python, TS | `exec()`, `new Function()`, `setTimeout`/`setInterval` with string |
-| `SKY-D203` | `os.system()` | CRITICAL | Python | OS command execution |
-| `SKY-D204` | Unsafe Deserialization | CRITICAL | Python, PHP | Untrusted deserialization via `pickle.load` or PHP `unserialize()` |
+| `SKY-D203` | `os.system()` | CRITICAL | Python, Java, Kotlin, PHP | OS command execution; Java/Kotlin `Runtime.exec` and PHP command functions with a non-constant command are HIGH, a fixed command is LOW |
+| `SKY-D204` | Unsafe Deserialization | CRITICAL | Python, Java, Kotlin, PHP | Untrusted deserialization via `pickle.load`, Java/Kotlin `ObjectInputStream` or PHP `unserialize()` |
 | `SKY-D205` | `pickle.loads` | CRITICAL | Python | Untrusted deserialization via `pickle.loads` |
 | `SKY-D206` | `yaml.load` | HIGH | Python | `yaml.load()` without SafeLoader |
 | `SKY-D207` | Weak Hash: MD5 | MEDIUM | Python, TS, Go | `hashlib.md5()` / `crypto.createHash('md5')` / `crypto/md5` |
 | `SKY-D208` | Weak Hash: SHA1 | MEDIUM | Python, TS, Go | `hashlib.sha1()` / `crypto.createHash('sha1')` / `crypto/sha1` |
 | `SKY-D209` | `subprocess` shell=True | HIGH | Python | `subprocess.*(..., shell=True)` |
 | `SKY-D210` | TLS Verify Disabled | HIGH | Python, Go | `requests.*(verify=False)` / `InsecureSkipVerify: true` |
-| `SKY-D233` | Unsafe Deserialization | CRITICAL | Python | `marshal.loads`, `shelve.open`, `jsonpickle.decode`, `dill.load/loads` |
+| `SKY-D233` | Unsafe Deserialization | CRITICAL | Python, Java, Kotlin, C# | `marshal.loads`, `shelve.open`, `jsonpickle.decode`, `dill.load/loads`; Java/Kotlin `XMLDecoder`, Jackson default typing, Kryo; C# `BinaryFormatter` family, Json.NET `TypeNameHandling` |
 | `SKY-D213` | Hugging Face Remote Code | HIGH | Python | `trust_remote_code=True` in `from_pretrained`, `pipeline` or `load_dataset` |
 
 #### Taint / Data Flow
 
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
-| `SKY-D211` | SQL Injection | CRITICAL | Python, TS, Java, Go, C# | Tainted/interpolated SQL in `execute`, template literals, `PreparedStatement`, `fmt.Sprintf`, or C# command text |
-| `SKY-D212` | Command Injection | CRITICAL | Python, TS/JS, Java, Go, Rust, Dart, C#, Shell | Tainted input to `os.system()`, `child_process.exec()`, `Runtime.exec`, `exec.Command`, Rust `Command::new`, Dart `Process.*`, C# `Process.Start`, shell `eval`, `source`, or shell `-c` |
-| `SKY-D215` | Path Traversal | HIGH | Python, Java, Go, PHP, Rust, Dart, C#, Shell | Tainted input used in filesystem paths, include/file sinks, shell file commands, or redirection targets |
-| `SKY-D216` | SSRF | CRITICAL | Python, TS, Java, Go, Dart, C#, Shell | Tainted URL passed to HTTP clients, request builders, `curl`, or `wget` |
+| `SKY-D211` | SQL Injection | CRITICAL | Python, TS, Go, Java, Kotlin, C#, PHP | Tainted/interpolated SQL in `execute`, template literals, `PreparedStatement`, `fmt.Sprintf`, Kotlin string templates, C# command text or EF raw SQL, or PHP mysqli/PDO/Laravel raw queries |
+| `SKY-D212` | Command Injection | CRITICAL | Python, TS/JS, Go, Java, Kotlin, C#, PHP, Rust, Dart, Shell | Tainted input to `os.system()`, `child_process.exec()`, `Runtime.exec`, `exec.Command`, Rust `Command::new`, Dart `Process.*`, C# `Process.Start`, PHP `exec`/`system`/backticks, shell `eval`, `source`, or shell `-c` |
+| `SKY-D215` | Path Traversal | HIGH | Python, TS, Go, Java, Kotlin, C#, PHP, Rust, Dart, Shell | Tainted input used in filesystem paths, file sinks, shell file commands, or redirection targets |
+| `SKY-D216` | SSRF | CRITICAL | Python, TS, Go, Java, Kotlin, C#, PHP, Dart, Shell | Tainted URL passed to HTTP clients, request builders, `curl`, or `wget` |
 | `SKY-D217` | SQL Injection (raw) | CRITICAL | Python | Tainted input in `sqlalchemy.text()`, `pandas.read_sql()`, Django `.raw()` |
 | `SKY-D218` | URL Scheme Audit | MEDIUM | Python | Dynamic urllib URL without a proven HTTP/HTTPS scheme restriction |
 | `SKY-D235` | Remote Command Execution Sink | HIGH | Python | User-controlled values flow into command execution sinks |
 | `SKY-D229` | XPath Injection | CRITICAL | Java | Request data in an `XPath` `compile`/`evaluate` expression |
-| `SKY-D236` | XML External Entity (XXE) | HIGH | Java | XML parser used without disabling DTDs or external entities |
-| `SKY-D237` | Expression, JNDI or Script Injection | CRITICAL | Java | Request data evaluated as SpEL/OGNL/MVEL/EL/JEXL, looked up via JNDI, or run by a script engine |
+| `SKY-D236` | XML External Entity (XXE) | HIGH | Java, Kotlin | XML parser used without disabling DTDs or external entities |
+| `SKY-D237` | Expression, JNDI or Script Injection | CRITICAL | Java, Kotlin | Request data evaluated as SpEL/OGNL/MVEL/EL/JEXL, looked up via JNDI, or run by a script engine |
 | `SKY-D238` | NoSQL Injection | HIGH | TS | Request data used as a MongoDB/Mongoose query object or `$where` |
 | `SKY-D239` | LDAP Injection | CRITICAL | Java | Request data in an LDAP search base or filter |
 | `SKY-D254` | HTTP Session Trust Boundary Violation | HIGH | Java | Servlet-controlled data crosses into HTTP session state (CWE-501) |
+| `SKY-D255` | File Inclusion | CRITICAL | PHP | Request data chooses the path of `include`/`require`/`include_once`/`require_once` (CWE-98) |
 | `SKY-D261` | Untrusted Input To LLM Prompt | HIGH | Python | Request-controlled data reaches an LLM prompt or message without a clear instruction/data boundary |
 | `SKY-D262` | Unsafe LLM Output Handling | CRITICAL | Python | Model output flows into code execution, shell, SQL, or network sinks without validation |
 | `SKY-D263` | Sensitive Data Sent To LLM | HIGH | Python | Secrets, credential fields, or sensitive environment values flow into LLM or embedding API input |
@@ -86,13 +87,15 @@ use the `SKY-A` prefix.
 
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
-| `SKY-D226` | XSS | CRITICAL | Python, TypeScript/JavaScript, Go, Java | `mark_safe()`, `innerHTML`, `outerHTML`, `document.write()`, `dangerouslySetInnerHTML` |
+| `SKY-D226` | XSS | CRITICAL | Python, TypeScript/JavaScript, Go, Java, Kotlin, C#, PHP | `mark_safe()`, `innerHTML`, `outerHTML`, `document.write()`, `dangerouslySetInnerHTML`, C# `Html.Raw`/`HtmlString`/`MarkupString`, PHP Blade `{!! !!}` and Drupal `Markup::create()` |
 | `SKY-D227` | XSS (Template) | HIGH | Python | Template uses `\|safe` filter or disables autoescape |
-| `SKY-D228` | XSS (HTML Build) | HIGH | Python, TS, Go | HTML string built with unescaped user input |
-| `SKY-D230` | Open Redirect | HIGH | Python, TS, Go, Java, C# | User-controlled URL in `redirect()` / `res.redirect()` / `http.Redirect` / `sendRedirect` / ASP.NET redirect sinks |
+| `SKY-D228` | XSS (HTML Build) | HIGH | Python, TS, Go, C#, PHP | HTML string built with unescaped user input; PHP `echo`/`print`/`<?= ?>` checked by HTML context |
+| `SKY-D230` | Open Redirect | HIGH | Python, TS, Go, Java, Kotlin, C# | User-controlled URL in `redirect()` / `res.redirect()` / `http.Redirect` / `sendRedirect` / Ktor `respondRedirect` / ASP.NET redirect sinks |
 | `SKY-D231` | CORS Misconfiguration | HIGH | Python | Wildcard origins with credentials or open write routes, echoed `Origin` without an allowlist |
 | `SKY-D232` | JWT Vulnerabilities | CRITICAL | Python | `algorithms=['none']`, `verify=False`, weak secrets |
 | `SKY-D234` | Mass Assignment | HIGH | Python | Django `Meta.fields = '__all__'` exposes all model fields |
+| `SKY-D257` | Android WebView JavaScript Bridge | HIGH | Kotlin | `addJavascriptInterface` in a class or file that turns WebView JavaScript on (CWE-749) |
+| `SKY-D258` | Android WebView File URL Access | MEDIUM | Kotlin | `allowFileAccessFromFileURLs` or `allowUniversalAccessFromFileURLs` set to `true` (CWE-200) |
 | `SKY-D282` | Webhook Signature Verification Issue | HIGH | Python, TS | Matching request payload is not proven verified before body trust or event side effects |
 | `SKY-D283` | Unauthenticated Control, Destructive or Admin Route | HIGH | Python | A route that controls a device or the host, deletes data, acts as admin or runs commands, with nothing that authenticates the caller |
 | `SKY-D510` | Prototype Pollution | HIGH | TS | `__proto__` access |
@@ -201,12 +204,17 @@ Dockerfile `RUN` instructions, and selected Dockerfile build inputs.
 | `SKY-D341` | Untrusted Package-Managed Tool Execution | HIGH | Package-managed tool execution auto-installs or runs unpinned external code, such as `npx -y tool@latest` |
 | `SKY-D342` | Dockerfile Remote ADD Without Checksum | HIGH | Dockerfile `ADD` fetches a remote URL without `--checksum`, allowing the build to consume mutable or tampered artifacts |
 | `SKY-D343` | Dockerfile Literal Secret Build Value | HIGH | Dockerfile `ARG` or `ENV` sets a secret-looking name to a literal value that can be baked into image layers or build metadata |
-| `SKY-D344` | Trojan Source Bidirectional Unicode | HIGH | Python source contains bidirectional Unicode control characters that can visually hide or reorder executed code |
+| `SKY-D344` | Trojan Source Bidirectional Unicode | HIGH | Python source contains a bidirectional Unicode control character (U+202A–U+202E, U+2066–U+2069) that can visually hide or reorder executed code; one finding per line, test files included |
 | `SKY-D345` | Mutable Hugging Face Artifact Revision | HIGH | Hugging Face model, dataset, or artifact download uses a missing or mutable revision instead of an immutable commit SHA |
 | `SKY-D346` | Flask Debug Mode Enabled | HIGH | Flask application enables debug mode, exposing interactive debugger behavior in unsafe contexts |
 | `SKY-D347` | Unsafe Logging Config Listener | MEDIUM | `logging.config.listen()` starts a configuration listener that can accept unsafe logging configuration input |
 | `SKY-D348` | Insecure Temporary Filename | HIGH | `tempfile.mktemp()` creates a predictable filename without securely creating the file, allowing race-condition attacks |
 | `SKY-D349` | Server-Side Template Injection | CRITICAL | Untrusted input reaches a template engine as template source (for example Flask `render_template_string` or Jinja2 `Environment.from_string`), letting an attacker run code on the server |
+
+`SKY-D344` is reported for any U+202A–U+202E or U+2066–U+2069 character in a
+Python source file, once per line, including tests. `SKY-D260` no longer
+reports bidirectional control characters in Python files, so the same character
+is not reported twice; Markdown, YAML and other text files keep `SKY-D260`.
 
 #### GitHub Actions / CI/CD Security
 
@@ -587,10 +595,15 @@ ignore = ["SKY-P403", "SKY-L003"]
 
 | | |
 |---|---|
-| **Severity** | HIGH |
-| **Languages** | Python, TypeScript |
+| **Severity** | HIGH (PHP: CRITICAL with request data) |
+| **Languages** | Python, TypeScript/JavaScript, PHP |
 | **What** | Use of `eval()` to execute arbitrary expressions |
 | **Risk** | Arbitrary code execution if input is user-controlled |
+
+**PHP:** `eval`, `create_function` and `preg_replace` with the `/e` modifier are
+CRITICAL with [request data](/php-support#request-data) and HIGH for other
+non-constant code. String `assert()` with request data is HIGH. Java
+`ScriptEngine.eval` is reported as [`SKY-D237`](/rules-reference#sky-d237--expression-jndi-or-script-injection).
 
 ```python
 # Bad
@@ -641,7 +654,7 @@ setTimeout(() => alert(1), 1000)
 | | |
 |---|---|
 | **Severity** | CRITICAL |
-| **Languages** | Python |
+| **Languages** | Python, Java, Kotlin, PHP |
 | **What** | Direct OS command execution via `os.system()` |
 | **Risk** | Command injection, especially with user input |
 
@@ -653,6 +666,14 @@ os.system(f"rm -rf {path}")
 subprocess.run(["rm", "-rf", path])
 ```
 
+**Java, Kotlin, PHP:** Java and Kotlin `Runtime.getRuntime().exec(...)`, and
+PHP `exec`, `system`, `shell_exec`, `passthru`, `popen`, `proc_open`,
+backticks and `pcntl_exec`, are HIGH when the command is not constant. A fixed
+command is LOW and hidden by default; in PHP that includes a command whose
+inserted values are all numbers or `escapeshellarg()` results used as whole,
+unquoted arguments. Request data in
+a command is reported as [SKY-D212](#sky-d212--command-injection).
+
 ---
 
 ### SKY-D204 / SKY-D205 · Unsafe Deserialization
@@ -660,8 +681,8 @@ subprocess.run(["rm", "-rf", path])
 | | |
 |---|---|
 | **Severity** | CRITICAL |
-| **Languages** | Python, PHP |
-| **What** | Untrusted deserialization via Python `pickle` or PHP `unserialize()` |
+| **Languages** | Python, Java, Kotlin, PHP |
+| **What** | Untrusted deserialization via Python `pickle`, Java/Kotlin `ObjectInputStream` or PHP `unserialize()` |
 | **Risk** | Arbitrary code execution or object-injection side effects when attacker-controlled data is deserialized |
 
 ```python
@@ -679,6 +700,9 @@ $user = unserialize($_POST["payload"]);
 // Good
 $user = json_decode($_POST["payload"], true);
 ```
+
+**PHP:** `unserialize()` of [request data](/php-support#request-data) is not
+reported when it passes `['allowed_classes' => false]` or a class list.
 
 ---
 
@@ -722,9 +746,21 @@ sha256.New()                # Go
 | | |
 |---|---|
 | **Severity** | CRITICAL |
-| **Languages** | Python, TypeScript, Go |
+| **Languages** | Python, TypeScript/JavaScript, Go, Java, Kotlin, C#, PHP |
 | **What** | Tainted or string-built SQL in query execution |
 | **Risk** | Database compromise, data theft, data destruction |
+
+**PHP, C#, Kotlin:** PHP covers mysqli, PDO, pg, `$wpdb`, Laravel
+`DB::raw/select/statement/unprepared` and the `*Raw()` builder methods, and
+Doctrine DBAL/DQL. Bound parameters are safe; `mysqli_real_escape_string()`
+protects a value only inside a quoted SQL literal. C# covers ADO.NET commands
+and data adapters, `CommandText`, EF `FromSqlRaw`/`ExecuteSqlRaw` and Dapper;
+`FromSqlInterpolated` and parameters are safe, and SQL text built from a method
+parameter without a proven request source is HIGH. Kotlin includes SQL built
+with string templates; SQL built from a non-constant template or `+` without
+request data is HIGH. What counts as request data:
+[PHP](/php-support#request-data), [C#](/csharp-support#request-data),
+[Kotlin](/kotlin-support#request-data).
 
 ```python
 # Bad (Python)
@@ -758,9 +794,20 @@ db.Query("SELECT * FROM users WHERE id = $1", userID)
 | | |
 |---|---|
 | **Severity** | CRITICAL |
-| **Languages** | Python, TypeScript/JavaScript, Go, Rust |
+| **Languages** | Python, TypeScript/JavaScript, Go, Java, Kotlin, C#, PHP, Rust, Dart, Shell |
 | **What** | Tainted input flows to shell command execution |
 | **Risk** | Attackers can execute arbitrary shell commands |
+
+**PHP, C#, Kotlin:** PHP reports request data in `exec`, `system`,
+`shell_exec`, `passthru`, `popen`, `proc_open`, backticks or the program of
+`pcntl_exec`; `escapeshellarg()` makes a value safe only as a whole, unquoted
+argument (not inside quotes, as the program, or as the code of `sh -c`,
+`cmd /c`, `powershell -Command`, `eval` or `python -c`), and `escapeshellcmd()`
+never does (it still lets input add arguments). C# covers `Process.Start`,
+`new ProcessStartInfo` and the `FileName`/`Arguments` of a `ProcessStartInfo`.
+Kotlin covers `Runtime.exec` and `ProcessBuilder`, including string templates.
+What counts as request data: [PHP](/php-support#request-data),
+[C#](/csharp-support#request-data), [Kotlin](/kotlin-support#request-data).
 
 ```python
 # Bad (Python)
@@ -824,9 +871,21 @@ model = AutoModel.from_pretrained("org/model")
 | | |
 |---|---|
 | **Severity** | HIGH |
-| **Languages** | Python, Go, PHP, Rust |
-| **What** | Tainted input used in filesystem paths or include/file sinks |
+| **Languages** | Python, TypeScript/JavaScript, Go, Java, Kotlin, C#, PHP, Rust, Dart, Shell |
+| **What** | Tainted input used in filesystem paths or file sinks |
 | **Risk** | Attackers can read/write arbitrary files via `../` sequences |
+
+**PHP, C#, Kotlin:** PHP reports request data in file paths; `basename()`
+makes a path safe. PHP `include`/`require` of request data is
+[SKY-D255](#sky-d255--file-inclusion) (reported as D215 before). C# covers
+`File.*`, `Directory.*`, `new FileStream/FileInfo/DirectoryInfo`,
+`StreamReader`/`StreamWriter` with a path, and `PhysicalFile`;
+`Path.GetFileName(x)` as the last `Path.Combine` part is safe under a fixed or
+configured directory, but not under `/`, `.`, the working directory or the
+content root alone. In Kotlin, `File(x)` or `Paths.get(x)` followed only by
+`.name`, `.parent`, `.path` or `.absolutePath` is not reported; any file
+operation is. What counts as request data: [PHP](/php-support#request-data),
+[C#](/csharp-support#request-data), [Kotlin](/kotlin-support#request-data).
 
 ```python
 # Bad
@@ -854,9 +913,19 @@ fs::read_to_string(safe)?;
 | | |
 |---|---|
 | **Severity** | CRITICAL |
-| **Languages** | Python, TypeScript, Go, Java |
+| **Languages** | Python, TypeScript/JavaScript, Go, Java, Kotlin, C#, PHP, Dart, Shell |
 | **What** | Tainted URL passed to HTTP clients or request builders |
 | **Risk** | Access internal services, cloud metadata endpoints (169.254.169.254) |
+
+**PHP, C#, Kotlin:** PHP covers `curl_init`, `curl_setopt(CURLOPT_URL)`,
+`curl_setopt_array`, `get_headers`, `fsockopen` and Laravel `Http::`. C# needs
+an `HttpClient` or `WebClient` receiver (a repository's `GetAsync` is not
+SSRF), or `WebRequest.Create`, `new HttpRequestMessage(method, url)`,
+`BaseAddress` or RestSharp. Kotlin covers `URL`, OkHttp, Ktor `HttpClient`,
+RestTemplate and WebClient. In all three, a fixed scheme and host prefix
+(`"https://api.example.com/users/" + id`) is safe. What counts as request
+data: [PHP](/php-support#request-data), [C#](/csharp-support#request-data),
+[Kotlin](/kotlin-support#request-data).
 
 ```python
 # Bad
@@ -1652,10 +1721,20 @@ Skylos validates package/version existence for `package.json` and `go.mod` manif
 
 | | |
 |---|---|
-| **Severity** | CRITICAL |
-| **Languages** | Python, TypeScript/JavaScript, Go, Java |
+| **Severity** | CRITICAL (Java, Kotlin, C# and PHP findings are HIGH) |
+| **Languages** | Python, TypeScript/JavaScript, Go, Java, Kotlin, C#, PHP |
 | **What** | Untrusted content rendered without escaping |
 | **Risk** | Script injection, session hijacking |
+
+**PHP, C#, Kotlin:** PHP reports Blade `{!! request(...) !!}` and Drupal
+`Markup::create()` of request data; `{!! $html !!}` set by a controller is not
+followed. C# reports request data in `new HtmlString(...)`, `Html.Raw(...)`,
+`new MarkupString(...)` or a `(MarkupString)` cast; `HtmlEncoder`,
+`WebUtility`/`HttpUtility` encoding and HTML sanitizers clear it. Kotlin, like
+Java, reports request data written to a servlet response writer, and also Ktor
+`respondText(..., ContentType.Text.Html)`. What counts as request data:
+[PHP](/php-support#request-data), [C#](/csharp-support#request-data),
+[Kotlin](/kotlin-support#request-data).
 
 ```python
 # Bad (Python)
@@ -1706,8 +1785,20 @@ el.textContent = userInput
 | | |
 |---|---|
 | **Severity** | HIGH |
-| **Languages** | Python, TypeScript/JavaScript, Go |
+| **Languages** | Python, TypeScript/JavaScript, Go, C#, PHP |
 | **What** | HTML string built with unescaped user input |
+
+**PHP, C#:** PHP reports request data printed with `echo`, `print`, `<?= ?>`,
+`printf`, `die`/`exit` or `print_r`/`var_export`/`var_dump`, checked against
+the HTML context it lands in. `htmlspecialchars()`, `esc_html()` and `e()` are
+safe for element text and quoted attributes, `esc_url()`/`urlencode()` for
+links, and `strip_tags()` only for element text; `htmlspecialchars()` inside
+`href` or a `<script>` block is still reported. Output after
+`header('Content-Type: application/json')` on every path is not HTML and is
+not reported. C# reports request data in `Content(x, "text/html")`,
+`Results.Content(x, "text/html")` or `Response.Write(x)`, unless the response
+content type was set to something other than HTML. What counts as request
+data: [PHP](/php-support#request-data), [C#](/csharp-support#request-data).
 
 ```python
 # Bad
@@ -1747,7 +1838,7 @@ xpath.evaluate("//user[name=$name]", doc);
 | | |
 |---|---|
 | **Severity** | HIGH |
-| **Languages** | Python, TypeScript, Go, Java |
+| **Languages** | Python, TypeScript/JavaScript, Go, Java, Kotlin, C# |
 | **What** | User-controlled URL passed to redirect |
 | **Risk** | Phishing — attacker redirects users to malicious sites via your domain |
 
@@ -1787,6 +1878,18 @@ response.sendRedirect(next);
 
 Skylos treats `startsWith("/")` alone as insufficient because protocol-relative
 URLs such as `//evil.example` can still leave the trusted origin.
+
+**C#, Kotlin:** C# covers `Redirect`, `RedirectPermanent`,
+`RedirectPreserveMethod`, `Response.Redirect`, `Results.Redirect`,
+`new RedirectResult` and the `Location` header. `LocalRedirect`,
+`RedirectToAction`/`RedirectToRoute`/`RedirectToPage`, and a redirect of a
+variable inside `if (Url.IsLocalUrl(x))` or after
+`if (!Url.IsLocalUrl(x)) return ...;` (where every path of that branch returns
+or throws, and `Url` is the framework URL helper) are not reported. Kotlin covers Spring
+`"redirect:"` views, `RedirectView`, servlet `sendRedirect` and Ktor
+`respondRedirect`. Both treat a fixed scheme and host prefix as safe. What
+counts as request data: [C#](/csharp-support#request-data),
+[Kotlin](/kotlin-support#request-data).
 
 ---
 
@@ -1834,9 +1937,9 @@ jwt.decode(token, key=SECRET, algorithms=["HS256"])
 
 | | |
 |---|---|
-| **Severity** | CRITICAL |
-| **Languages** | Python |
-| **What** | Deserialization via `marshal`, `shelve`, `jsonpickle`, or `dill` |
+| **Severity** | MEDIUM–CRITICAL, depending on the API and whether request data reaches it |
+| **Languages** | Python, Java, Kotlin, C# |
+| **What** | Deserialization via `marshal`, `shelve`, `jsonpickle`, or `dill`, and unsafe Java, Kotlin and C# deserializers |
 | **Risk** | Arbitrary code execution — same as pickle but less commonly audited |
 
 ```python
@@ -1846,6 +1949,15 @@ data = jsonpickle.decode(untrusted_input)
 # Good
 data = json.loads(untrusted_input)
 ```
+
+**Java, Kotlin, C#:** Java and Kotlin cover `XMLDecoder`, Jackson default
+typing and Kryo `setRegistrationRequired(false)`; Java also covers XStream and
+SnakeYAML. C# reports `Deserialize`/`UnsafeDeserialize`/`ReadObject` on
+`BinaryFormatter`, `SoapFormatter`, `NetDataContractSerializer`,
+`LosFormatter` and `ObjectStateFormatter` (HIGH, CRITICAL with
+[request data](/csharp-support#request-data)), Json.NET `TypeNameHandling`
+other than `None` (HIGH, MEDIUM when a `SerializationBinder` is set), and
+`new JavaScriptSerializer(new SimpleTypeResolver())` (HIGH).
 
 ---
 
@@ -2045,11 +2157,11 @@ Auth evidence includes guard decorators, `Depends` / `Security` / `Header` / `Co
 | | |
 |---|---|
 | **Severity** | HIGH (CRITICAL when request data is parsed) |
-| **Languages** | Java |
+| **Languages** | Java, Kotlin |
 | **What** | An XML parser is created and used without disabling DTDs or external entities: `DocumentBuilderFactory`, `SAXParserFactory`, `XMLReader`, `XMLInputFactory`, `TransformerFactory`, `SchemaFactory`, JDOM `SAXBuilder`, dom4j `SAXReader`, Commons `Digester` |
 | **Risk** | A crafted document can read local files, reach internal hosts or exhaust memory (CWE-611) |
 
-Settings are checked on the same factory variable in statement order. `FEATURE_SECURE_PROCESSING` alone does not count, a setting applied after `newDocumentBuilder()` does not protect that builder, and hardening in only one branch does not count.
+Kotlin uses the same parser settings checks as Java. Settings are checked on the same factory variable in statement order. `FEATURE_SECURE_PROCESSING` alone does not count, a setting applied after `newDocumentBuilder()` does not protect that builder, and hardening in only one branch does not count.
 
 ```java
 // Bad
@@ -2069,11 +2181,11 @@ Document doc = dbf.newDocumentBuilder().parse(request.getInputStream());
 | | |
 |---|---|
 | **Severity** | CRITICAL |
-| **Languages** | Java |
+| **Languages** | Java, Kotlin |
 | **What** | Request data evaluated as SpEL, OGNL, MVEL, EL or JEXL, looked up through JNDI (`InitialContext.lookup`, `JndiTemplate`), or run by a `ScriptEngine` or Groovy |
 | **Risk** | Remote code execution (CWE-917, CWE-94); JNDI lookups are the Log4Shell class |
 
-A SpEL expression whose every evaluation passes a `SimpleEvaluationContext` is not reported. Velocity and FreeMarker templates built from input are reported as `SKY-D349`.
+Kotlin covers SpEL and JNDI lookups. A SpEL expression whose every evaluation passes a `SimpleEvaluationContext` is not reported. Velocity and FreeMarker templates built from input are reported as `SKY-D349`.
 
 ```java
 // Bad
@@ -2237,6 +2349,81 @@ def call_api(key: str = ""):
 
 ---
 
+### SKY-D255 · File Inclusion
+
+| | |
+|---|---|
+| **Severity** | CRITICAL |
+| **Languages** | PHP |
+| **What** | [Request data](/php-support#request-data) chooses the path of `include`, `require`, `include_once` or `require_once` |
+| **Risk** | PHP runs the included file as code, so a local file include can lead to code execution through logs, uploads or `php://` wrappers (CWE-98) |
+
+Earlier releases reported this as `SKY-D215`. `basename()` and allow-list
+checks before the include (`in_array(...)`, `=== 'value'`, `ctype_alnum()`,
+anchored `preg_match()`) make the path safe.
+
+```php
+// Bad
+include $_GET['page'] . '.php';
+
+// Good
+$page = $_GET['page'];
+if (!in_array($page, ['home', 'about'], true)) {
+    exit;
+}
+include $page . '.php';
+```
+
+---
+
+### SKY-D257 · Android WebView JavaScript Bridge
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Kotlin |
+| **What** | `addJavascriptInterface` in a class (or file, for top-level code) that turns JavaScript on with `javaScriptEnabled = true` or `setJavaScriptEnabled(true)` |
+| **Risk** | The bridge object is exposed to every page the WebView loads; a page loaded from an attacker-influenced URL can call its `@JavascriptInterface` methods (CWE-749) |
+
+`setJavaScriptEnabled(true)` without a bridge is not reported. Fix: load only
+trusted, fixed content in that WebView, or remove the bridge.
+
+```kotlin
+// Bad
+webView.settings.javaScriptEnabled = true
+webView.addJavascriptInterface(AppBridge(), "app")
+
+// Good: JavaScript without a bridge
+webView.settings.javaScriptEnabled = true
+webView.loadUrl("https://example.com/help")
+```
+
+---
+
+### SKY-D258 · Android WebView File URL Access
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | Kotlin |
+| **What** | `allowFileAccessFromFileURLs` or `allowUniversalAccessFromFileURLs` set to `true`, as a property or through its setter |
+| **Risk** | A `file://` page can read other local files or any origin (CWE-200) |
+
+`setAllowFileAccess(true)` alone is not reported. Fix: keep both settings false
+and serve local pages with `WebViewAssetLoader`.
+
+```kotlin
+// Bad
+webView.settings.allowUniversalAccessFromFileURLs = true
+webView.settings.setAllowFileAccessFromFileURLs(true)
+
+// Good: leave both settings false and serve local pages through WebViewAssetLoader
+webView.settings.allowFileAccessFromFileURLs = false
+webView.settings.allowUniversalAccessFromFileURLs = false
+```
+
+---
+
 ### SKY-D260 · Prompt Injection Scanner
 
 | | |
@@ -2249,7 +2436,7 @@ def call_api(key: str = ""):
 Scans for prompt injection patterns across multiple file types with a layered detection pipeline:
 
 1. **Text Canonicalization** — NFKC normalization, whitespace folding, confusable replacement
-2. **Zero-Width Character Detection** — flags invisible Unicode (U+200B–U+202E) that hides payloads from human reviewers
+2. **Zero-Width Character Detection** — flags invisible Unicode (U+200B–U+202E) that hides payloads from human reviewers. In Python files, bidirectional control characters are reported once, as [SKY-D344](#agent-and-build-command-safety), and not as D260
 3. **Phrase Pattern Matching** — instruction overrides, role hijacking, AI-targeted suppression, data exfiltration prompts
 4. **Base64 Obfuscation Detection** — decodes base64 strings and re-scans for injection content
 5. **Homoglyph Detection** — Cyrillic/Greek characters mixed with Latin text (e.g., Cyrillic `а` in `password`)
@@ -3936,6 +4123,16 @@ data = f.read()
 with open("data.csv") as f:
     data = f.read()
 ```
+
+Opens inside `if`, `for`, `while`, `try`, `except`, `finally` and `match`
+blocks are checked too. A handle is not reported when it is:
+
+- closed in the next statement or in a `finally` block
+- entered by a `with` statement
+- returned or yielded, also inside a wrapper object
+- stored on an attribute or in a container, or given to
+  `enter_context`/`callback`/`addCleanup`
+- opened as `self.x = open(...)` in a module that closes `.x`
 
 ---
 

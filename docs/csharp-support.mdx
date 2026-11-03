@@ -1,19 +1,20 @@
 ---
 title: "C# Support"
-description: "C# dead code and selected security analysis support in Skylos."
+description: "C# dead code and ASP.NET-aware security analysis support in Skylos."
 ---
 
 Skylos analyzes C# source with lightweight symbol extraction for dead code and
-selected security checks. It is designed to make `.cs` files visible in the
-normal Skylos workflow without requiring MSBuild, Roslyn, or the .NET SDK.
+a lexical, ASP.NET-aware security scan of each method. It is designed to make
+`.cs` files visible in the normal Skylos workflow without requiring MSBuild,
+Roslyn, or the .NET SDK.
 
 ## File Coverage
 
 | Area | Support |
 |:---|:---|
 | Extensions | `.cs` |
-| Dead code | Classes, methods, and direct references |
-| Security | Selected ASP.NET/request input to process, SQL, HTTP, redirect, and filesystem sinks |
+| Dead code | Classes, methods, constructors, and direct references |
+| Security | ASP.NET request data into SQL, process, HTTP client, redirect, file, HTML output and deserialization sinks |
 | Quality | No dedicated C# quality rules yet |
 
 ## Dead Code Detection
@@ -22,20 +23,78 @@ C# analysis recognizes class and method declarations, imports, and direct method
 references. Findings are normalized into the same report shape as other
 languages, so C# files appear in CLI, JSON, SARIF, MCP, and Cloud output.
 
+### Constructors
+
+A constructor is reported only when it is private, takes parameters and
+nothing in the type calls it (the rule of Roslyn's IDE0051). Controller,
+dependency-injection and serializer constructors are called by the framework,
+so they are not reported. Attributed constructors, constructors in `partial`
+types, and constructors of a type named in `typeof(T)` are not reported either.
+A class that nothing references is reported as an unused class instead.
+
 ```bash
 skylos .
 ```
 
 ## Security Scope
 
-C# security checks track request-like or user-controlled values into selected
-high-risk sinks:
+Skylos scans each method for request data and follows it into helper methods
+in the same file that are called with it. Every C# security finding carries
+its CWE.
 
-- process execution such as `Process.Start` and `ProcessStartInfo`
-- SQL command construction such as `SqlCommand`, `DbCommand`, and raw SQL APIs
-- HTTP requests such as `HttpClient.GetAsync`, `SendAsync`, and `WebRequest`
-- filesystem APIs under `File` and `Directory`
-- ASP.NET redirect sinks
+### Request Data
+
+- public, non-static, non-override action parameters of controllers
+  (`[ApiController]`/`[Controller]` classes, `Controller`/`ControllerBase`
+  subclasses, `*Controller` classes); not `[NonController]` or `[NonAction]`
+- Razor Page `On*` handler parameters and `[BindProperty]` properties
+- SignalR `Hub` methods and Blazor `[SupplyParameterFromQuery]`/
+  `[SupplyParameterFromForm]` properties
+- minimal API handler parameters (`MapGet`, `MapPost`, ...)
+- `[FromQuery]`, `[FromBody]`, `[FromRoute]`, `[FromForm]`, `[FromHeader]` and
+  `[AsParameters]` parameters, and Azure Functions `[HttpTrigger]` requests
+- `Request.Query`, `Form`, `Headers`, `Cookies`, `Body` and other request
+  members
+- command-line `args[...]`, `Console.ReadLine()` and
+  `Environment.GetEnvironmentVariable(...)`
+
+Constructor parameters (dependency injection), `[FromServices]` parameters,
+service-typed parameters (`*Service`, `*Repository`, `*DbContext`,
+`HttpClient`, interfaces other than `IFormFile` and collections) and scalar
+values (`int`, `bool`, `Guid`, dates, `int.Parse` results) are not request
+data. A Unity
+`PlayerController : MonoBehaviour` is not treated as a controller.
+
+### Rules
+
+| Rule | What is reported |
+|:---|:---|
+| [SKY-D211](/rules-reference#sky-d211--sql-injection) | request data in ADO.NET commands and data adapters, `CommandText`, EF `FromSqlRaw`/`ExecuteSqlRaw` or Dapper (CRITICAL); SQL text built from a method parameter without a proven request source (HIGH). `FromSqlInterpolated` and parameters are safe |
+| [SKY-D212](/rules-reference#sky-d212--command-injection) | `Process.Start`, `new ProcessStartInfo`, and the `FileName`/`Arguments` of a `ProcessStartInfo` |
+| [SKY-D215](/rules-reference#sky-d215--path-traversal) | `File.*`, `Directory.*`, `new FileStream/FileInfo/DirectoryInfo`, `StreamReader`/`StreamWriter` with a path, and `PhysicalFile` |
+| [SKY-D216](/rules-reference#sky-d216--ssrf) | `HttpClient` and `WebClient` requests, `WebRequest.Create`, `new HttpRequestMessage(method, url)`, `BaseAddress`, and RestSharp |
+| [SKY-D230](/rules-reference#sky-d230--open-redirect) | `Redirect`, `Response.Redirect`, `Results.Redirect`, `new RedirectResult` and the `Location` header |
+| [SKY-D226](/rules-reference#sky-d226--xss) (HIGH) | request data in `new HtmlString(...)`, `Html.Raw(...)` or `MarkupString` |
+| [SKY-D228](/rules-reference#sky-d228--xss-html-build) (HIGH) | request data in `Content(x, "text/html")`, `Results.Content(x, "text/html")` or `Response.Write(x)` |
+| [SKY-D233](/rules-reference#sky-d233--unsafe-deserialization) | `BinaryFormatter`, `SoapFormatter`, `NetDataContractSerializer`, `LosFormatter` and `ObjectStateFormatter` (HIGH, CRITICAL with request data); Json.NET `TypeNameHandling` other than `None` (HIGH, MEDIUM with a `SerializationBinder`); `JavaScriptSerializer` with `SimpleTypeResolver` (HIGH) |
+
+Sinks whose method names ordinary code shares need the receiver's declared
+type: `GetAsync` is SSRF only on an `HttpClient`, so a repository's
+`GetAsync(id)` is not reported.
+
+### Safe Patterns
+
+- a fixed scheme and host prefix for SSRF and redirects
+- `LocalRedirect`, `RedirectToAction`/`RedirectToRoute`/`RedirectToPage`, and
+  a redirect of a variable inside `if (Url.IsLocalUrl(x))` or after
+  `if (!Url.IsLocalUrl(x)) return ...;`, when every path of that branch
+  returns or throws and `Url` is the framework URL helper (a method of your
+  own named `IsLocalUrl` does not count)
+- `Path.GetFileName(x)` as the last `Path.Combine` part under a fixed or
+  configured directory
+- `HtmlEncoder`, `WebUtility`/`HttpUtility` encoding and HTML sanitizers
+- `Response.Write` when every path to it sets the response content type to
+  something other than HTML (a `text/plain` set on only one branch does not count)
 
 ```bash
 skylos . --danger
@@ -43,7 +102,22 @@ skylos . --danger
 
 ## Limitations
 
-C# support is intentionally lightweight today. Skylos does not run MSBuild,
-Roslyn analyzers, NuGet restore, or .NET type resolution. Use `dotnet build`,
-`dotnet test`, Roslyn analyzers, and project-specific security checks alongside
-Skylos when you need compiler-level validation.
+- No flow across files (controller to a service in another file to a sink).
+  The HIGH SQL finding for SQL text built from a parameter partly covers data
+  access code.
+- Receiver types come from declarations: inherited fields, properties from
+  another file and `var x = SomeFactory()` of an unknown method are not
+  resolved, so an `HttpClient` obtained that way is not a sink.
+- `Url.IsLocalUrl` stored in a variable (`var ok = Url.IsLocalUrl(x); if (ok)`)
+  is not recognised as a guard.
+- Not modelled: WebForms sources and sinks (`TextBox.Text`, `Label.Text`,
+  `FileUpload.SaveAs`), `XmlSerializer(Type.GetType(x))`, XXE, LDAP, XPath,
+  crypto, cookies and CSRF.
+- `.cshtml`, `.razor` and `.aspx` markup is not read.
+- Skylos does not run MSBuild, Roslyn analyzers, NuGet restore, or .NET type
+  resolution. Use `dotnet build`, `dotnet test`, Roslyn analyzers, and
+  project-specific security checks alongside Skylos when you need
+  compiler-level validation.
+
+Dependency scanning reads `*.csproj` exact pins and `packages.lock.json`; see
+[Dependency Files](/language-support#dependency-files---sca).

@@ -62,6 +62,39 @@ flowchart TB
 | **Unused variables** | `result = compute()` but `result` never read | Assigned but never referenced |
 | **Unused parameters** | `def fn(a, b): return a` | Parameter `b` never used in body |
 
+### Attribute Reads
+
+A Python module or class variable is kept alive by a same-named attribute read
+only when the receiver could be its owner. `self.NAME` in an unrelated class
+and `other_module.NAME` do not count. A read on a parameter or local counts
+once the module is imported as a module, named in a string (such as
+`config_from_object("app.celeryconfig")`), or loaded dynamically. Classes with
+a base outside the project, a decorator or a metaclass keep the name-only rule,
+because code Skylos cannot see may read their attributes.
+
+```python
+# settings.py
+RETRY_LIMIT = 3  # reported: no read can reach settings.RETRY_LIMIT
+
+# worker.py
+class Worker:
+    RETRY_LIMIT = 5
+
+    def run(self, policy):
+        return self.RETRY_LIMIT + policy.RETRY_LIMIT
+```
+
+In this example `settings` is never imported as a module, so neither
+`self.RETRY_LIMIT` nor `policy.RETRY_LIMIT` can be `settings.RETRY_LIMIT`.
+
+### Same-Named Definitions in Java, Kotlin, Rust and Dart
+
+Same-named classes, methods and functions in different files are reported
+separately. A reference reaches the ones in its own file, then its package or
+imports (Java, Kotlin) or its crate (Rust); with no such evidence it reaches
+all of them. Overloads in one file share liveness, because a name-only
+reference cannot tell `format(int)` from `format(String)`.
+
 ---
 
 ## The Confidence System

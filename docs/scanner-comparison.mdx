@@ -134,10 +134,11 @@ boundary. The complete comparison can still be written locally with `-o`.
 
 Without `--upload`, the comparison stays local. Dependency comparison is also offline by default; add `--sca` only when you want bounded exact-pin OSV checks, which may query package and version metadata.
 
-`--sca` is deliberately not a full dependency-coverage claim. It checks direct
-dependencies with versions Skylos can resolve from supported manifests;
-transitive dependencies are not enumerated, version ranges can remain
-unresolved, and unsupported lockfiles are recorded as coverage limitations.
+`--sca` is deliberately not a full dependency-coverage claim. It queries exact
+manifest pins and the packages recorded in
+[supported lockfiles](/language-support#dependency-files---sca), including
+locked transitives; version ranges in manifests remain unresolved, and
+unsupported dependency files are recorded as coverage limitations.
 Inspect `skylos.sca_coverage` and
 `coverage.all_requested_categories_complete` in the local JSON receipt before
 comparing dependency counts.

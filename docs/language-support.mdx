@@ -16,11 +16,11 @@ server, and Cloud upload.
 | TypeScript / JavaScript | `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs` | Yes | Yes | Yes | Tree-sitter parsing, package graph reachability, React and Next.js awareness |
 | Java | `.java` | Yes | Yes | Yes | Tree-sitter parsing, Java data-flow security checks, and method quality metrics |
 | Go | `.go` | Yes | Selected | Selected | Module-aware Go engine plus function quality metrics |
-| Kotlin | `.kt`, `.kts` | Yes | Secrets | No | Thin scanner for Kotlin symbols, imports, annotations, and secret scanning |
-| PHP | `.php` | Yes | Selected | No | PHP parser coverage with selected taint-style file and deserialization checks |
+| Kotlin | `.kt`, `.kts` | Partial | Selected | No | Lexical scanner (no Kotlin parser): unused private declarations and imports, Spring/servlet/Ktor/WebFlux request-data checks, Android WebView checks, and secret scanning |
+| PHP | `.php`, Drupal `.module`, `.install`, `.inc`, `.theme` | Yes | Yes | No | PHP parser coverage; request data followed within one function or file into command and code execution, file inclusion, XSS, SQL (including Laravel), SSRF, deserialization and file paths |
 | Rust | `.rs` | Yes | Selected | No | Rust parser coverage with selected command and filesystem checks |
 | Dart | `.dart` | Yes | Selected | No | Dart parser coverage with Flutter/test entrypoint handling and selected sink checks |
-| C# | `.cs` | Yes | Selected | No | C# symbol coverage plus selected ASP.NET, process, SQL, HTTP, redirect, and file sinks |
+| C# | `.cs` | Yes | Selected | No | C# symbol coverage plus ASP.NET-aware security: request sources, receiver-typed sinks, unsafe deserialization and XSS |
 | Shell | `.sh`, `.bash`, `.zsh`, `.ksh`, `.bats` | No | Selected | No | Static shell checks for command injection, SSRF, and path traversal |
 
 ## Config And Deployment Support
@@ -39,9 +39,8 @@ model as source-code rules.
 
 `Selected` means the scanner covers high-signal rules for that ecosystem, but
 the coverage is narrower than Python, TypeScript/JavaScript, and Java.
-`Secrets` means Skylos scans source files for hardcoded credentials through the
-shared secrets engine, but does not yet provide dedicated language-specific
-security sink rules for that ecosystem.
+`Partial` dead code means only some declarations are reported: for Kotlin,
+`private` declarations and unused imports.
 
 ## Coverage By Language
 
@@ -51,12 +50,56 @@ security sink rules for that ecosystem.
 | TypeScript / JavaScript | Dead-code and package graph analysis, React/Next.js awareness, client-side secret exposure, browser/server security sinks, quality rules, and monorepo inventory |
 | Java | Parser-backed dead-code detection, dangerous-call security checks, taint-style sink checks, weak crypto detection, and method quality metrics |
 | Go | Module-aware scanning, Go-specific security rules, unified cross-language security IDs, and selected function quality checks |
-| Kotlin | Thin dead-code coverage for Kotlin functions, methods, classes, objects, interfaces, imports, annotation refs, `.kt` / `.kts` files, and shared secret scanning |
-| PHP | Dead-code detection for PHP symbols plus selected filesystem/include and unsafe deserialization checks |
+| Kotlin | Dead code for `private` declarations and imports, where any use in code counts (type positions, `::foo`, trailing-lambda and infix calls, string templates, KDoc links); lexical per-function security checks from Spring, servlet, Ktor and WebFlux request data into command, SQL (including string templates), path, SSRF, open redirect, HTML response, deserialization, XXE and SpEL/JNDI sinks; Android WebView checks (SKY-D257, SKY-D258); shared secret scanning |
+| PHP | Dead-code detection for PHP symbols; request data (superglobals, Laravel, Symfony, PSR-7, CodeIgniter, Drupal Form API) followed within one function or file into command and code execution, file inclusion (SKY-D255), XSS checked by HTML context (including Blade `{!! !!}`), SQL (mysqli, PDO, `$wpdb`, Laravel, Doctrine DBAL), SSRF, `unserialize()` and file paths |
 | Rust | Dead-code coverage for Rust symbols plus selected command execution and filesystem path security checks |
 | Dart | Dead-code coverage for Dart and Flutter-style projects plus selected process, HTTP, and filesystem checks |
-| C# | Dead-code coverage for C# classes and methods plus selected process, SQL, HTTP, redirect, and filesystem security checks |
+| C# | Dead-code coverage for C# classes and methods (a constructor only when it is private, takes parameters and nothing calls it); ASP.NET request data from controllers, Razor Pages, SignalR hubs, minimal APIs and `[From*]` parameters into SQL (ADO.NET, EF raw SQL, Dapper), process, HTTP client, redirect and file sinks, plus unsafe deserialization (`BinaryFormatter` family, Json.NET `TypeNameHandling`) and XSS (`Html.Raw`, `HtmlString`, `MarkupString`, HTML responses) |
 | Shell | Static security checks for CI/deploy/release scripts, focused on command injection, SSRF, and path traversal |
+
+## Dependency Files (`--sca`)
+
+Dependency CVE scanning (`--sca`, included in `-a`) reads these files as data
+and queries OSV for the exact versions they record. It does not run package
+managers or build scripts.
+
+| Ecosystem | Lockfiles (all recorded packages) | Manifests (exact pins only) | Not read |
+|:---|:---|:---|:---|
+| PyPI | `uv.lock`, `poetry.lock`, `Pipfile.lock` | `requirements.txt`, `pyproject.toml`, `setup.cfg`, `setup.py` | `Pipfile` without its lock |
+| npm | `package-lock.json`, `npm-shrinkwrap.json`, `pnpm-lock.yaml`, `yarn.lock`, `bun.lock` | `package.json` | `bun.lockb` |
+| Go | | `go.mod` | `go.sum` before Go 1.17 |
+| Maven / Gradle | `gradle.lockfile` | `pom.xml` (properties, local parent POMs, `<dependencyManagement>`) | `build.gradle(.kts)` without `gradle.lockfile` |
+| crates.io | `Cargo.lock` | `Cargo.toml` (`=x.y.z`) | |
+| Packagist | `composer.lock` | `composer.json` | |
+| RubyGems | `Gemfile.lock` | | `Gemfile` without its lock |
+| Pub | `pubspec.lock` | `pubspec.yaml` | |
+| NuGet | `packages.lock.json` | `*.csproj` (`[x.y.z]`) | |
+
+- Git, path, SDK, private-registry, mirror and Composer branch (`dev-*`)
+  entries are listed under `sca_coverage.lockfile_not_checked` and never
+  queried. With only those gaps the status is
+  `complete_with_non_registry_sources`: the scan exits 0, and the gate still
+  applies to the CVEs found.
+- Version ranges in manifests are counted in `unresolved_dependency_count`.
+  Skylos never guesses a version.
+- Development-only packages (Composer `packages-dev`, pub `direct dev`, Maven
+  `test` scope, Gradle test-only configurations) are reported with
+  `low_risk_context: dev-only-dependency`.
+- Files that cannot be parsed are named in `sca_coverage.parse_errors` and
+  make the dependency scan incomplete.
+- OSV is queried once per unique dependency (package, version and ecosystem).
+  A scan holds at most 5,000 unique dependencies, and the dependency files may
+  list at most 50,000 entries in total. Above either limit nothing is queried
+  and the scan is incomplete (`dependency_limit_exceeded` or
+  `dependency_entry_limit_exceeded`).
+- `Package.resolved` (SwiftPM), `Podfile.lock` (CocoaPods) and `mix.lock`
+  (Hex) are not supported yet; they are named in
+  `sca_coverage.unsupported_inputs`.
+
+To scan a Gradle project, enable dependency locking
+(`dependencyLocking { lockAllConfigurations() }`, then
+`./gradlew dependencies --write-locks`). For .NET, set
+`RestorePackagesWithLockFile` so the build writes `packages.lock.json`.
 
 ## How Scans Run
 
