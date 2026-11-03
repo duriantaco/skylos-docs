@@ -53,6 +53,7 @@ use the `SKY-A` prefix.
 | `SKY-D209` | `subprocess` shell=True | HIGH | Python | `subprocess.*(..., shell=True)` |
 | `SKY-D210` | TLS Verify Disabled | HIGH | Python, Go | `requests.*(verify=False)` / `InsecureSkipVerify: true` |
 | `SKY-D233` | Unsafe Deserialization | CRITICAL | Python | `marshal.loads`, `shelve.open`, `jsonpickle.decode`, `dill.load/loads` |
+| `SKY-D213` | Hugging Face Remote Code | HIGH | Python | `trust_remote_code=True` in `from_pretrained`, `pipeline` or `load_dataset` |
 
 #### Taint / Data Flow
 
@@ -65,6 +66,11 @@ use the `SKY-A` prefix.
 | `SKY-D217` | SQL Injection (raw) | CRITICAL | Python | Tainted input in `sqlalchemy.text()`, `pandas.read_sql()`, Django `.raw()` |
 | `SKY-D218` | URL Scheme Audit | MEDIUM | Python | Dynamic urllib URL without a proven HTTP/HTTPS scheme restriction |
 | `SKY-D235` | Remote Command Execution Sink | HIGH | Python | User-controlled values flow into command execution sinks |
+| `SKY-D229` | XPath Injection | CRITICAL | Java | Request data in an `XPath` `compile`/`evaluate` expression |
+| `SKY-D236` | XML External Entity (XXE) | HIGH | Java | XML parser used without disabling DTDs or external entities |
+| `SKY-D237` | Expression, JNDI or Script Injection | CRITICAL | Java | Request data evaluated as SpEL/OGNL/MVEL/EL/JEXL, looked up via JNDI, or run by a script engine |
+| `SKY-D238` | NoSQL Injection | HIGH | TS | Request data used as a MongoDB/Mongoose query object or `$where` |
+| `SKY-D239` | LDAP Injection | CRITICAL | Java | Request data in an LDAP search base or filter |
 | `SKY-D254` | HTTP Session Trust Boundary Violation | HIGH | Java | Servlet-controlled data crosses into HTTP session state (CWE-501) |
 | `SKY-D261` | Untrusted Input To LLM Prompt | HIGH | Python | Request-controlled data reaches an LLM prompt or message without a clear instruction/data boundary |
 | `SKY-D262` | Unsafe LLM Output Handling | CRITICAL | Python | Model output flows into code execution, shell, SQL, or network sinks without validation |
@@ -80,9 +86,9 @@ use the `SKY-A` prefix.
 
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
-| `SKY-D226` | XSS | CRITICAL | Python, TS | `mark_safe()`, `innerHTML`, `outerHTML`, `document.write()`, `dangerouslySetInnerHTML` |
+| `SKY-D226` | XSS | CRITICAL | Python, TypeScript/JavaScript, Go, Java | `mark_safe()`, `innerHTML`, `outerHTML`, `document.write()`, `dangerouslySetInnerHTML` |
 | `SKY-D227` | XSS (Template) | HIGH | Python | Template uses `\|safe` filter or disables autoescape |
-| `SKY-D228` | XSS (HTML Build) | HIGH | Python | HTML string built with unescaped user input |
+| `SKY-D228` | XSS (HTML Build) | HIGH | Python, TS, Go | HTML string built with unescaped user input |
 | `SKY-D230` | Open Redirect | HIGH | Python, TS, Go, Java, C# | User-controlled URL in `redirect()` / `res.redirect()` / `http.Redirect` / `sendRedirect` / ASP.NET redirect sinks |
 | `SKY-D231` | CORS Misconfiguration | HIGH | Python | Wildcard origins with credentials or open write routes, echoed `Origin` without an allowlist |
 | `SKY-D232` | JWT Vulnerabilities | CRITICAL | Python | `algorithms=['none']`, `verify=False`, weak secrets |
@@ -787,6 +793,28 @@ Command::new("sh").arg("-c").arg(user_input).output()?;
 
 // Good
 Command::new("git").arg("status").output()?;
+```
+
+---
+
+### SKY-D213 · Hugging Face Remote Code
+
+| | |
+|---|---|
+| **Severity** | HIGH (MEDIUM when `revision=` pins a commit SHA or the path is a local directory) |
+| **Languages** | Python |
+| **What** | `trust_remote_code=True` passed to `from_pretrained`, `pipeline` or `load_dataset`, including inside `model_kwargs` |
+| **Risk** | Loading runs Python files from the model repository, so whoever controls that repository runs code in your process (CWE-94, CWE-829) |
+
+```python
+# Bad
+model = AutoModel.from_pretrained("org/model", trust_remote_code=True)
+
+# Reported as MEDIUM: illustrative 40-hex SHA; use a reviewed commit
+model = AutoModel.from_pretrained("org/model", trust_remote_code=True, revision="0123456789abcdef0123456789abcdef01234567")
+
+# Good
+model = AutoModel.from_pretrained("org/model")
 ```
 
 ---
@@ -1625,7 +1653,7 @@ Skylos validates package/version existence for `package.json` and `go.mod` manif
 | | |
 |---|---|
 | **Severity** | CRITICAL |
-| **Languages** | Python, TypeScript |
+| **Languages** | Python, TypeScript/JavaScript, Go, Java |
 | **What** | Untrusted content rendered without escaping |
 | **Risk** | Script injection, session hijacking |
 
@@ -1678,7 +1706,7 @@ el.textContent = userInput
 | | |
 |---|---|
 | **Severity** | HIGH |
-| **Languages** | Python |
+| **Languages** | Python, TypeScript/JavaScript, Go |
 | **What** | HTML string built with unescaped user input |
 
 ```python
@@ -1688,6 +1716,28 @@ html = f"<div>{user_input}</div>"
 # Good
 from markupsafe import escape
 html = f"<div>{escape(user_input)}</div>"
+```
+
+---
+
+### SKY-D229 · XPath Injection
+
+| | |
+|---|---|
+| **Severity** | CRITICAL |
+| **Languages** | Java |
+| **What** | Request data reaches the expression of a `javax.xml.xpath.XPath` `compile`/`evaluate` call or dom4j `DocumentHelper.createXPath` |
+| **Risk** | Attackers can change the query and read nodes they should not see (CWE-643) |
+
+The receiver must be an `XPath`, so `Pattern.compile(input)` is not reported. Earlier releases reported Java XPath injection as `SKY-D241`.
+
+```java
+// Bad
+xpath.evaluate("//user[name='" + request.getParameter("name") + "']", doc);
+
+// Good: a constant expression with a bound variable
+xpath.setXPathVariableResolver(v -> request.getParameter("name"));
+xpath.evaluate("//user[name=$name]", doc);
 ```
 
 ---
@@ -1987,6 +2037,95 @@ def reboot():
 ```
 
 Auth evidence includes guard decorators, `Depends` / `Security` / `Header` / `Cookie` parameters, 401/403 or login-redirect handling, reading request credentials, auth middleware and credential-checking hooks. A route that something may authenticate stays the MEDIUM `SKY-F102` review. GET routes are never reported. `ignore` for `SKY-F102` and a bare `# noqa` do not hide `SKY-D283`.
+
+---
+
+### SKY-D236 · XML External Entity (XXE)
+
+| | |
+|---|---|
+| **Severity** | HIGH (CRITICAL when request data is parsed) |
+| **Languages** | Java |
+| **What** | An XML parser is created and used without disabling DTDs or external entities: `DocumentBuilderFactory`, `SAXParserFactory`, `XMLReader`, `XMLInputFactory`, `TransformerFactory`, `SchemaFactory`, JDOM `SAXBuilder`, dom4j `SAXReader`, Commons `Digester` |
+| **Risk** | A crafted document can read local files, reach internal hosts or exhaust memory (CWE-611) |
+
+Settings are checked on the same factory variable in statement order. `FEATURE_SECURE_PROCESSING` alone does not count, a setting applied after `newDocumentBuilder()` does not protect that builder, and hardening in only one branch does not count.
+
+```java
+// Bad
+DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+Document doc = dbf.newDocumentBuilder().parse(request.getInputStream());
+
+// Good
+DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+Document doc = dbf.newDocumentBuilder().parse(request.getInputStream());
+```
+
+---
+
+### SKY-D237 · Expression, JNDI or Script Injection
+
+| | |
+|---|---|
+| **Severity** | CRITICAL |
+| **Languages** | Java |
+| **What** | Request data evaluated as SpEL, OGNL, MVEL, EL or JEXL, looked up through JNDI (`InitialContext.lookup`, `JndiTemplate`), or run by a `ScriptEngine` or Groovy |
+| **Risk** | Remote code execution (CWE-917, CWE-94); JNDI lookups are the Log4Shell class |
+
+A SpEL expression whose every evaluation passes a `SimpleEvaluationContext` is not reported. Velocity and FreeMarker templates built from input are reported as `SKY-D349`.
+
+```java
+// Bad
+parser.parseExpression(request.getParameter("expr")).getValue();
+new InitialContext().lookup(request.getParameter("name"));
+
+// Good
+parser.parseExpression(expr).getValue(SimpleEvaluationContext.forReadOnlyDataBinding().build());
+```
+
+---
+
+### SKY-D238 · NoSQL Injection
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | TypeScript / JavaScript |
+| **What** | Request data used as a MongoDB or Mongoose query object (`find(req.body)`, `{ email: req.body.email }`), or a `$where` built from request data, in a file that imports `mongoose`, `mongodb` or a similar driver |
+| **Risk** | An object such as `{ "$ne": null }` changes the query and can bypass login checks (CWE-943) |
+
+Values that can only be text are not reported: route params, headers, `searchParams.get()`, `String(x)`, templates. A `typeof x === "string"` or ObjectId check, `express-mongo-sanitize`, or `sanitizeFilter: true` clears the finding.
+
+```typescript
+// Bad: req.body.email can be { "$ne": null }
+await User.findOne({ email: req.body.email });
+
+// Good
+if (typeof req.body.email !== "string") return res.status(400).end();
+await User.findOne({ email: req.body.email });
+```
+
+---
+
+### SKY-D239 · LDAP Injection
+
+| | |
+|---|---|
+| **Severity** | CRITICAL |
+| **Languages** | Java |
+| **What** | Request data in the base DN or filter of a JNDI `DirContext`, Spring `LdapTemplate` or UnboundID `LDAPConnection` search |
+| **Risk** | Attackers can widen the filter to read or authenticate as other directory entries (CWE-90) |
+
+Values escaped with `LdapEncoder.filterEncode`/`nameEncode`, `Rdn.escapeValue` or UnboundID `Filter.encodeValue`, or passed as `{0}` filter arguments, are not reported. Earlier releases reported Java LDAP injection as `SKY-D240`.
+
+```java
+// Bad
+ctx.search("ou=people", "(uid=" + request.getParameter("uid") + ")", controls);
+
+// Good
+ctx.search("ou=people", "(uid={0})", new Object[] { request.getParameter("uid") }, controls);
+```
 
 ---
 
