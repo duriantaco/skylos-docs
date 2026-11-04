@@ -12,6 +12,12 @@ const sidebars = {
       label: 'Quick Start', 
       className: 'sb-quickstart' 
     },
+    {
+      type: 'doc',
+      id: 'workflow',
+      label: 'Tutorial: setup to PR',
+      className: 'sb-cicd'
+    },
     { 
       type: 'doc', 
       id: 'installation', 
@@ -62,6 +68,7 @@ const sidebars = {
         { type: 'doc', id: 'ai-defects', label: 'AI Defects' },
         { type: 'doc', id: 'ai-contracts', label: 'AI Contracts' },
         { type: 'doc', id: 'change-map', label: 'Change Map' },
+        { type: 'doc', id: 'graph', label: 'Codebase Graph' },
         { type: 'doc', id: 'code-quality', label: 'Code Quality' },
         { type: 'doc', id: 'technical-debt', label: 'Technical Debt' },
       ],
