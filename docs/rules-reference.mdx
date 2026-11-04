@@ -61,7 +61,7 @@ use the `SKY-A` prefix.
 |---------|------|----------|-----------|-------------|
 | `SKY-D211` | SQL Injection | CRITICAL | Python, TS, Java, Go, C# | Tainted/interpolated SQL in `execute`, template literals, `PreparedStatement`, `fmt.Sprintf`, or C# command text |
 | `SKY-D212` | Command Injection | CRITICAL | Python, TS/JS, Java, Go, Rust, Dart, C#, Shell | Tainted input to `os.system()`, `child_process.exec()`, `Runtime.exec`, `exec.Command`, Rust `Command::new`, Dart `Process.*`, C# `Process.Start`, shell `eval`, `source`, or shell `-c` |
-| `SKY-D215` | Path Traversal | HIGH | Python, Java, Go, PHP, Rust, Dart, C#, Shell | Tainted input used in filesystem paths, include/file sinks, shell file commands, or redirection targets |
+| `SKY-D215` | Path Traversal | HIGH | Python, Java, Go, PHP, Rust, Dart, C#, Shell | Tainted input used in filesystem paths, file sinks, shell file commands, or redirection targets |
 | `SKY-D216` | SSRF | CRITICAL | Python, TS, Java, Go, Dart, C#, Shell | Tainted URL passed to HTTP clients, request builders, `curl`, or `wget` |
 | `SKY-D217` | SQL Injection (raw) | CRITICAL | Python | Tainted input in `sqlalchemy.text()`, `pandas.read_sql()`, Django `.raw()` |
 | `SKY-D218` | URL Scheme Audit | MEDIUM | Python | Dynamic urllib URL without a proven HTTP/HTTPS scheme restriction |
@@ -72,6 +72,7 @@ use the `SKY-A` prefix.
 | `SKY-D238` | NoSQL Injection | HIGH | TS | Request data used as a MongoDB/Mongoose query object or `$where` |
 | `SKY-D239` | LDAP Injection | CRITICAL | Java | Request data in an LDAP search base or filter |
 | `SKY-D254` | HTTP Session Trust Boundary Violation | HIGH | Java | Servlet-controlled data crosses into HTTP session state (CWE-501) |
+| `SKY-D255` | File Inclusion | CRITICAL | PHP | Request-controlled paths reach `include`, `include_once`, `require` or `require_once` (CWE-98) |
 | `SKY-D261` | Untrusted Input To LLM Prompt | HIGH | Python | Request-controlled data reaches an LLM prompt or message without a clear instruction/data boundary |
 | `SKY-D262` | Unsafe LLM Output Handling | CRITICAL | Python | Model output flows into code execution, shell, SQL, or network sinks without validation |
 | `SKY-D263` | Sensitive Data Sent To LLM | HIGH | Python | Secrets, credential fields, or sensitive environment values flow into LLM or embedding API input |
@@ -113,6 +114,13 @@ use the `SKY-A` prefix.
 | `SKY-D271` | Error Info Disclosure (HTTP) | MEDIUM | Stack traces / error details returned in HTTP responses (CWE-209) |
 | `SKY-D280` | Next.js Mutating Route Missing Authentication | HIGH | Protected mutation is reachable without a proven route-local rejecting authentication guard |
 | `SKY-D281` | Next.js Server Action SQL Injection | CRITICAL | Untrusted Server Action input reaches SQL text without a parameterized binding proof (CWE-89) |
+
+#### Android WebView Security
+
+| Rule ID | Name | Severity | Languages | Description |
+|---------|------|----------|-----------|-------------|
+| `SKY-D257` | Android WebView JavaScript Bridge | HIGH | Kotlin | A JavaScript interface is added while JavaScript is enabled in the same class or top-level file scope (CWE-749) |
+| `SKY-D258` | Android WebView File URL Access | MEDIUM | Kotlin | File URL access or universal access from file URLs is explicitly enabled (CWE-200) |
 
 #### Supply Chain
 
@@ -1910,6 +1918,90 @@ response.cookie("session", token, { httpOnly: true, secure: false });
 
 // Good
 response.cookie("session", token, { httpOnly: true, secure: true });
+```
+
+---
+
+### SKY-D255 · File Inclusion
+
+| | |
+|---|---|
+| **Severity** | CRITICAL |
+| **Languages** | PHP |
+| **What** | Request-controlled data selects a file passed to `include`, `include_once`, `require` or `require_once` |
+| **Risk** | The selected file is executed as PHP code (CWE-98) |
+
+Use a fixed mapping of allowed pages, or reject values outside a strict allowlist before including a file. A fixed directory prefix alone does not prevent request input from choosing the included path. Earlier PHP file-inclusion findings used `SKY-D215`; ordinary filesystem path checks keep that ID.
+
+```php
+// Bad
+include 'pages/' . $_GET['page'] . '.php';
+```
+
+```php
+// Good: reject unknown page names before inclusion
+$page = $_GET['page'];
+if (!in_array($page, ['home', 'about'], true)) {
+    exit;
+}
+include 'pages/' . $page . '.php';
+```
+
+---
+
+### SKY-D257 · Android WebView JavaScript Bridge
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Kotlin (`.kt`, `.kts`) |
+| **What** | `addJavascriptInterface(...)` appears with `javaScriptEnabled = true` or `setJavaScriptEnabled(true)` in the same class or top-level file scope |
+| **Risk** | JavaScript loaded in the WebView may call native methods annotated with `@JavascriptInterface` on the exposed bridge (CWE-749) |
+
+Remove unnecessary bridges and keep JavaScript disabled when it is not needed. If a bridge is required, restrict the content that can reach it. This check does not prove receiver identity, execution order or trusted URL policy; an enabling setting elsewhere in the same class is enough to trigger it.
+
+```kotlin
+// Bad
+fun configure(webView: WebView, bridge: Any) {
+    webView.settings.javaScriptEnabled = true
+    webView.addJavascriptInterface(bridge, "native")
+}
+```
+
+```kotlin
+// Good: no bridge or JavaScript is needed
+fun configure(webView: WebView) {
+    webView.settings.javaScriptEnabled = false
+}
+```
+
+---
+
+### SKY-D258 · Android WebView File URL Access
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | Kotlin (`.kt`, `.kts`) |
+| **What** | `allowFileAccessFromFileURLs` or `allowUniversalAccessFromFileURLs` is set to literal `true`, through a property or setter |
+| **Risk** | Content loaded from a file URL may access other local files or cross-origin resources and expose data (CWE-200) |
+
+Keep both settings disabled. The check does not require JavaScript to be enabled in the same source scope.
+
+```kotlin
+// Bad
+fun configure(webView: WebView) {
+    webView.settings.allowFileAccessFromFileURLs = true
+    webView.settings.setAllowUniversalAccessFromFileURLs(true)
+}
+```
+
+```kotlin
+// Good
+fun configure(webView: WebView) {
+    webView.settings.allowFileAccessFromFileURLs = false
+    webView.settings.allowUniversalAccessFromFileURLs = false
+}
 ```
 
 ---
