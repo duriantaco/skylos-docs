@@ -106,8 +106,8 @@ To use all tools and track credit usage, add your API key:
 Get your API key from [skylos.dev/dashboard/settings](https://skylos.dev/dashboard/settings).
 
 **Without an API key**, the MCP server still works but in limited mode:
-- Only the `analyze` tool is available
-- Limited to 5 calls per day
+- `analyze` is available, limited to 5 calls per day
+- The local map tools (`change_map`, `graph_find`, `graph_show`, `graph_impact`, `graph_areas`, `graph_relevant`, `graph_pending`, `graph_describe`) are available with no limit: they read the repository on your machine and send nothing to Skylos Cloud
 - `security_scan`, `quality_check`, `secrets_scan`, and `remediate` require authentication
 
 **With an API key**, all tools are available:
@@ -120,7 +120,10 @@ Get your API key from [skylos.dev/dashboard/settings](https://skylos.dev/dashboa
 | `secrets_scan` | **Free** | Runs locally |
 | `verify_change` | **Free** | Runs locally; returns narrow AI-code trust findings for changed code |
 | `verify_agent` | **Free** | Runs locally; verifies AI-agent guardrails with scores, failed checks, OWASP coverage, gate verdict, and attestation digest |
-| `change_map` | **Free** | Runs locally; maps what a change touches: old and new code, callers, removed security checks, what to read first |
+| `change_map` | **Free** | No key needed. Runs locally; maps what a change touches: old and new code, callers, removed security checks, and what to read first, read, skim or skip |
+| `graph_find`, `graph_show`, `graph_impact` | **Free** | No key needed. Runs locally; reads the codebase graph built by `skylos graph` |
+| `graph_areas`, `graph_relevant` | **Free** | No key needed. Runs locally; the codebase's areas, and the code that matters most to the files you are changing |
+| `graph_pending`, `graph_describe` | **Free** | No key needed. Runs locally; your agent writes the plain-English descriptions |
 | `remediate` | **10** | AI-powered fix generation |
 
 Analysis tools (`analyze`, `security_scan`, `quality_check`, `secrets_scan`,
@@ -307,9 +310,39 @@ diff. It is the MCP equivalent of `skylos done map --format json`.
 **Returns**: JSON with `schema_version`, `base_commit`, `symbols` (each
 changed function, method or class with `before` and `after` code, calls
 added and removed, `callers`, `security_removed`, `signature_change` and
-`reasons`), `read_first`, `flagged`, `groups`, `module_changes` and
-`coverage`. The same commit gives the same map: it is computed from the
-code, not by a model. See [Change Map](/change-map).
+`reasons`, plus `verdict`, `review` and `review_why`), `read_first`,
+`flagged`, `groups`, `review` (the read first, read, skim and skip lists with
+changed-line counts), `module_changes` and `coverage`. The same commit gives
+the same map: it is computed from the code, not by a model. It needs no API
+key and has no daily limit. See [Change Map](/change-map).
+
+### `graph_find`, `graph_show`, `graph_impact`, `graph_areas`, `graph_relevant`
+
+Answer questions from the codebase graph that `skylos graph` builds, so an
+agent can look up callers, tests and impact before it edits code. They match
+`skylos graph find`, `show` and `impact --format json`, need no API key and
+have no daily limit. For the verdicts on changed code, use `change_map`.
+
+| Tool | Parameters |
+|------|------------|
+| `graph_find` | `query` (part of a name), `path` (default `"."`), `include_tests` (default `false`) |
+| `graph_show` | `name` (id, dotted name, short name or `path::Name`), `path`, `with_code` (default `false`) |
+| `graph_impact` | `name`, `path`, `depth` (1 to 8, default 3) |
+| `graph_areas` | `path`, `area` (an area id, optional: lists its members and linked areas) |
+| `graph_relevant` | `files` (paths you are about to change), `path`, `budget` (tokens, default 2000) |
+
+Each tool builds the graph first if the repository has none.
+
+**Example prompt**: "Before you change `load_config`, show who calls it and which tests reach it."
+
+### `graph_pending`, `graph_describe`
+
+`graph_pending` returns code that still needs a plain-English description,
+with its source. With `changes=true` and a `base` such as `origin/main`, it
+compares first and returns the changed code whose logic changed, to explain.
+The agent writes the descriptions and saves them with `graph_describe`.
+Nothing is sent to Skylos. See [Codebase Graph](/graph) and the
+[Agent Code Workflow](/workflow).
 
 ### `remediate`
 
