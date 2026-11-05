@@ -30,7 +30,7 @@ skylos . -a             # everything, including dependencies
 |---|---|---|---|
 | Known malicious version | `SKY-SCA-<advisory id>` (for example `SKY-SCA-MAL-2025-46969`) | `CRITICAL` | OSV lists a `MAL-*` record or alias, a record from the OpenSSF malicious-packages database, or CWE-506 (embedded malicious code) for the exact version |
 | Dependency confusion | `SKY-SCA-SRC001` | `CRITICAL` direct, `HIGH` transitive | a package matching your `internal_packages` can resolve from a public or undeclared index, including through `--extra-index-url` |
-| Mutable source | `SKY-SCA-SRC003` | `MEDIUM` | a Git dependency not pinned to a full commit, or a URL dependency without a hash |
+| Mutable source | `SKY-SCA-SRC003` | `MEDIUM` | a Git dependency not pinned to a full commit, or a URL dependency without a hash. Reported, but not counted by the built-in `--gate`; a synced Cloud gate counts it |
 | Lockfile entry without integrity | `SKY-SCA-INT001` | `MEDIUM` | a registry entry in a lockfile has no integrity hash |
 | Version younger than your cooldown | `SKY-SCA-AGE001` | `HIGH` | only when you set `min_release_age_hours` |
 
@@ -81,8 +81,9 @@ checked before it runs:
 | Known malware | `npm install chalk@5.6.1`, `pip install aiocpa==0.1.13`, `npm i c@npm:chalk@5.6.1` | **Blocked** |
 | Released less than 24 hours ago | `npm install typescript@next` six hours after a nightly | **Blocked**, naming the newest older version to install instead |
 | npm release that lost its provenance | a version published from a stolen token instead of the project's CI | **Blocked** |
-| Lockfile install | `npm ci`, `pnpm install`, `uv sync`, `pip install -r requirements.txt` | malware check over every locked package |
-| Cannot verify | OSV and the feed both unreachable, Git or URL sources | asks you (Codex: denied) |
+| Lockfile install | `npm ci`, `pnpm install`, `uv sync`, `pip install -r requirements.txt`, and installs that add to a locked project (`npm install left-pad`, `uv add`, `uv run`) | malware check over every locked package, wherever the lockfile says it resolves from |
+| Download now, install later | `pip download evil==1.0`, `npm pack chalk@5.6.1` | checked like an install |
+| Cannot verify | OSV and the feed both unreachable; Git, URL or unknown-host entries; a lockfile or requirements file an earlier part of the same command may rewrite (`curl -o`, `cp`, `git checkout --`) | asks you (Codex: denied) |
 
 Hallucinated and typosquatted package names are blocked as before. Packages
 from your own private or trusted registries are never sent to OSV or the
@@ -103,7 +104,11 @@ trusted_registries = []
 
 A synced Skylos Cloud policy can only make these stricter: booleans combine
 with OR, the release age takes the larger value, internal package patterns
-are combined, and registry lists set in Cloud replace the repository's lists.
+are combined, and registry lists set in Cloud replace the repository's lists
+(including `[tool.skylos.hooks] trusted_registries`). With a Cloud policy
+that blocks malware, `hooks_allow_packages` no longer lets a known malicious
+version through. In pull-request CI (`SKYLOS_POLICY_BASE`) the policy is read
+from the base commit, so a pull request cannot relax its own checks.
 
 ## In Skylos Cloud
 
