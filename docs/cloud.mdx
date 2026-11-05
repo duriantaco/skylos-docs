@@ -167,6 +167,7 @@ Skylos Cloud currently gives you workspace-level navigation for:
 - `Exceptions`
 - `Rules`
 - `Trends`
+- `Supply chain`: packages your branches use that were later reported as malware, and each repository's install protections. See [Supply Chain](/supply-chain#in-skylos-cloud).
 
 ### Project Views
 
@@ -250,6 +251,7 @@ When you upload a scan with `skylos cloud` or `--upload`, Skylos Cloud receives 
 | git author email of each flagged line | |
 | a map of your functions and classes (names, files, lines, sizes, which calls which) | |
 | summary counts and gate data | |
+| with dependency checks on: each package's ecosystem, name, version, direct/dev flag and manifest path, plus the supply-chain posture checks | |
 
 Uploaded findings can include security-sensitive metadata and contextual evidence needed to explain results. Treat cloud scan results as sensitive security data even though Skylos does not upload the full repo as source blobs during normal scan upload.
 

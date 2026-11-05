@@ -128,6 +128,12 @@ use the `SKY-A` prefix.
 |---------|------|----------|-----------|-------------|
 | `SKY-D223` | Undeclared Dependency | MEDIUM | Python | Import not declared in requirements.txt / pyproject.toml / setup.py |
 | `SKY-SCA-LIC001` | Dependency License Policy Violation | HIGH (set with `license_severity`) | Python, JavaScript | A dependency's declared license is on your `license_deny` list or outside your `license_allow` list; unknown (`NOASSERTION`) licenses never trigger it |
+| `SKY-SCA-SRC001` | Possible dependency confusion | CRITICAL direct, HIGH transitive | Python, JavaScript | A package matching your `internal_packages` can resolve from a public or undeclared index, including through `--extra-index-url`; reported only when `internal_packages` is set |
+| `SKY-SCA-SRC003` | Mutable dependency source | MEDIUM | Python, JavaScript | A Git dependency not pinned to a full commit, or a URL dependency without a hash |
+| `SKY-SCA-INT001` | Lockfile entry without integrity hash | MEDIUM | Python, JavaScript | A registry entry in a lockfile has no integrity hash; requirements files are not checked |
+| `SKY-SCA-AGE001` | Dependency version younger than the release-age window | HIGH | Python, JavaScript | A locked version was published less than `min_release_age_hours` ago; reported only when you set it |
+
+Known malicious versions (an OSV `MAL-*` record or alias, an OpenSSF malicious-packages record, or CWE-506) keep their advisory rule ID (`SKY-SCA-<advisory id>`) and are always `CRITICAL`. See [Supply Chain](/supply-chain).
 
 #### AI Defects
 

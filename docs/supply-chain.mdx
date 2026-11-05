@@ -1,0 +1,138 @@
+---
+title: "Supply Chain"
+description: "Block malicious, hijacked and brand-new package versions before an AI agent or CI installs them, and get alerted when a package you already use is reported as malware."
+---
+
+Skylos checks the packages your project and your coding agents install, not
+just the code you write. It answers three questions:
+
+- **Is a package version known malware?** Hijacked releases such as
+  `chalk@5.6.1`, `debug@4.4.2`, `@ctrl/tinycolor@4.1.1` (the Shai-Hulud worm),
+  `@solana/web3.js@1.95.6` and `xrpl@4.2.1` are reported as `CRITICAL`.
+- **Is a version too new to trust yet?** Most hijacked releases are found and
+  pulled within hours. The agent hook holds versions younger than 24 hours.
+- **Can the install be redirected?** Dependency confusion, Git and URL
+  dependencies that can change under you, and lockfile entries without an
+  integrity hash.
+
+The checks run in the CLI, the agent install hook and Skylos Cloud. The
+package-level logic comes from the open-source
+[ca9](https://github.com/duriantaco/ca9) engine, which installs with Skylos.
+
+## In A Scan
+
+```bash
+skylos . --sca          # dependency checks only
+skylos . -a             # everything, including dependencies
+```
+
+| What | Rule ID | Severity | When |
+|---|---|---|---|
+| Known malicious version | `SKY-SCA-<advisory id>` (for example `SKY-SCA-MAL-2025-46969`) | `CRITICAL` | OSV lists a `MAL-*` record or alias, a record from the OpenSSF malicious-packages database, or CWE-506 (embedded malicious code) for the exact version |
+| Dependency confusion | `SKY-SCA-SRC001` | `CRITICAL` direct, `HIGH` transitive | a package matching your `internal_packages` can resolve from a public or undeclared index, including through `--extra-index-url` |
+| Mutable source | `SKY-SCA-SRC003` | `MEDIUM` | a Git dependency not pinned to a full commit, or a URL dependency without a hash |
+| Lockfile entry without integrity | `SKY-SCA-INT001` | `MEDIUM` | a registry entry in a lockfile has no integrity hash |
+| Version younger than your cooldown | `SKY-SCA-AGE001` | `HIGH` | only when you set `min_release_age_hours` |
+
+Malware findings say to remove the package, reinstall from a clean lockfile
+and rotate every credential an install could read (npm, GitHub and cloud
+tokens). They are never demoted as dev-only: a dev dependency still runs its
+install scripts on a developer machine. Ordinary CVEs keep their usual
+severity.
+
+When OSV cannot be reached, the scan checks the local ca9 malware feed
+instead and says so in `analysis_summary.sca_coverage.supply_chain`. Install
+or refresh the feed with:
+
+```bash
+ca9 feed update
+```
+
+### Package Inventory And Posture
+
+`--format json` adds two blocks to `analysis_summary`, and uploads carry them
+to Skylos Cloud:
+
+- `dependency_inventory`: every package found (ecosystem, name, version,
+  direct or dev, manifest path), at most 10,000.
+- `supply_chain_posture`: whether the repository protects its installs.
+
+| Check | Passes when |
+|---|---|
+| `lockfile_committed` | every npm and Python manifest has a committed lockfile (or pinned requirements) |
+| `frozen_install_ci` | CI installs from the lockfile (`npm ci`, `--frozen-lockfile`, `--immutable`, `--require-hashes`, `uv sync --locked`) |
+| `install_scripts_disabled` | `ignore-scripts=true` in `.npmrc`, `--ignore-scripts` in CI, or pnpm 10+ |
+| `release_age_cooldown` | a minimum release age is set (`.npmrc` `min-release-age`, pnpm `minimumReleaseAge`, Yarn `npmMinimalAgeGate`, Bun `minimumReleaseAge`, uv `exclude-newer`, or Skylos `min_release_age_hours`) |
+| `actions_pinned` | GitHub Actions are pinned to commit SHAs |
+| `no_pr_target_checkout` | no `pull_request_target` workflow checks out pull request code |
+
+A check passes only with evidence in the repository; otherwise it is `fail`,
+`unknown` or `not_applicable`. Manifests under test, fixture, example and
+benchmark folders do not count.
+
+## In The Agent Install Hook
+
+With `skylos agent install-hooks` installed, every install command an agent
+runs (`npm install`, `npx`, `pip install`, `uvx`, `pnpm dlx`, `bunx`, ...) is
+checked before it runs:
+
+| Case | Example | Result |
+|---|---|---|
+| Known malware | `npm install chalk@5.6.1`, `pip install aiocpa==0.1.13`, `npm i c@npm:chalk@5.6.1` | **Blocked** |
+| Released less than 24 hours ago | `npm install typescript@next` six hours after a nightly | **Blocked**, naming the newest older version to install instead |
+| npm release that lost its provenance | a version published from a stolen token instead of the project's CI | **Blocked** |
+| Lockfile install | `npm ci`, `pnpm install`, `uv sync`, `pip install -r requirements.txt` | malware check over every locked package |
+| Cannot verify | OSV and the feed both unreachable, Git or URL sources | asks you (Codex: denied) |
+
+Hallucinated and typosquatted package names are blocked as before. Packages
+from your own private or trusted registries are never sent to OSV or the
+public registries.
+
+## Configuration
+
+```toml
+[tool.skylos.supply_chain]
+block_malware = true                 # false: known malware asks instead of blocking
+min_release_age_hours = 24           # hook default 24; 0 turns the hook hold off;
+                                     # set it to also report SKY-SCA-AGE001 in scans
+check_provenance = true              # npm only
+internal_packages = ["acme-*", "@acme/*"]
+private_registries = ["https://pypi.acme.dev/simple"]
+trusted_registries = []
+```
+
+A synced Skylos Cloud policy can only make these stricter: booleans combine
+with OR, the release age takes the larger value, internal package patterns
+are combined, and registry lists set in Cloud replace the repository's lists.
+
+## In Skylos Cloud
+
+Uploads from `skylos cloud` or `skylos . -a --upload` give Cloud each
+branch's package list and posture. Cloud then:
+
+- **Watches for new malware every hour.** When OSV publishes a new malicious
+  record for a package version one of your branches uses, Cloud raises one
+  alert per package version (listing every advisory id) and sends it to your
+  webhooks (`dependency.malicious_detected`), Slack or Discord, and the weekly
+  digest. You do not need to rescan.
+- **Shows a Supply chain page** with open alerts first, then each
+  repository's posture.
+- **Syncs a supply-chain policy** (block malware, cooldown hours, internal
+  packages, private and trusted registries, provenance) to the CLI and the
+  agent hook. Workspace plan and up.
+- **Can ignore statically unreachable dependency CVEs in the gate**
+  (Workspace and up, off by default). Only plain CVE, GHSA and PYSEC
+  advisories with a static `unreachable_static` verdict are skipped; malware
+  and findings without a verdict always count. The CLI's `--gate` applies the
+  same rule when the option is synced.
+
+## Limits
+
+- The malware check knows what OSV and the OpenSSF malicious-packages
+  database know. The release-age hold covers the hours before a report
+  exists.
+- Release age and provenance need the registry. When the release date cannot
+  be read, the hook asks ("could not verify"); when provenance cannot be
+  read, it does not block.
+- Provenance is checked for npm only.
+- `bun.lockb` (binary) is not read; use the text `bun.lock`.

@@ -61,6 +61,7 @@ const sidebars = {
         { type: 'doc', id: 'dead-code-detection', label: 'Dead Code' },
         { type: 'doc', id: 'smart-tracing', label: 'Smart Tracing' },
         { type: 'doc', id: 'security-analysis', label: 'Security' },
+        { type: 'doc', id: 'supply-chain', label: 'Supply Chain' },
         { type: 'doc', id: 'release-reliability', label: 'Release Reliability' },
         { type: 'doc', id: 'agent-verification', label: 'Agent Verification' },
         { type: 'doc', id: 'agent-behavior-testing', label: 'Agent Behavior Testing' },
