@@ -22,7 +22,7 @@ description: "Complete reference for all Skylos static analysis rules — securi
 | `SKY-E` | File Hygiene | Empty or unreachable files |
 | `SKY-A` | AI Defect | Evidence-backed AI-code failure modes |
 
-Rule IDs are **unified across languages** — when multiple scanners detect the same vulnerability class, Skylos reports it with the same ID across Python, TypeScript/JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, Shell, and other supported ecosystems.
+Rule IDs are **unified across languages** — when multiple scanners detect the same vulnerability class, Skylos reports it with the same ID across Python, TypeScript/JavaScript, Java, Go, Kotlin, PHP, Rust, Ruby, Dart, C#, Shell, and other supported ecosystems.
 
 AI-defect grouping is based on finding category, not only the rule-ID prefix.
 The CLI flag is `--ai-defects`, JSON reports use the top-level `ai_defects`
@@ -60,7 +60,7 @@ use the `SKY-A` prefix.
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
 | `SKY-D211` | SQL Injection | CRITICAL | Python, TS, Java, Go, C# | Tainted/interpolated SQL in `execute`, template literals, `PreparedStatement`, `fmt.Sprintf`, or C# command text |
-| `SKY-D212` | Command Injection | CRITICAL | Python, TS/JS, Java, Go, Rust, Dart, C#, Shell | Tainted input to `os.system()`, `child_process.exec()`, `Runtime.exec`, `exec.Command`, Rust `Command::new`, Dart `Process.*`, C# `Process.Start`, shell `eval`, `source`, or shell `-c` |
+| `SKY-D212` | Command Injection | CRITICAL | Python, TS/JS, Java, Go, Rust, Ruby, Dart, C#, Shell | Tainted input to `os.system()`, `child_process.exec()`, `Runtime.exec`, `exec.Command`, Rust `Command::new`, explicit Ruby `Kernel.system`/`exec`/`spawn` or backticks, Dart `Process.*`, C# `Process.Start`, shell `eval`, `source`, or shell `-c` |
 | `SKY-D215` | Path Traversal | HIGH | Python, Java, Go, PHP, Rust, Dart, C#, Shell | Tainted input used in filesystem paths, file sinks, shell file commands, or redirection targets |
 | `SKY-D216` | SSRF | CRITICAL | Python, TS, Java, Go, Dart, C#, Shell | Tainted URL passed to HTTP clients, request builders, `curl`, or `wget` |
 | `SKY-D217` | SQL Injection (raw) | CRITICAL | Python | Tainted input in `sqlalchemy.text()`, `pandas.read_sql()`, Django `.raw()` |
@@ -128,6 +128,23 @@ use the `SKY-A` prefix.
 |---------|------|----------|-----------|-------------|
 | `SKY-D223` | Undeclared Dependency | MEDIUM | Python | Import not declared in requirements.txt / pyproject.toml / setup.py |
 | `SKY-SCA-LIC001` | Dependency License Policy Violation | HIGH (set with `license_severity`) | Python, JavaScript | A dependency's declared license is on your `license_deny` list or outside your `license_allow` list; unknown (`NOASSERTION`) licenses never trigger it |
+
+#### Terraform/AWS Declaration Policies
+
+| Rule ID | Name | Severity | Languages | Description |
+|---------|------|----------|-----------|-------------|
+| `SKY-D400` | Worldwide Administrative Ingress | HIGH | Terraform `.tf`, `.tf.json` | An AWS security-group ingress declaration permits worldwide TCP port 22 or 3389, including all-protocol rules and literal CIDR unions |
+| `SKY-D401` | New Database Storage Encryption Disabled | HIGH | Terraform `.tf`, `.tf.json` | A directly created `aws_db_instance` explicitly sets `storage_encrypted = false` |
+
+These policies inspect declarations, not deployed resources. Skylos combines
+sibling files within a module and resolves bounded literal locals without
+running Terraform or contacting AWS. Input variables, even those with defaults,
+external modules, data sources, dynamic expressions and unresolved providers stay
+unknown. Per-resource outcomes are `unsafe`, `safe`, `unknown` or
+`not_applicable` in `analysis_summary.configuration_coverage.terraform`.
+Unknown is never a safe result; an explicitly required policy that cannot be
+evaluated produces an analysis error. These two rules do not establish general
+cloud compliance or prove that a declaration was applied or is reachable.
 
 #### AI Defects
 
@@ -532,6 +549,18 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-UC001` | Unreachable Code (Python) | MEDIUM | Code after `return`, `raise`, `break`, or `continue` |
 | `SKY-UC002` | Unreachable Code (TS) | MEDIUM | Code after `return`, `throw`, `break`, or `continue` |
 
+Ruby `.rb` dead-code analysis is bounded to source-visible helper calls and
+explicit visibility. Instance methods and singleton methods have distinct
+owners; a call on one class does not keep a same-named private method on another
+class alive. Classes and public methods remain possible external API. Literal
+controller callbacks on direct `ActionController::Base` or
+`ActionController::API` subclasses keep the matching private method alive;
+ordinary classes with a `before_action` method and visible Rails macro or
+namespace overrides do not provide that evidence. Dynamic dispatch keeps
+affected methods conservative, and generic text matches cannot rescue a Ruby
+finding. This is not a complete Rails route/autoload graph or a proof that code
+can be removed.
+
 ### Other Rules
 
 | Rule ID | Name | Severity | Description |
@@ -766,7 +795,7 @@ db.Query("SELECT * FROM users WHERE id = $1", userID)
 | | |
 |---|---|
 | **Severity** | CRITICAL |
-| **Languages** | Python, TypeScript/JavaScript, Go, Rust |
+| **Languages** | Python, TypeScript/JavaScript, Go, Rust, Ruby |
 | **What** | Tainted input flows to shell command execution |
 | **Risk** | Attackers can execute arbitrary shell commands |
 
@@ -802,6 +831,30 @@ Command::new("sh").arg("-c").arg(user_input).output()?;
 // Good
 Command::new("git").arg("status").output()?;
 ```
+
+Ruby follows local `ARGV` and `STDIN` data into explicit standard
+`Kernel.system`, `Kernel.exec` and `Kernel.spawn` calls and interpolated
+backticks. A controlled executable, a single command string, or a shell `-c`
+payload can produce this finding. Assignments, simple branches and string
+interpolation are bounded source evidence, not proof of remote exposure.
+
+```ruby
+# Reported: user input becomes shell command text.
+payload = ARGV[0]
+Kernel.system("sh", "-c", payload)
+output = `echo #{payload}`
+
+# Safe control: fixed printf format, with data in a separate argument.
+Kernel.system("printf", "%s", payload)
+```
+
+Fixed literal commands and this fixed `printf`/`%s` form have safe controls;
+arbitrary arguments to other executables are not assumed safe. Visible provider
+overrides, loaded code that may change `Kernel`, provider aliases, dynamic
+selectors and unsupported input flows remain unresolved in
+`analysis_summary.ruby_security_coverage`. Ruby SQL, Rails request provenance,
+interprocedural security flow, quality checks and local API verification are
+not supported by this first engine.
 
 ---
 
@@ -3076,6 +3129,72 @@ stored publish credential once the trusted-publishing setup is verified.
 | **Languages** | GitLab CI YAML |
 | **What** | Token-like variable names are broad or ambiguous |
 | **Risk** | Secret scope and ownership are harder to audit |
+
+---
+
+### SKY-D400 · Worldwide Administrative Ingress
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Terraform `.tf`, `.tf.json` |
+| **What** | An AWS security-group ingress declaration allows worldwide TCP SSH (22) or RDP (3389) |
+| **Scope** | Source declaration policy; no deployed reachability claim |
+
+Supported resources are inline `ingress` blocks in `aws_security_group`, ingress
+`aws_security_group_rule` declarations, and
+`aws_vpc_security_group_ingress_rule`. TCP port ranges containing 22 or 3389 and
+all-protocol rules qualify. Worldwide IPv4 or IPv6 includes a literal
+`0.0.0.0/0` or `::/0`, or a bounded union of literal CIDRs covering that address
+family. Egress, a known restricted source, or ports excluding SSH/RDP do not
+produce this finding.
+
+```hcl
+resource "aws_security_group_rule" "ssh" {
+  type              = "ingress"
+  security_group_id = "sg-example"
+  protocol          = "tcp"
+  from_port         = 22
+  to_port           = 22
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+```
+
+Restrict administrative ingress to reviewed source CIDRs or remove the port.
+Invalid/conflicting sources, unknown ports, prefix-list contents, dynamic
+ingress and unresolved instance/provider state are unknown rather than safe.
+An independently proven unsafe ingress declaration can still be reported when
+another ingress block is unresolved. No rule here proves a route, attachment,
+public IP or live Internet exposure.
+
+---
+
+### SKY-D401 · New Database Storage Encryption Disabled
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Terraform `.tf`, `.tf.json` |
+| **What** | A directly created `aws_db_instance` explicitly disables storage encryption |
+| **Scope** | Source declaration policy; no deployed encryption claim |
+
+```hcl
+resource "aws_db_instance" "database" {
+  identifier        = "application-db"
+  engine            = "postgres"
+  instance_class    = "db.t3.micro"
+  allocated_storage = 20
+  storage_encrypted = false
+}
+```
+
+Set `storage_encrypted = true` for a new database. An omitted or unresolved
+setting stays unknown. Snapshot restores, replicas, point-in-time restores and
+S3 imports need inherited encryption evidence and stay unknown even when the
+resource includes a literal encryption setting. Unknown instance expansion or
+provider identity also prevents a safe/unsafe conclusion; zero declared
+instances are `not_applicable`. This rule does not query RDS, validate every
+provider argument, or establish a full database-security policy.
 
 ---
 
