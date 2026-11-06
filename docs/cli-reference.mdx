@@ -62,7 +62,7 @@ installed family map and `skylos <family> --help` for its real parser options.
 | `skylos ingest <trivy\|claude-security>` | Normalize findings from an external tool |
 | `skylos compare [path] --against REPORT` | Compare Skylos with an incumbent report |
 | `skylos provenance [path]` | Detect AI-authored code in PR changes |
-| `skylos agent <command>` | Run LLM review, Deep Mode, remediation, behavior tests, or agent-state workflows |
+| `skylos agent <command>` | Run LLM review, Deep Mode, remediation, behavior tests, or agent-state workflows; install the agent hooks (`install-hooks`) and print hardened agent settings (`harden`, see [Supply Chain](./supply-chain#harden-the-agents-own-settings)) |
 | `skylos cicd <command>` | Generate or run CI gates, annotations, and PR review output |
 | `skylos rules <command>` | Initialize, validate, list, install, or remove rule packs |
 | `skylos contract <command>` | Initialize, validate, or inspect AI hallucination contracts |
@@ -530,6 +530,8 @@ cannot pass open.
 | `--secrets` | Enable API key and secret detection |
 | `--quality` | Enable code quality checks (complexity, nesting, etc.) |
 | `--ai-defects` | Enable evidence-backed AI defect checks such as phantom references, hallucinated APIs, impossible dependency versions, weakened test assertions, test-impact gaps, CI privilege expansion, and CLI surface drift |
+| `--sca` | Scan dependencies for known vulnerabilities (OSV.dev), malware and supply-chain problems. With `--diff` or `--diff-base` it also reports weakened install hardening (`SKY-SCA-HRD001`). See [Supply Chain](./supply-chain) |
+| `--review-upgrades` | With `--diff` or `--diff-base` (implies `--sca`), download the old and new version of each npm or PyPI package the change upgrades and report new install hooks, `.pth` or `sitecustomize` code and other risky code (`SKY-SCA-UPG001`, `SKY-SCA-UPG002`). Never installs or runs them. See [Upgrade Review](./supply-chain#upgrade-review) |
 | `--trace` | Run tests with call tracing to capture dynamic dispatch (visitor patterns, getattr, plugins) |
 | `--confidence`| Confidence threshold (0-100). Lower values include more uncertain findings. Default: `60` |
 
