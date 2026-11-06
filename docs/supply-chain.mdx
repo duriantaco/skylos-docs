@@ -192,10 +192,14 @@ them as data. The packages are never installed, imported or run.
 
 - **Blocks (`SKY-SCA-UPG001`):** a new `.pth` file or `sitecustomize` with
   code, a new install or prepare hook, decode-and-exec, a new Git or URL
-  dependency, agent or editor hook files shipped inside the package, or a
-  lockfile hash that matches no file the registry serves for that version.
+  dependency, agent or editor hook files shipped inside the package, two
+  archive entries that install to the same path or differ only by case, a new
+  executable named like a system command (`node`, `git`, `pip`, `sh`, `curl`),
+  bytecode without source that runs at import or start-up, or a lockfile hash
+  that matches no file the registry serves for that version.
 - **Listed for review (`SKY-SCA-UPG002`):** new import-time network or exec
-  calls, a much larger obfuscated file, a native binary, a new publisher.
+  calls, a much larger obfuscated file, a native binary, a new publisher,
+  install-time code that changed beyond version strings and other literals.
   This is a review signal, not proof of a compromise.
 - **Newly added packages** (no version at the base) are reviewed on their
   own. Their install hooks are listed (`SKY-SCA-UPG002`); start-up `.pth`
