@@ -148,14 +148,22 @@ in scans (`--sca`, `-a`), in pull request checks and in the agent hooks:
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `block_malware` | bool | `true` | The install hook blocks versions reported as malware; `false` asks instead |
-| `min_release_age_hours` | int | unset | The agent hooks hold package installs and MCP servers younger than this (48 when unset; `0` turns it off). When set above 0, scans also report `SKY-SCA-AGE001` |
+| `min_release_age_hours` | int | unset | The agent hooks hold package installs and MCP servers younger than this (48 when unset; `0` turns it off). When set above 0, scans also report `SKY-SCA-AGE001`, which counts toward `max_dependency_vulnerabilities` (default `0`), so `--gate` fails while a locked version is younger than this |
 | `check_provenance` | bool | `true` | The install hook blocks npm versions that lost the provenance earlier versions had |
 | `internal_packages` | list | `[]` | Package names or globs (`acme-*`, `@acme/*`) that must come from your private registries; enables `SKY-SCA-SRC001`. `--review-upgrades` never looks them up on a public registry |
-| `private_registries` | list | `[]` | Index or registry URLs that serve your internal packages; the install hook never sends packages from them to public lookups |
+| `private_registries` | list | `[]` | Index or registry URLs that serve your internal packages; the install hook never sends packages from them to public lookups, and `--review-upgrades` skips lockfile entries downloaded from them |
 | `trusted_registries` | list | `[]` | More registries the install hook treats as trusted, added to `[tool.skylos.hooks] trusted_registries` |
 
-A synced Skylos Cloud policy can only make these stricter. See
-[Supply Chain](./supply-chain).
+Skylos reads this section from `pyproject.toml` in the project root; under
+`SKYLOS_POLICY_BASE` (pull-request CI) it reads the base commit's
+configuration instead.
+
+A synced Skylos Cloud policy never loosens a value the repository sets: when
+both set one, booleans combine with OR and the release age takes the larger
+value. A value only one side sets is used as it is. Cloud sends
+`min_release_age_hours` only when your workspace sets it; left empty, the
+CLI default applies (48 hours for installs, no age check in scans). See
+[Configuration](./supply-chain#configuration) on the Supply Chain page.
 
 #### `[tool.skylos.supply_chain.hardening_exceptions]`
 
