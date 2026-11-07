@@ -38,7 +38,8 @@ skylos . -a             # everything, including dependencies and agent configs
 | Dependency confusion | `SKY-SCA-SRC001` | `CRITICAL` direct, `HIGH` transitive | a package matching your `internal_packages` can resolve from a public or undeclared index, including through `--extra-index-url` |
 | Mutable source | `SKY-SCA-SRC003` | `MEDIUM` | a Git dependency not pinned to a full commit, or a URL dependency without a hash. Reported, but not counted by the built-in `--gate`; a synced Cloud gate counts it |
 | Lockfile entry without integrity | `SKY-SCA-INT001` | `MEDIUM` | a registry entry in a lockfile has no integrity hash |
-| Version younger than your cooldown | `SKY-SCA-AGE001` | `HIGH` | only when you set `min_release_age_hours` |
+| Version younger than your cooldown | `SKY-SCA-AGE001` | `HIGH` | only when you set `min_release_age_hours` above 0 |
+| Malware feed match without an advisory ID | `SKY-SCA-MAL000` | `CRITICAL` | OSV could not be reached and the local ca9 malware feed matched a package without naming an advisory |
 
 Malware findings say to remove the package, reinstall from a clean lockfile
 and rotate every credential an install could read (npm, GitHub and cloud
@@ -46,9 +47,16 @@ tokens). They are never demoted as dev-only: a dev dependency still runs its
 install scripts on a developer machine. Ordinary CVEs keep their usual
 severity.
 
+Every row above except `SKY-SCA-SRC003` counts toward the built-in gate's
+`max_dependency_vulnerabilities`, which is `0` by default, so one finding
+fails `--gate`. If you set `min_release_age_hours`, a whole-repository
+`--gate` therefore fails while any locked version is younger than that
+window.
+
 When OSV cannot be reached, the scan checks the local ca9 malware feed
-instead and says so in `analysis_summary.sca_coverage.supply_chain`. Install
-or refresh the feed with:
+instead and says so in `analysis_summary.sca_coverage.supply_chain`. A feed
+match keeps its advisory rule ID (`SKY-SCA-<advisory id>`); a match without
+one is `SKY-SCA-MAL000`. Install or refresh the feed with:
 
 ```bash
 ca9 feed update
@@ -68,17 +76,40 @@ them to Skylos Cloud:
 - `ci_inventory`: for each GitHub Actions and GitLab CI job, its triggers,
   runner, environment, write scopes and `id-token`, secret names, installs,
   actions, tools, download hosts and publish steps. Cloud uses it to tell
-  which jobs could have installed a package and what they could reach.
+  which jobs could have installed a package and what they could reach. From
+  ca9 releases that report it, each job also has `indirect`: commands such as
+  `make`, `just`, `tox`, `nox`, `docker build` or `docker compose`, or a
+  repository script, that may install packages where the job list cannot see
+  them.
 - `agent_hooks`: committed agent and editor hooks, MCP servers and API
   base-URL overrides, with commands redacted. Hooks written by
   `skylos agent install-hooks` carry `skylos_hook: true`.
 
-`ci_inventory` and `agent_hooks` come from ca9. They keep names instead of
-values (secret names, `scheme://host` instead of URLs, token-like text
-replaced by `[redacted]`), are bounded (200 workflows, 500 jobs, 200 hooks
-and 200 MCP servers) and list only files Git tracks or does not ignore.
-`analysis_summary.supply_chain_checks` says when ca9 could not build one; it
-stays local and is not uploaded.
+`ci_inventory` and `agent_hooks` come from ca9. Both are built from the
+repository top (the Git root), also when you scan a subfolder, so a monorepo
+project still uploads its CI jobs; file paths are relative to the repository.
+They keep names instead of values (secret names, `scheme://host` instead of
+URLs, token-like text replaced by `[redacted]`) and list only files Git
+tracks or does not ignore.
+
+They are bounded: 200 workflows, 500 jobs, 100 items per CI list, 200 hooks
+and 200 MCP servers. A job whose own lists were cut carries
+`truncated: true`, and a cut workflow or job list sets the block's
+`truncated`, so a cut list is never read as complete.
+
+For GitLab CI, ca9 follows local includes (exact paths, `*` and `**`
+patterns, and includes inside included files, up to 150 files) and applies
+top-level `before_script`, `after_script` and `default:` to the jobs. An
+include it cannot resolve in the repository (remote, project, template or
+component includes, or a path built from variables) is listed in `skipped`
+and makes the block `partial`.
+
+Agent configs reached through a symbolic link that stays inside the
+repository are listed under the path the agent opens. A link that leaves the
+repository or points to a missing file makes `agent_hooks` `partial`.
+
+`analysis_summary.supply_chain_checks` says when ca9 could not build a block;
+it stays local and is not uploaded.
 
 | Check | Passes when |
 |---|---|
@@ -110,12 +141,12 @@ package manager.
 | MCP server without an exact version (`npx -y pkg`, `pkg@latest`, `uvx pkg`, an image without a digest) | `SKY-D367` | `MEDIUM` |
 | MCP server launched from a hidden home-folder or temp path outside the repository | `SKY-D368` | `HIGH` |
 | MCP server package whose name imitates a vendor it is not published by | `SKY-D369` | `MEDIUM` |
-| Agent API base URL (`ANTHROPIC_BASE_URL`, `OPENAI_BASE_URL`) set in committed settings | `SKY-D370` | `HIGH` |
+| Agent API base URL in committed settings pointing somewhere other than the provider's own API (see below) | `SKY-D370` | `HIGH` |
 | Agent or editor config with duplicated keys, so what you read is not what runs | `SKY-D377` | `MEDIUM` |
-| Tool installed without a pinned version or hash in a job that holds publish credentials or `id-token: write` | `SKY-D371` | `HIGH` |
+| Tool installed without a pinned version or hash in a job that can reach credentials: publish tokens, a publish step, `id-token: write`, or (GitHub Actions) every secret through `secrets: inherit` or `toJSON(secrets)` | `SKY-D371` | `HIGH` when the job holds publish credentials (a publish token, a publish step, or every secret in a repository whose workflows use a publish secret); otherwise `MEDIUM` |
 | Download without a checksum or signature check that reaches the publish step | `SKY-D372` | `HIGH` |
 | OIDC publish job without a deployment `environment:` | `SKY-D373` | `HIGH` |
-| Publishing workflow that `workflow_dispatch` or a push to any branch can start | `SKY-D374` | `HIGH` |
+| Publishing workflow that an event can start without a condition that proves the release branch or excludes that event (see below) | `SKY-D374` | `HIGH`, `MEDIUM` or `LOW` (see below) |
 | Secrets (`secrets: inherit` or named) passed to a reusable workflow from another repository | `SKY-D376` | `MEDIUM` |
 | A pull request adds or changes a job that publishes packages (diff scans only) | `SKY-D375` | `MEDIUM` |
 
@@ -124,12 +155,54 @@ MCP servers are read from `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json`,
 rules read GitHub Actions and GitLab CI (`SKY-D374` and `SKY-D376` are
 GitHub Actions only).
 
-Each finding names a regular file inside the scanned folder. A full scan
-reads files Git tracks or does not ignore; a diff scan reads only files Git
-tracks. Commands in messages, evidence and uploads are redacted: URLs keep
-only `scheme://host`, and tokens, passwords and `NAME=value` secrets become
+`SKY-D370` reads the `env` block of `.claude/settings.json` and
+`.claude/settings.local.json`, and Codex `model_providers.<name>.base_url`
+in `.codex/config.toml`. It covers `ANTHROPIC_BASE_URL`,
+`ANTHROPIC_API_URL`, `ANTHROPIC_BEDROCK_BASE_URL`,
+`ANTHROPIC_VERTEX_BASE_URL`, `ANTHROPIC_FOUNDRY_BASE_URL`,
+`OPENAI_BASE_URL`, `OPENAI_API_BASE`, `OPENAI_API_BASE_URL`,
+`GEMINI_BASE_URL` and `GOOGLE_GEMINI_BASE_URL`. An `https://` URL on port 443,
+without a user name or password, to the provider's own API host (for example
+`api.anthropic.com`, `api.openai.com`, `generativelanguage.googleapis.com`,
+or the provider's Bedrock, Vertex AI or Azure AI Foundry host) is not
+reported.
+
+`SKY-D374` looks at `workflow_dispatch`, a push to any branch, a push to a
+wildcard branch pattern, `repository_dispatch`, `pull_request_target`,
+`issue_comment`, `issues`, `discussion` and `discussion_comment`, including
+through a workflow that calls the publishing one. Its severity depends on
+what protects the publish job:
+
+| Publish job | Severity |
+|---|---|
+| No fixed `environment:` (none, or one built from an expression), and any of these events except a wildcard branch pattern can start it | `HIGH` |
+| No fixed `environment:`, and only a wildcard branch pattern can start it | `MEDIUM` |
+| Every such job has a fixed `environment:`, which protects it only if the environment requires reviewers or limits deployment branches | `LOW` |
+
+Each finding names a file inside the scanned folder, or a repository-level
+config when you scan a subfolder (see below). A full scan reads files Git
+tracks or does not ignore; a diff scan reads only files Git tracks.
+Commands in messages, evidence and uploads are redacted: URLs keep only
+`scheme://host`, and tokens, passwords and `NAME=value` secrets become
 `[redacted]`. Turn one rule off for the project with
 `ignore = ["SKY-D367"]` under `[tool.skylos]`.
+
+Agents and editors follow symbolic links, and Git commits them as links, so
+Skylos follows a link to an agent folder or config (`.claude` pointing to
+`tools/claude`, or `.claude/settings.json` pointing to `../docs/claude.json`)
+when it stays inside the repository. The target, and every link on the way,
+must be a file Git lists (in a diff scan: committed). The finding names the
+path the agent opens, and a file reached both directly and through a link is
+reported once. A link that leaves the repository or points to a missing file
+cannot be read: a diff that adds or changes one is an analysis error
+("Agent config link … points outside the repository"), so a gated diff scan
+stops as incomplete (exit 2). An unchanged one does not.
+
+Scanning a subfolder (`skylos services/api --danger`, or a monorepo project's
+upload) also reports the repository-level configs at the Git top: workflows
+under `.github/workflows` and `.gitlab-ci.yml`, and agent configs such as
+`.claude/settings.json`, `.mcp.json` or `.vscode/tasks.json` at the top.
+Configs in other subfolders are not reported.
 
 ### How They Count In The Gate
 
@@ -141,6 +214,23 @@ only `scheme://host`, and tokens, passwords and `NAME=value` secrets become
 
 A synced Skylos Cloud gate counts these findings the way Cloud does, and the
 diff rules above still apply.
+
+What counts as "new" in a diff:
+
+- **`--diff`:** Skylos runs ca9 on the merge base's agent configs and
+  workflows (copied into a temporary folder) and compares findings, not
+  changed lines. A finding is new when its rule, file and identity (the
+  event, task, server or job name plus the whole unredacted command) are not
+  among the base's findings. Adding only
+  `"runOptions": {"runOn": "folderOpen"}` to an existing task, or moving a
+  hook from `Stop` to `SessionStart`, is new; reformatting the file is not.
+  When the base cannot be compared (no usable ca9, too many files), every
+  such finding in a changed file counts as new.
+  `analysis_summary.config_diff_basis` says which was used (`base_findings`
+  or `changed_files`).
+- **`--diff-base` alone:** file-level. Every agent-config and publish-job
+  finding in a changed file counts as new, including hooks and servers that
+  were already there.
 
 ### Skylos's Own Hooks
 
@@ -191,8 +281,11 @@ and the new release from a trusted registry, checks their hashes and compares
 them as data. The packages are never installed, imported or run.
 
 - **Blocks (`SKY-SCA-UPG001`):** a new `.pth` file or `sitecustomize` with
-  code, a new install or prepare hook, decode-and-exec, a new Git or URL
-  dependency, agent or editor hook files shipped inside the package, two
+  code, a new install or prepare hook, decode-and-exec (including code read
+  from another file in the package and run when the package is imported,
+  loaded or installed: `exec`, `runpy` or a module loader in Python;
+  `eval`, `Function`, `vm` or `Module._compile` in JavaScript), a new Git or
+  URL dependency, agent or editor hook files shipped inside the package, two
   archive entries that install to the same path or differ only by case, a new
   executable named like a system command (`node`, `git`, `pip`, `sh`, `curl`),
   bytecode without source that runs at import or start-up, or a lockfile hash
@@ -212,14 +305,52 @@ finding sits on the lockfile line of the new version.
 package, the line and a redacted snippet; `metadata.basis` is `upgrade` or
 `new_package`.
 
-**Incomplete reviews fail closed.** Packages matching `internal_packages` are
-never looked up on a public registry: they are skipped and the verdict says
-`Upgrade review limited: N of M dependency upgrades reviewed (internal_package: K)`.
-Any other change that was not reviewed (a timeout, an unreachable registry,
-an artifact over the size cap, more than 100 changes, a missing or incomplete
-result) is an analysis error. A gated diff scan then stops as incomplete
-(exit 2) instead of passing those packages unread. What an incomplete review
-did find is still reported.
+**Private packages are skipped, not looked up.** Packages matching
+`internal_packages`, and entries the lockfile downloads from a host in
+`private_registries`, are never looked up on a public registry. The download
+URL comes from `resolved` in `package-lock.json`, `npm-shrinkwrap.json` and
+Yarn classic `yarn.lock`, and from `resolution.tarball` in `pnpm-lock.yaml`
+when pnpm recorded one. Yarn Berry and `bun.lock` record none, so list those
+packages in `internal_packages`. `uv.lock`, `poetry.lock` and `Pipfile.lock` entries from
+a non-public index are not reviewed at all. Skipped packages show in the
+verdict as
+`Upgrade review limited: N of M dependency upgrades reviewed (internal_package: K)`,
+with `private_registry: J` for the registry case.
+
+**Incomplete reviews fail closed.** Any other change that was not reviewed
+(a timeout, an unreachable registry, an artifact over the size cap, more
+than 100 changes, a missing or incomplete result) is an analysis error. A
+gated diff scan then stops as incomplete (exit 2) instead of passing those
+packages unread. What an incomplete review did find is still reported.
+
+Lockfiles are read up to 64 MB per side. A changed lockfile Skylos cannot
+read (over 64 MB, not UTF-8, or a symbolic link) or that its parser rejects
+(invalid, or over 100,000 packages) is also an analysis error naming the
+file. A large lockfile that did not change is not.
+
+Pins in `requirements*.txt` and `requirements/*.txt` (hashed or not),
+`pdm.lock` and `pylock.toml` are not reviewed yet. When a pull request
+changes one, the verdict says
+`Upgrade review did not read changed dependency files: …` and
+`analysis_summary.supply_chain_diff.checks.upgrades.limitations` lists them.
+They do not fail the gate on their own.
+
+**When the pull request gate exits 2.** Because the review fails closed, the
+gate `skylos cicd init` writes (it passes `--review-upgrades` whenever
+`--sca` is selected) stops with exit 2 when:
+
+- a registry cannot be reached or does not answer in time;
+- more than 100 package versions change. Every entry of a new lockfile counts
+  as a newly added package, so adding a lockfile or switching package manager
+  usually crosses the cap;
+- a private package is neither in `internal_packages` nor downloaded from a
+  host in `private_registries`. It is looked up on the public registry by
+  name, so it cannot be reviewed, or, when a public package has the same name
+  and version, it is reported as a lockfile hash mismatch (`SKY-SCA-UPG001`);
+- a changed lockfile is over 64 MB or cannot be read.
+
+List your private packages and registries under `[tool.skylos.supply_chain]`
+on the default branch to avoid the third case.
 
 `skylos cicd init` adds `--review-upgrades` to the generated pull request scan
 whenever dependency checks (`--sca`) are selected, on GitHub Actions and the
@@ -268,10 +399,16 @@ incomplete (exit 2); it never passes the change unchecked.
   in `analysis_summary.supply_chain_diff`. A ca9 that lacks or fails the
   hardening check is an error.
 - A whole-repository scan without ca9 reports nothing for these rules.
-- When a changed workflow calls a reusable workflow or includes a file from
-  another repository, ca9 cannot read all of it. The verdict shows
+- When a changed workflow calls a reusable workflow from another repository,
+  or has a GitLab include ca9 cannot resolve in the repository (remote,
+  project, template or component includes, a path built from variables, more
+  than 150 included files, or includes nested too deep), ca9 cannot read all
+  of it. The verdict shows
   `Workflow audit incomplete for the changed workflows: …` and the gate does
   not fail for that alone.
+- A diff that adds or changes a link to an agent folder or config that
+  leaves the repository or points to a missing file is an analysis error
+  (exit 2 in a gate): the agent can follow it, Skylos cannot check it.
 
 ### Baselines
 
@@ -284,19 +421,41 @@ baseline covered.
   and workflows. Their findings are listed, not failed as new. A `CRITICAL`
   `SKY-D365` or `SKY-D366` still fails. Saving the baseline again records the
   coverage.
-- These findings match the baseline by rule, file and the command or job they
-  name, not by line. Editing other settings does not make an old hook new;
-  changing a hook's command does.
+- These findings match the baseline by rule, file and a SHA-256 digest of
+  the event, task, server or job name and the whole unredacted command. They
+  do not match by line, or by the value shown in the report, which is
+  redacted and cut at 200 characters (so a changed URL path or a change
+  after 200 characters would look the same). Editing other settings does not
+  make an old hook new; changing its command, URL or event does. The digest
+  stays on your machine: uploads drop it.
 - If the baseline covers rules this run's ca9 cannot decide, the scan records
   an analysis error (exit 2 in a gate).
+
+**In pull requests the base branch's baseline decides.** A gated diff scan
+(`--gate` with `--diff` or `--diff-base`) and the workflows from
+`skylos cicd init` set `SKYLOS_POLICY_BASE`. The `.skylos/baseline.json` in
+the working tree then comes from the pull request itself, so for these rules
+a baseline entry counts only when the base commit's `.skylos/baseline.json`
+has it too:
+
+- `SKY-D365` to `SKY-D377`;
+- malware (`SKY-SCA-MAL*` and other advisories marked malicious);
+- `SKY-SCA-UPG001`, `SKY-SCA-HRD001` and `SKY-SCA-AGE001`.
+
+A pull request that adds a hook and its own baseline entry for it still
+fails. The terminal says how many such findings counted as new, and
+`analysis_summary.baseline_policy_base` gives that number (`not_honoured`)
+and whether the base baseline loaded (`status`). Other rules keep using the
+working-tree baseline.
 
 ### Where Settings Come From
 
 Hardening exceptions always come from the merge base. `ignore` and the rest
-of `[tool.skylos.supply_chain]` come from the base commit only under `--gate`
-with a diff base, or when `SKYLOS_POLICY_BASE` is set (as workflows from
-`skylos cicd init` do). A plain `--diff` run without `--gate` reads them from
-the working tree.
+of `[tool.skylos.supply_chain]`, including the `internal_packages` and
+registries the upgrade review uses, come from the base commit only under
+`--gate` with a diff base, or when `SKYLOS_POLICY_BASE` is set (as workflows
+from `skylos cicd init` do). A plain `--diff` run without `--gate` reads them
+from the working tree.
 
 ## In The Agent Hooks
 
@@ -407,6 +566,19 @@ skylos agent harden --offline  # no version lookups
 skylos agent harden --write    # merge the JSON settings after you confirm in a terminal
 ```
 
+| Flag | What it does |
+|---|---|
+| `--path DIR` | Project folder to read (default `.`) |
+| `--print` | Print the settings and write nothing (the default) |
+| `--write` | Merge the JSON settings into their files after you answer `y` in a terminal |
+| `--offline` | Do not look up versions; unpinned MCP servers are left out |
+
+| Exit code | When |
+|---|---|
+| `0` | The settings were printed, or `--write` merged every file |
+| `1` | You did not answer `y`, or a file could not be written |
+| `2` | `--path` is not a folder, or `--write` ran without an interactive terminal (for example from an agent) |
+
 `skylos agent harden` prints each agent's own settings for this project:
 
 - **Claude Code, `~/.claude/settings.json`:** `permissions.deny` `Read` rules
@@ -441,7 +613,8 @@ turns those hooks off; `skylos agent harden --offline` skips the lookups.
 [tool.skylos.supply_chain]
 block_malware = true                 # false: known malware asks instead of blocking
 min_release_age_hours = 48           # hook default 48; 0 turns the hook hold off;
-                                     # set it to also report SKY-SCA-AGE001 in scans
+                                     # set it to also report SKY-SCA-AGE001 in scans,
+                                     # which counts toward --gate
 check_provenance = true              # npm only
 internal_packages = ["acme-*", "@acme/*"]
 private_registries = ["https://pypi.acme.dev/simple"]
@@ -451,34 +624,58 @@ trusted_registries = []
 esbuild = "downloads its platform binary in postinstall"
 ```
 
-A synced Skylos Cloud policy can only make these stricter: booleans combine
-with OR, the release age takes the larger value, internal package patterns
-are combined, and registry lists set in Cloud replace the repository's lists
-(including `[tool.skylos.hooks] trusted_registries`). With a Cloud policy
-that blocks malware, `hooks_allow_packages` no longer lets a known malicious
-version through. In pull-request CI (`SKYLOS_POLICY_BASE`) the policy is read
-from the base commit, so a pull request cannot relax its own checks.
-`internal_packages`, `private_registries` and `trusted_registries` also tell
-the upgrade review which packages never to look up on a public registry.
+Skylos reads this section from `pyproject.toml` in the project root.
+
+A synced Skylos Cloud policy never loosens a value the repository sets. When
+both set a value, booleans combine with OR and the release age takes the
+larger value. A value only one of them sets is used as it is. Internal
+package patterns are combined, and registry lists set in Cloud replace the
+repository's lists (including `[tool.skylos.hooks] trusted_registries`).
+With a Cloud policy that blocks malware, `hooks_allow_packages` no longer
+lets a known malicious version through. In pull-request CI
+(`SKYLOS_POLICY_BASE`) the policy is read from the base commit, so a pull
+request cannot relax its own checks.
+
+Cloud sends `min_release_age_hours` only when your workspace sets the waiting
+period in Policy › Supply chain. Leave it empty to keep the CLI default: a
+48-hour hold for installs and no age check in scans. A value set in Cloud
+applies like one in `pyproject.toml`: below 48 it shortens the hook hold when
+the repository sets none, and above 0 it turns on `SKY-SCA-AGE001` in scans.
+
+`internal_packages` and `private_registries` also tell the upgrade review
+which packages never to look up on a public registry (see
+[Upgrade Review](#upgrade-review)).
 
 ## In Skylos Cloud
 
 Uploads from `skylos cloud` or `skylos . -a --upload` give Cloud each
-branch's package list, posture, CI job list and agent hooks. Cloud then:
+branch's package list, posture, CI job list and agent hooks. Package lists
+need a Skylos CLI newer than 5.4.0 (the next Skylos release); 5.4.0 and older
+don't send them, and the Supply chain page says which version your latest
+upload came from. Cloud then:
 
-- **Watches for new malware every hour.** When OSV publishes a new malicious
-  record for a package version one of your branches uses, Cloud raises one
-  alert per package version (listing every advisory id) and sends it to your
-  webhooks (`dependency.malicious_detected`), Slack or Discord (Workspace
-  plan and up), and the weekly digest. You do not need to rescan.
-- **Closes alerts that OSV withdraws.** When every advisory behind an alert
-  is withdrawn, the alert closes as "advisory withdrawn".
+- **Checks your npm and PyPI packages against OSV every hour.** Each run
+  reads the malicious records OSV published or changed since the last run
+  and matches them against every stored package list. It also asks OSV about
+  each package version a new upload added, so a version that was already
+  known as malware alerts too, without waiting for a new record. If the
+  hourly check could not run for more than 7 days, the next runs ask OSV
+  again about every stored version, because records from the gap were never
+  read. You do not need to rescan.
+- **Raises one alert per package version on each branch**, listing every
+  advisory ID. Alerts show on the Supply chain page on every plan and go to
+  the weekly digest. Webhooks (`dependency.malicious_detected`), Slack and
+  Discord need the Workspace plan.
+- **Closes and reopens alerts** as described in
+  [Which Branches Are Watched](#which-branches-are-watched).
 - **Maps what a malicious version reached** (Workspace plan and up): the
   branches whose lockfile had it, the CI jobs that could have installed it,
   the secrets those jobs could read, and an ordered checklist of what to
   isolate, revoke and rotate. You can also check a package or GitHub Action
   that is not in the feed yet. See
-  [Supply-Chain Exposure Map](/cloud#supply-chain-exposure-map).
+  [Supply-Chain Exposure Map](/cloud#supply-chain-exposure-map). The plan
+  check is also enforced in the database, so the CI job lists and the
+  history behind the map cannot be read through the API on Free.
 - **Shows a Supply chain page** with open alerts first, then each
   repository's posture.
 - **Syncs a supply-chain policy** (block malware, cooldown hours, internal
@@ -490,6 +687,39 @@ branch's package list, posture, CI job list and agent hooks. Cloud then:
   and findings without a verdict always count. The CLI's `--gate` applies the
   same rule when the option is synced.
 
+### Which Branches Are Watched
+
+Cloud keeps up to two package lists per project and branch: the latest
+trusted one and, when it is newer, the latest unverified one. The hourly
+check matches both, so an unverified upload can add alerts.
+
+- **Trusted uploads** come from GitHub or GitLab OIDC in CI (such as the
+  workflow from `skylos cicd init`), from scans Skylos Cloud runs itself, or
+  from a project token an owner or admin marked with **Mark for CI**.
+- **Unverified uploads** include `skylos . -a --upload` or `skylos cloud`
+  from a developer machine with the token `skylos login` saved. They never
+  close an alert.
+
+Lists are kept for the default branch and `main`, `master`, `trunk` and
+`develop`, and for the 25 most recently uploaded other branches of each
+project (counted separately for trusted and unverified lists). A list of
+another branch is also dropped after 90 days without an upload, unless that
+branch has an open alert.
+
+An alert closes when:
+
+- a trusted upload of the branch sends a complete package list without the
+  version ("removed");
+- a trusted upload finds that the branch no longer has any stored list,
+  because the 25-branch limit or the 90-day rule dropped it ("branch no
+  longer tracked");
+- OSV withdraws every advisory behind it ("advisory withdrawn").
+
+A "removed" or "branch no longer tracked" alert reopens, and is sent again,
+when a later upload of that branch lists the version again. An "advisory
+withdrawn" alert reopens only when the hourly check confirms another
+malicious advisory for the version.
+
 ## Limits
 
 - The malware check knows what OSV and the OpenSSF malicious-packages
@@ -498,8 +728,11 @@ branch's package list, posture, CI job list and agent hooks. Cloud then:
 - Release age and provenance need the registry. When the release date cannot
   be read, the hook asks ("could not verify"); when provenance cannot be
   read, it does not block.
-- Provenance is checked for npm only. Upgrade review covers npm and PyPI
-  lockfiles only.
+- Provenance is checked for npm only. Upgrade review covers the npm and PyPI
+  lockfiles listed in [Upgrade Review](#upgrade-review), up to 64 MB each;
+  changed requirements pins, `pdm.lock` and `pylock.toml` are listed as not
+  read.
+- Cloud's hourly check covers npm and PyPI packages only.
 - The hooks check the packages inside lockfiles and requirements files
   (`npm ci`, `uv sync`, `pip install -r`) for malware only, not for existence
   or release age; `skylos . -a` checks the rest.
