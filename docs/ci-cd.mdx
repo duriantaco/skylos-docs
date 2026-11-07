@@ -486,9 +486,23 @@ install-time or start-up code (see [Upgrade Review](/supply-chain#upgrade-review
 It is added whenever `--sca` is selected. Configs written by Skylos versions
 without this flag leave it out.
 
+The review fails closed: when it cannot check an upgrade, the gate stops
+with exit 2 instead of passing. That happens when a registry cannot be
+reached, when more than 100 package versions change (adding a lockfile or
+switching package manager usually does), when a changed lockfile is over
+64 MB or cannot be read, and when a private package is neither in
+`internal_packages` nor downloaded from a host in `private_registries`. List
+private packages and registries under `[tool.skylos.supply_chain]` on the
+default branch. See [Upgrade Review](/supply-chain#upgrade-review).
+
 `--baseline` hides findings saved in `.skylos/baseline.json`. Commit one with
 `skylos baseline .` if you want that. Without the file, Skylos prints "No
-baseline found" and checks every changed line.
+baseline found" and checks every changed line. For agent-config and
+publish-job rules, malware, `SKY-SCA-UPG001`, `SKY-SCA-HRD001` and
+`SKY-SCA-AGE001`, a baseline entry counts only when the base branch's
+`.skylos/baseline.json` has it too, so a pull request cannot excuse its own
+findings by editing the baseline (see
+[Baselines](/supply-chain#baselines)).
 
 The config installs the Skylos version you ran `skylos cicd init` with, for
 example `skylos[dart]==5.1.1`. Change that pin when you upgrade.
