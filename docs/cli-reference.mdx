@@ -434,6 +434,31 @@ explicit policy requests a gate. Upload and requested gate failures exit `1`.
 If no supported integration is detected, the empty result does not prove that
 an unsupported or unrecognized implementation has guardrails.
 
+### `skylos agent harden`
+
+Print each coding agent's own settings that deny reads of credential files
+and limit Claude Code to this project's MCP servers, pinned to exact
+versions. It prints by default and writes nothing.
+
+```bash
+skylos agent harden
+skylos agent harden --offline
+skylos agent harden --write
+```
+
+| Flag | Description |
+|------|-------------|
+| `--path DIR` | Project folder to read (default `.`) |
+| `--print` | Print the settings and write nothing (the default) |
+| `--write` | Merge the JSON settings into their files after you answer `y`; needs an interactive terminal |
+| `--offline` | Do not look up versions; unpinned MCP servers are left out |
+
+Exit codes: `0` when the settings were printed or `--write` merged every
+file; `1` when you did not answer `y` or a file could not be written; `2`
+when `--path` is not a folder or `--write` runs without an interactive
+terminal (for example from an agent). See
+[Harden The Agents' Own Settings](./supply-chain#harden-the-agents-own-settings).
+
 ### `skylos debt [path]`
 
 Analyze technical debt hotspots for the specified path.
@@ -531,7 +556,7 @@ cannot pass open.
 | `--quality` | Enable code quality checks (complexity, nesting, etc.) |
 | `--ai-defects` | Enable evidence-backed AI defect checks such as phantom references, hallucinated APIs, impossible dependency versions, weakened test assertions, test-impact gaps, CI privilege expansion, and CLI surface drift |
 | `--sca` | Scan dependencies for known vulnerabilities (OSV.dev), malware and supply-chain problems. With `--diff` or `--diff-base` it also reports weakened install hardening (`SKY-SCA-HRD001`). See [Supply Chain](./supply-chain) |
-| `--review-upgrades` | With `--diff` or `--diff-base` (implies `--sca`), download the old and new version of each npm or PyPI package the change upgrades and report new install hooks, `.pth` or `sitecustomize` code and other risky code (`SKY-SCA-UPG001`, `SKY-SCA-UPG002`). Never installs or runs them. See [Upgrade Review](./supply-chain#upgrade-review) |
+| `--review-upgrades` | With `--diff` or `--diff-base` (implies `--sca`), download the old and new version of each npm or PyPI package the change upgrades and report new install hooks, `.pth` or `sitecustomize` code and other risky code (`SKY-SCA-UPG001`, `SKY-SCA-UPG002`). Never installs or runs them. Without `--diff` or `--diff-base` it only turns on `--sca`. An upgrade it could not check (unreachable registry, more than 100 changes, a changed lockfile over 64 MB or unreadable) stops a `--gate` run with exit 2. See [Upgrade Review](./supply-chain#upgrade-review) |
 | `--trace` | Run tests with call tracing to capture dynamic dispatch (visitor patterns, getattr, plugins) |
 | `--confidence`| Confidence threshold (0-100). Lower values include more uncertain findings. Default: `60` |
 
@@ -581,6 +606,13 @@ changed scope. A finding can therefore remain visible when the PR changes a
 supporting contract, manifest, source route, build file, or Dockerfile rather
 than only the finding's primary location. Required fail-closed prerequisites
 such as `SKY-GPU000` are retained for selected leaf rules.
+
+Agent-config and publish-job findings (`SKY-D365` to `SKY-D377`) are judged
+differently. With `--diff`, one is new when the merge base did not have the
+same finding (rule, file, event or job name and command), even if its line
+did not change; with `--diff-base` alone, every such finding in a changed
+file counts. See
+[How They Count In The Gate](./supply-chain#how-they-count-in-the-gate).
 
 ## Folder Exclusion
 
