@@ -211,8 +211,10 @@ For the full buyer-facing view, including what exists today and what remains on 
 
 When a package version your branches use is reported as malware, the
 exposure map shows what it could have reached and what to do first. It
-needs the Workspace or Enterprise plan. Malware alerts themselves appear on
-every plan; on Free the alert says the map needs the Workspace plan.
+needs the Workspace or Enterprise plan. The database enforces the same
+limit, so on Free the CI job lists and upload history behind the map cannot
+be read through the API either. Malware alerts themselves appear on every
+plan; on Free the alert says the map needs the Workspace plan.
 
 Open it from the `Supply chain` page:
 
@@ -227,23 +229,30 @@ Open it from the `Supply chain` page:
 The map is built from what your uploads sent: each branch's package list,
 its CI job list (`ci_inventory`) and its agent hooks (`agent_hooks`). Upload
 with dependency checks on (`skylos cloud` or `skylos . -a --upload`) so
-those blocks are there.
+those blocks are there. Package lists need a Skylos CLI newer than 5.4.0
+(the next Skylos release); 5.4.0 and older don't send them, and the
+`Supply chain` page says which version your latest upload came from.
 
 | Section | What it shows |
 |---|---|
 | Read before acting | A lockfile entry is not proof of install; developer machines are not covered (the map reads CI uploads only); commits that were never uploaded are blind spots; feeds can be wrong. History starts at the first upload after the exposure map became available, so earlier commits are not covered |
-| What to do, in this order | 1. Isolate self-hosted runners and machines. 2. Remove persistence: agent and editor hooks and MCP servers on uploaded branches, and the version itself. 3. Revoke exposed tokens, only after steps 1 and 2, because some 2026 worms wipe the machine when their stolen GitHub token is revoked. 4. Rotate secrets, most privileged first. 5. Check registry publishes made with those credentials. 6. Re-run `skylos . -a --upload` on each branch |
+| What to do, in this order | 1. Isolate self-hosted runners and machines. 2. Remove persistence: agent and editor hooks and MCP servers on uploaded branches, and the version itself. 3. Revoke exposed tokens, only after steps 1 and 2, because some 2026 worms wipe the machine when their stolen GitHub token is revoked. 4. Rotate secrets, most privileged first. 5. Check registry publishes made with those credentials. 6. Re-run `skylos . -a --upload` on each branch, from CI: only a trusted upload closes the alert. When a CI job list is missing, partial or cut short, a step with nothing listed in 3 to 5 says "Not known" instead of "No tokens to revoke" or "No secrets reachable", and the summary says the credentials to rotate are not known: treat every secret and token those jobs can use as exposed |
 | Where it was (proven) | Branches whose uploaded lockfile had the version: first seen, last seen, the upload before it (or "none (blind spot)"), and whether it is still in the lockfile |
-| CI jobs at those commits (inferred) | **Could have installed it:** npm jobs that install from the lockfile with install scripts on, Python jobs that install from the lockfile (`.pth` files and import-time code run without install scripts), or, for a GitHub Action, every job that uses that ref. **Lower risk:** installs with scripts off, tool installs not from the lockfile, a restored cache, a called workflow, or push runs limited to other branches. **No install:** jobs that only ran at the same commits. Each job shows its runner (GitHub-hosted, GitLab runner or self-hosted) and the upload its job list came from |
-| Credentials | What those jobs could read, grouped as all secrets, publish, cloud, GitHub and other: `secrets: inherit` or `toJSON(secrets)`, OIDC roles (`id-token: write`), named secrets (names only; values are never uploaded), environment secrets and self-hosted runners |
+| CI jobs at those commits (inferred) | **Could have installed it:** npm jobs that install from the lockfile with install scripts on, Python jobs that install from the lockfile (`.pth` files and import-time code run without install scripts), or, for a GitHub Action, every job that uses that ref. **Lower risk:** installs with scripts off, tool installs not from the lockfile, a restored cache, a called workflow, jobs that run `make`, `docker`, `tox` or a repository script (these can install packages the job list cannot see), or push runs limited to other branches. Lower-risk jobs are listed with their secrets. **No install:** jobs that only ran at the same commits. Each job shows its runner (GitHub-hosted, GitLab runner or self-hosted) and the upload its job list came from |
+| Credentials (in the downloads; on the page they appear in steps 3 and 4) | What those jobs could read, grouped as all secrets, publish, cloud, GitHub and other: `secrets: inherit` or `toJSON(secrets)`, OIDC roles (`id-token: write`), named secrets (names only; values are never uploaded), environment secrets and self-hosted runners |
 | Workflow runs in the window (observed) | GitHub Actions runs of those workflows on those branches, marked when they ran at a commit whose lockfile had the version. Listing runs needs the Skylos GitHub App with `Actions: read`; without it, every run in the window counts as possible, never as safe |
 | Gaps and blind spots | Evidence Skylos could not see, such as deleted runs, branches never uploaded, missing or partial job lists, reusable workflows from other repositories, and runs past GitHub's retention (90 days by default). Treat each gap as possibly exposed |
 
 `Download Markdown` and `Download CSV` export the whole map for an incident
 ticket. When OSV withdraws every advisory behind an alert, the alert closes
 as "advisory withdrawn" and its map is cleared: there is nothing to rotate
-for that report. An alert also closes once a complete package list from the
-branch no longer has the version.
+for that report. An alert also closes when a trusted upload (from CI with
+OIDC, a Skylos Cloud scan, or a project token marked **Mark for CI**) sends
+a complete package list of the branch without the version. An unverified
+upload, such as one from your machine with the token `skylos login` saved,
+closes nothing. An alert closed this way reopens when a later upload of the
+branch lists the version again. See
+[Which Branches Are Watched](/supply-chain#which-branches-are-watched).
 
 ## How the Cloud Fits the CLI
 
@@ -290,7 +299,7 @@ When you upload a scan with `skylos cloud` or `--upload`, Skylos Cloud receives 
 | a map of your functions and classes (names, files, lines, sizes, which calls which) | |
 | summary counts and gate data | |
 | with dependency checks on: each package's ecosystem, name, version, direct/dev flag and manifest path, plus the supply-chain posture checks | |
-| with dependency checks on: each CI job's triggers, runner, permissions, secret names (never values), installs, download hosts (never full URLs) and publish steps, and committed agent hooks and MCP servers with commands redacted | |
+| with dependency checks on: each CI job's triggers, runner, permissions, secret names (never values), installs, commands that may install packages out of sight (such as `make`, `docker build` or a repository script), download hosts (never full URLs) and publish steps, and committed agent hooks and MCP servers with commands redacted. These come from the repository top, also when you scan a subfolder | |
 
 Uploaded findings can include security-sensitive metadata and contextual evidence needed to explain results. Treat cloud scan results as sensitive security data even though Skylos does not upload the full repo as source blobs during normal scan upload.
 
