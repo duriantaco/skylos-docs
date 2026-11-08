@@ -355,7 +355,7 @@ Workspace inventory is included in scan metadata so cloud uploads and JSON consu
 
 ### Not Supported
 
-- **Type checking:** Skylos doesn't validate TypeScript types
+- **Type checking:** Skylos's static rules do not implement the TypeScript type system. The [unreleased `--type-check` option](./type-checking) runs your installed `tsc` using its project configuration
 - **Full Node resolver emulation:** resolution covers common source and package metadata patterns, but not every conditional export or package-manager-specific edge case
 - **JSDoc:** Documentation comments are not analyzed
 

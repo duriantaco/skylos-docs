@@ -264,7 +264,7 @@ Skylos doesn't replace everything. Consider combining:
 | Use Case | Recommendation |
 |----------|----------------|
 | Code formatting | Use Black/Prettier (not Skylos) |
-| Type checking | Use mypy/Pyright (not Skylos) |
+| Type checking | Use installed mypy, Pyright, Pyrefly or `tsc`; the [unreleased source implementation](./type-checking) can run them with `--type-check` |
 | Dead code + Security + Quality | Use Skylos |
 | Custom security rules | Use Semgrep + Skylos |
 | Supply chain analysis | Use Snyk/Dependabot + Skylos |

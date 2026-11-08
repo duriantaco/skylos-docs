@@ -94,6 +94,32 @@ include_source = false
 | `ignore` | list | `[]` | List of rule IDs to suppress (e.g., `["SKY-L002", "SKY-Q301"]`) |
 | `model` | string | `"gpt-4.1"` | LLM model for AI-powered features |
 
+### Installed Type Checker (Unreleased)
+
+The unreleased source implementation discovers a checker from its own project
+configuration. If several are declared, choose one explicitly:
+
+```toml
+[tool.skylos.type_check]
+checker = "mypy"
+```
+
+Supported choices are `mypy`, `pyright`, `pyrefly`, `tsc` and `auto`. This
+selection alone does not execute the checker: request `--type-check` on a scan
+or `verify`. Done uses separate trusted baseline policy:
+
+```toml
+[tool.skylos.done]
+type_checker = "mypy"
+type_check_timeout_seconds = 120
+
+[tool.skylos.done.checks]
+type_check = "block" # off (default), advise, or block
+```
+
+See [Type Checking](./type-checking) for execution boundaries, baseline
+requirements and diagnostic origins.
+
 ### Contribution Signals
 
 The `[tool.skylos.contribution]` section controls AI-code defect signal capture.

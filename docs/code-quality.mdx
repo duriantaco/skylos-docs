@@ -334,6 +334,10 @@ if value is None:
 
 These checks are intended to catch bad coding practices that create review, security, or maintenance risk.
 
+The [unreleased `--type-check` option](./type-checking) also lets you run the
+installed project compiler. Its diagnostics and baseline origins are reported
+under `type_check`; these static quality rules retain their own IDs and behavior.
+
 | Rule | What it catches | Why it matters |
 |---|---|---|
 | `SKY-T101` | Public functions in typed modules with untyped parameters | Public API contracts are harder to review and type-check |

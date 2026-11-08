@@ -465,6 +465,32 @@ skylos agent install-hooks --codex    # Codex (.codex/hooks.json)
 skylos agent install-hooks --cursor   # Cursor (.cursor/hooks.json)
 ```
 
+### Type Checking At Agent Stop (Unreleased)
+
+The unreleased source implementation can include the repository's installed
+compiler in Done receipts used by agent stop hooks:
+
+```toml
+[tool.skylos.done]
+type_checker = "mypy"
+type_check_timeout_seconds = 120
+
+[tool.skylos.done.checks]
+type_check = "block"
+```
+
+This policy comes from the trusted baseline; the change under review cannot
+disable it or replace its checker. The default is `"off"`; `"advise"` reports
+without blocking, and `skylos done --type-check` explicitly strengthens it to
+blocking. `--no-tests` does not disable the compiler check. Run this on a trusted
+repository: installed checkers can execute their configured plugins.
+
+The receipt includes diagnostic locations and introduced, preexisting or
+unclassified origins. Unsupported or incomplete baseline comparisons remain
+visible. See [Type Checking](./type-checking#enable-it-in-done-and-agent-stop-checks)
+for checker discovery and policy details. Edit hooks keep their existing static
+behavior; this policy applies when Done runs.
+
 ### Package Installs
 
 Every install command an agent runs (`npm install`, `npx`, `pip install`,

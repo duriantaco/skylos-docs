@@ -163,6 +163,24 @@ For the full static-scan AI-defect method, category contract, and current rule
 list, see [AI Defect Verification](./ai-defects). For repo-specific verifier
 contracts, see [AI Hallucination Contracts](./ai-contracts).
 
+The **unreleased source implementation** adds opt-in project type checking
+and static-analysis profiling:
+
+```bash
+skylos verify src/app.py --type-check
+skylos verify . --diff origin/main --type-check
+skylos verify src/app.py --profile --profile-output profile.json
+```
+
+`--type-check` executes the installed checker with project configuration and
+can execute its configured plugins. It cannot be combined with stdin buffers.
+With a comparable baseline, reports distinguish introduced, preexisting and
+unclassified errors and retain new failures in unchanged callers as dependency
+impact. `--profile` measures Skylos's own static verification, emits its human
+summary to stderr, and adds `profiling` to JSON. It does not enable the compiler
+or application execution. See [Type Checking](./type-checking) and
+[Analysis Profiling](./profiling) for availability, limits and exit codes.
+
 Agents and editors can also pass unsaved buffers through stdin:
 
 ```bash

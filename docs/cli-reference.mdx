@@ -225,10 +225,39 @@ file/range, and findings shaped for agent consumption:
 | `--confidence`, `-c` | Analyzer confidence threshold. Default: `60` |
 | `--no-fail` | Exit `0` even when verify findings are returned |
 | `--output`, `-o <file>` | Write JSON output to a file |
+| `--diff REF` | **Source build:** verify changed lines since a Git baseline; an opted-in type check also compares diagnostic origins |
+| `--type-check` | **Unreleased:** run the installed project checker with its real configuration |
+| `--type-checker auto\|mypy\|pyright\|pyrefly\|tsc` | **Unreleased:** select the checker; requires `--type-check` |
+| `--type-check-timeout SECONDS` | **Unreleased:** shared current/baseline checker budget, default `120`; requires `--type-check` |
+| `--profile` | **Unreleased:** profile static verification; human summary goes to stderr and JSON contains `profiling` |
+| `--profile-output <file>` | **Unreleased:** save the profile separately; also enables profiling |
 
 Without `--no-fail`, `skylos verify` exits `1` for `fail` and `2` for
 `incomplete`. An incomplete result means Skylos could not establish a requested
 proof; it is not silently treated as a pass.
+
+### `skylos done [path]`
+
+Run the repository's tests and completion checks and write a receipt. Settings
+come from the trusted baseline. `--base REF` compares against the merge base;
+without it, Done compares uncommitted changes against HEAD.
+
+The **unreleased source implementation** also supports installed project type
+checking:
+
+```bash
+skylos done --base origin/main --type-check
+skylos done --type-check --type-checker mypy
+```
+
+`--type-check` strengthens the type check to blocking. Its default is off;
+trusted `[tool.skylos.done.checks]` policy can select `"block"` or `"advise"`.
+`--no-tests` does not disable an enabled type check. Set the Done compiler
+budget with `type_check_timeout_seconds` in trusted policy; the scan/verify
+`--type-check-timeout` flag does not apply to Done.
+
+See [Type Checking](./type-checking#enable-it-in-done-and-agent-stop-checks)
+for configuration, diagnostic origins and incomplete comparisons.
 
 ### `skylos done map [path]`
 
@@ -567,6 +596,42 @@ other categories from the displayed result.
 
 See [Release Reliability](./release-reliability) for Kubernetes exposure,
 GPU source/build intent, and exact built-artifact preflight.
+
+## Type Checking And Profiling (Unreleased)
+
+These options require the unreleased source implementation. Use the help in
+your installed build to check availability.
+
+```bash
+skylos . --type-check --type-checker mypy
+skylos . --diff origin/main --type-check
+skylos verify src/app.py --type-check --profile
+skylos . --format json --profile-output profile.json > findings.json
+```
+
+| Flag | Behavior |
+|------|----------|
+| `--type-check` | Execute installed mypy, Pyright, Pyrefly or `tsc` with project configuration. Configured plugins can execute; use a trusted repository |
+| `--type-checker auto\|mypy\|pyright\|pyrefly\|tsc` | Select a configured checker. Multiple configured tools require an explicit choice. Requires `--type-check` |
+| `--type-check-timeout SECONDS` | Shared current/baseline checker budget for scans and `verify`; default `120`, greater than `0` and at most `3600`. Requires `--type-check` |
+| `--profile` | Measure Skylos's static scanner phases, Python functions and call counts. Does not enable checker, application or test execution |
+| `--profile-output <file>` | Write standalone profiling JSON; enables profiling. Parent directory must exist; use a different path from `--output` |
+
+Compiler diagnostics appear in `type_check`, separate from Skylos rule findings.
+Without a baseline, current type errors block. With a comparable Git baseline,
+confirmed preexisting errors remain visible; introduced or unclassified errors
+block. A missing checker, unsupported comparison or checker failure is
+incomplete. Scans and `verify` exit `1` for type failures and `2` for an
+incomplete requested check; scan `--force` can override type failures, and
+`verify --no-fail` keeps its explicit override.
+
+Profiling adds a human summary on stderr and a `profiling` object to JSON scan
+and verify reports. Profile output failures are operational errors (exit `2`)
+even with `--force`. The compiler's separate time is `type_check.seconds`;
+`--profile` does not profile its subprocess.
+
+See [Type Checking](./type-checking) and [Analysis Profiling](./profiling) for
+baseline requirements, completion limits and the profile schema.
 
 ## Reference Graph Cache
 
