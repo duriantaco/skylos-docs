@@ -148,11 +148,11 @@ $env:OPENAI_API_KEY="sk-..."
 The CLI outputs findings as tables, grouped by category. Each table includes a legend explaining what the columns mean.
 
 - **Dead Code** (default): Unused functions, imports, classes, and variables. Each finding has a **Conf** (confidence) score — higher means safer to remove.
-- **Security** (`--danger`): Vulnerabilities like SQL injection and command injection. Shows **Issue**, **Severity**, and the **Symbol** (function) where it occurs.
+- **Security** (`--danger`): Vulnerabilities like SQL injection and command injection. Shows **Issue**, **Severity**, and the **Symbol** (function) where it occurs. Also reports committed agent hooks, unpinned MCP servers and risky package publish jobs (`SKY-D365` to `SKY-D377`); see [Agent Configs And Publish Jobs](/supply-chain#agent-configs-and-publish-jobs).
 - **Secrets** (`--secrets`): Hardcoded credentials. Shows the **Provider** (e.g. AWS, Stripe) and a masked **Preview**.
 - **Quality** (`--quality`): Complexity, nesting, duplicate literals, and structural issues. Shows the measured value vs. the configured threshold (e.g. `Complexity: 18 (max 10)`).
 - **AI Defects** (`--ai-defects`): Evidence-backed AI-code failure modes such as phantom references, hallucinated APIs, impossible dependency versions, and weakened assertions. JSON uses the `ai_defects` bucket and finding category `ai_defect`; some rules keep historical `SKY-L` or `SKY-D` IDs for compatibility, while new AI-defect-only rules use `SKY-A`.
-- **SCA** (`--sca`): Known vulnerabilities in your dependencies. Shows the **Package**, **Reachability**, and the **Fix** version.
+- **SCA** (`--sca`): Known vulnerabilities in your dependencies. Shows the **Package**, **Reachability**, and the **Fix** version. Versions reported as malware are `CRITICAL`, and supply-chain checks flag dependency confusion, unpinned Git or URL sources and lockfile entries without integrity hashes. In a pull request (`--diff` or `--diff-base`), it also flags weakened install hardening, and `--review-upgrades` compares each upgraded npm or PyPI package with its previous release. See [Supply Chain](/supply-chain).
 
 ### Reducing False Positives
 

@@ -128,6 +128,16 @@ use the `SKY-A` prefix.
 |---------|------|----------|-----------|-------------|
 | `SKY-D223` | Undeclared Dependency | MEDIUM | Python | Import not declared in requirements.txt / pyproject.toml / setup.py |
 | `SKY-SCA-LIC001` | Dependency License Policy Violation | HIGH (set with `license_severity`) | Python, JavaScript | A dependency's declared license is on your `license_deny` list or outside your `license_allow` list; unknown (`NOASSERTION`) licenses never trigger it |
+| `SKY-SCA-SRC001` | Possible dependency confusion | CRITICAL direct, HIGH transitive | Python, JavaScript | A package matching your `internal_packages` can resolve from a public or undeclared index, including through `--extra-index-url`; reported only when `internal_packages` is set |
+| `SKY-SCA-SRC003` | Mutable dependency source | MEDIUM | Python, JavaScript | A Git dependency not pinned to a full commit, or a URL dependency without a hash; not counted by the built-in `--gate` |
+| `SKY-SCA-INT001` | Lockfile entry without integrity hash | MEDIUM | Python, JavaScript | A registry entry in a lockfile has no integrity hash; requirements files are not checked |
+| `SKY-SCA-AGE001` | Dependency version younger than the release-age window | HIGH | Python, JavaScript | A locked version was published less than `min_release_age_hours` ago; reported only when you set it above 0. Counts toward `max_dependency_vulnerabilities` (default `0`), so a whole-repository `--gate` fails while a locked version is younger than the window |
+| `SKY-SCA-MAL000` | Malware feed match without an advisory ID | CRITICAL | Python, JavaScript | OSV could not be reached and the local ca9 malware feed matched a package but named no advisory ID; feed matches with an ID use `SKY-SCA-<advisory id>` |
+| `SKY-SCA-UPG001` | Dependency upgrade adds install-time or import-time code | CRITICAL | npm and PyPI lockfiles | Diff scans with `--review-upgrades` only: the new release adds a `.pth` or `sitecustomize` with code, an install or prepare hook, decode-and-exec (including code read from another file in the package and run at import, load or install), a Git or URL dependency, shipped agent or editor hooks, archive entries that collide on install, an executable named like a system command, sourceless bytecode run at import, or its lockfile hash matches no file the registry serves. Fails a diff gate on its own |
+| `SKY-SCA-UPG002` | Dependency upgrade adds code worth reviewing | MEDIUM | npm and PyPI lockfiles | Diff scans with `--review-upgrades` only: new import-time network or exec calls, obfuscation growth, a native binary, a new publisher, changed install-time code, or anything flagged in a newly added package (with no earlier version to compare against, even `block` results are listed here rather than as `SKY-SCA-UPG001`). Listed, never counted by the built-in gate. Upgrades the review could not check, and changed lockfiles over 64 MB or unreadable, stop a gated diff scan as incomplete (exit 2); changed requirements pins, `pdm.lock` and `pylock.toml` are listed as not read |
+| `SKY-SCA-HRD001` | Change weakens install hardening | HIGH | npm, pnpm, Yarn, Bun, uv, pip, Dependabot, Renovate, GitHub Actions | Diff scans with `--sca` only: a cooldown removed or lowered, a package allowed to skip it, install scripts turned back on, packages added to `allowBuilds`, `allowScripts` or `trustedDependencies`, or a SHA-pinned action moved to a tag. Exceptions come from the base commit's `[tool.skylos.supply_chain.hardening_exceptions]`. Fails a diff gate on its own |
+
+Known malicious versions (an OSV `MAL-*` record or alias, an OpenSSF malicious-packages record, or CWE-506) keep their advisory rule ID (`SKY-SCA-<advisory id>`) and are always `CRITICAL`. See [Supply Chain](/supply-chain).
 
 #### Terraform/AWS Declaration Policies
 
@@ -207,6 +217,32 @@ and output contract.
 | `SKY-D265` | Unsafe ML Model Deserialization | HIGH–CRITICAL | Pickle-backed model/checkpoint loading such as `torch.load`, `joblib.load`, or `numpy.load(..., allow_pickle=True)` |
 | `SKY-D266` | AI Config Instruction Injection | CRITICAL | Hidden, obfuscated, or instruction-override payloads in AI assistant rule/config files |
 | `SKY-D267` | Unbounded LLM Consumption | MEDIUM | LLM calls or agent executors lack token, timeout, iteration, or obvious loop bounds |
+
+#### Agent And Editor Configuration
+
+These rules read the agent, editor and MCP configs committed to the
+repository with `--danger` (or `-a`). "Full scan" is a whole-repository
+`--gate`; "Diff" is `--diff` or `--diff-base`. With `--diff`, a finding is
+new when the merge base did not have the same rule, file, event or job name
+and command, whatever lines changed; with `--diff-base` alone, every finding
+in a changed file counts. A baseline scan acts like a diff only for the
+rules its baseline recorded in `rule_coverage`; a baseline saved before
+these rules existed lists them. Configs reached through symbolic links
+inside the repository are reported under the path the agent opens. See
+[Supply Chain](/supply-chain#agent-configs-and-publish-jobs).
+
+| Rule ID | Name | Severity | Files | Full scan | Diff |
+|---------|------|----------|-------|-----------|------|
+| `SKY-D365` | Agent Hook Command Committed | HIGH; CRITICAL when it downloads remote code, decodes and runs a payload, or runs a disguised script | `.claude/settings.json`, `.claude/settings.local.json`, `.gemini/settings.json`, `.cursor/hooks.json`, `.codex/hooks.json`, `.codex/config.toml` | Listed, not counted (CRITICAL counts) | Fails the gate on its own |
+| `SKY-D366` | Editor Task Runs On Folder Open | HIGH; CRITICAL as `SKY-D365` | `.vscode/tasks.json`, `*.code-workspace` (`runOn: "folderOpen"`) | Listed, not counted (CRITICAL counts) | Fails the gate on its own |
+| `SKY-D367` | MCP Server Without An Exact Version | MEDIUM | `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json`, `.kiro/settings/mcp.json`, `mcpServers` blocks | Listed, not counted | Counts under normal limits |
+| `SKY-D368` | MCP Server From A Hidden Path | HIGH | MCP configs | Listed, not counted | Fails the gate on its own |
+| `SKY-D369` | MCP Package Imitating A Vendor | MEDIUM | MCP configs | Listed, not counted | Counts under normal limits |
+| `SKY-D370` | Agent API Base URL Overridden | HIGH | `env` in `.claude/settings.json` and `.claude/settings.local.json` (`ANTHROPIC_BASE_URL`, `ANTHROPIC_API_URL`, the Anthropic Bedrock, Vertex and Foundry base URLs, `OPENAI_BASE_URL`, `OPENAI_API_BASE`, `OPENAI_API_BASE_URL`, `GEMINI_BASE_URL`, `GOOGLE_GEMINI_BASE_URL`), and Codex `model_providers.*.base_url`; not reported for the provider's own HTTPS API host | Listed, not counted | Fails the gate on its own |
+| `SKY-D377` | Agent Config With Duplicated Keys | MEDIUM | Agent and editor settings, MCP configs | Listed, not counted | Counts under normal limits |
+
+Hooks written by `skylos agent install-hooks` are not reported when their
+whole command matches what Skylos writes.
 
 #### Agent And Build Command Safety
 
@@ -292,6 +328,38 @@ analysis is enabled.
 | `SKY-D321` | GitLab CI Privileged Job Missing Timeout | MEDIUM | Privileged or release-like job has no timeout |
 | `SKY-D322` | GitLab CI Dynamic Runner Tag | MEDIUM | Runner tag uses variables or dynamic expressions |
 | `SKY-D323` | GitLab CI Ambiguous Secret Token | MEDIUM | Broad token-like variable name makes secret scope unclear |
+
+#### Package Publish Jobs
+
+These rules look at CI jobs that publish packages, with `--danger` (or
+`-a`). Columns as in [Agent And Editor Configuration](#agent-and-editor-configuration).
+
+| Rule ID | Name | Severity | CI | Full scan | Diff |
+|---------|------|----------|----|-----------|------|
+| `SKY-D371` | Unpinned Tool In A Publish Job | HIGH when the job holds publish credentials; otherwise MEDIUM | GitHub Actions, GitLab CI | Listed, not counted | Counts under normal limits |
+| `SKY-D372` | Unverified Download Reaching Publish | HIGH | GitHub Actions, GitLab CI | Listed, not counted | Counts under normal limits |
+| `SKY-D373` | OIDC Publish Job Without Environment | HIGH | GitHub Actions, GitLab CI | Listed, not counted | Counts under normal limits |
+| `SKY-D374` | Publish Started By Dispatch Or Any Branch | HIGH, MEDIUM or LOW | GitHub Actions | Listed, not counted | Counts under normal limits |
+| `SKY-D375` | Publish Job Added Or Changed | MEDIUM | GitHub Actions, GitLab CI | Not reported (diff only) | Counts under normal limits |
+| `SKY-D376` | Secrets Passed To A Remote Reusable Workflow | MEDIUM | GitHub Actions | Listed, not counted | Counts under normal limits |
+
+`SKY-D371` covers a tool installed without a pinned version or hash in a job
+that has a publish token, a publish step, `id-token: write`, or (GitHub
+Actions) every secret through `secrets: inherit` or `toJSON(secrets)`. It is
+HIGH when the job holds publish credentials (a publish token, a publish
+step, or every secret in a repository whose workflows use a publish secret),
+and MEDIUM when it only has `id-token: write` or every secret.
+
+`SKY-D374` covers publish workflows that `workflow_dispatch`, a push to any
+branch or to a wildcard branch pattern, `repository_dispatch`,
+`pull_request_target`, `issue_comment`, `issues`, `discussion` or
+`discussion_comment` can start without a condition that proves the release
+branch or excludes that event. It is HIGH when a publish job without a fixed
+`environment:` is reachable by any of these except a wildcard branch
+pattern, MEDIUM when only a wildcard branch pattern reaches it, and LOW when
+every such job has a fixed `environment:`.
+
+`SKY-D375` compares the base and head job lists, ignoring moved lines.
 
 #### Edge Deployment Config Security
 
