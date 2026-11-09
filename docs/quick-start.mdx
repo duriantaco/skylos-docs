@@ -56,6 +56,7 @@ Choose by the thing you need Skylos to inspect:
 | Find container vulnerabilities | `skylos image scan IMAGE@sha256:<digest> --platform os/arch` | Remote registry image scanned by a separately installed Trivy |
 | Run the combined repo report | `skylos suite [DIRECTORY]` | Static, debt, defense, and provenance checks |
 | Check agent guardrails | `skylos defend [DIRECTORY]` | Python and TypeScript/JavaScript LLM and agent implementation source |
+| Prioritize cleanup work | `skylos cleanup [PATH]` | Read-only quality, AI-code and dead-code queue; see [Cleanup](/cleanup) |
 | Remove Python dead code | `skylos clean [PATH] --dry-run` | Python import/function cleanup candidates; `--dry-run` never writes |
 
 `verify` scans source for AI-code defects; its separate Python behavior model

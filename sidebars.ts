@@ -71,6 +71,7 @@ const sidebars = {
         { type: 'doc', id: 'change-map', label: 'Change Map' },
         { type: 'doc', id: 'graph', label: 'Codebase Graph' },
         { type: 'doc', id: 'code-quality', label: 'Code Quality' },
+        { type: 'doc', id: 'cleanup', label: 'Cleanup' },
         { type: 'doc', id: 'type-checking', label: 'Type Checking' },
         { type: 'doc', id: 'technical-debt', label: 'Technical Debt' },
       ],

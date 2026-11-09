@@ -1,0 +1,68 @@
+---
+title: "Cleanup"
+description: "Review a prioritized queue of quality, AI-code and dead-code findings without editing source."
+---
+
+`skylos cleanup` turns existing static findings into a focused work queue.
+Each item includes its rule, location, severity, finding purpose, evidence and
+suggested next action. It does not edit files, execute target code or tests,
+call a model, query dependency registries or upload results.
+
+## Build a queue
+
+Run from the repository root, or pass a source file or directory:
+
+```bash
+skylos cleanup . --top 5
+skylos cleanup src --format json
+skylos cleanup . --all-advice
+```
+
+The path defaults to `.`. Human output is the default; `--format json` supports
+agents and scripts. `--top N` accepts a positive integer and defaults to `10`.
+It limits each queue separately while keeping the full eligible counts.
+
+Defects and findings needing contextual review appear in `tasks`.
+Maintainability recommendations appear in `advisories`. Optional advice follows
+the existing listing policy; `--all-advice` includes it without changing raw
+severity or gate policy. JSON retains the original finding under `finding`.
+
+Review one item and its callers, make a focused change, run the project's
+relevant checks, then rerun `skylos cleanup` on the same scope. Check entry
+points and dynamic use before removing a dead-code candidate.
+
+## Reuse a saved report
+
+```bash
+skylos cleanup . --from-report findings.json --format json
+```
+
+`--from-report` accepts existing Skylos analyzer JSON. Supply the original scan
+root as the path so locations stay meaningful. Output records
+`source: saved_report`; source files are not rescanned. Missing analyzers or
+coverage information make the queue incomplete.
+
+## Read the result
+
+| Status | Exit | Meaning |
+| --- | --- | --- |
+| `ready` | `0` | Visible review work is available |
+| `clear` | `0` | No visible work in the recorded cleanup scope |
+| `incomplete` | `2` | Analysis or coverage is incomplete; available items remain visible |
+
+Invalid input also exits `2`. These statuses describe the queue, not a security
+verdict. Observation IDs can change after edits and do not prove resolution.
+Language coverage follows the underlying analyzers.
+
+The separate `skylos clean` command previews or applies Python unused-import
+and unused-function edits. See [CLI Reference](./cli-reference#deterministic-cleanup).
+
+## Cloud workflow
+
+The corresponding Cloud panel is pending deployment. It projects tasks from
+the latest native code scan, with source-scan links and a copyable task for an
+agent. Upload a normal scan through the existing Cloud workflow; there is no
+separate task-upload command. Existing removal PR eligibility and issue history
+continue to govern automated cleanup and follow-up scans.
+
+Check `skylos cleanup --help` after installing a release that includes this command.
