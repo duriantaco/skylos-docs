@@ -98,6 +98,20 @@ use the `SKY-A` prefix.
 | `SKY-D283` | Unauthenticated Control, Destructive or Admin Route | HIGH | Python | A route that controls a device or the host, deletes data, acts as admin or runs commands, with nothing that authenticates the caller |
 | `SKY-D510` | Prototype Pollution | HIGH | TS | `__proto__` access |
 
+#### Python Configuration and Input Checks
+
+These unreleased checks report configurations and input flows that need
+security review. Review template use, data sensitivity, network exposure and
+host validation when assessing a finding's impact.
+
+| Rule ID | Name | Severity | Languages | Description |
+|---------|------|----------|-----------|-------------|
+| `SKY-D355` | Jinja Environment Without Autoescape | HIGH | Python | Jinja environment omits autoescape or explicitly disables it |
+| `SKY-D356` | Cleartext Outbound HTTP | MEDIUM | Python | A supported HTTP API uses an explicit `http://` URL or URL prefix |
+| `SKY-D357` | Untrusted Dynamic Python Import | HIGH | Python | An identified input source selects a module for `import_module()` or `__import__()` |
+| `SKY-D358` | Public Gradio Launch Without Configured Auth | HIGH | Python | A visible Gradio launch branch binds to all interfaces without configured authentication |
+| `SKY-D359` | Cached Request-Derived External Flask URL | MEDIUM | Python | Cached content includes an external Flask URL without a proven fixed or trusted host |
+
 #### TypeScript-Specific Security
 
 | Rule ID | Name | Severity | Description |
@@ -3015,6 +3029,123 @@ hung workers cannot run indefinitely.
 | **Languages** | GitHub Actions YAML |
 | **What** | claude-code-action 1.0.0 to 1.0.73 (GHSA-8q5r-mmjf-575q, CVE-2026-47751) or run-gemini-cli before 0.1.22 / `gemini_cli_version` before 0.39.1 (GHSA-wpqr-6v78-jr5g, CVE-2026-12537), by tag or known release commit |
 | **Risk** | The pinned release has a published fix that the workflow does not run |
+
+---
+
+### SKY-D355 · Jinja Environment Without Autoescape
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Python |
+| **Availability** | Unreleased |
+| **What** | A known Jinja `Environment` or `SandboxedEnvironment` omits autoescape or explicitly disables it |
+| **Risk** | Unescaped values in HTML templates can introduce cross-site scripting |
+
+```python
+from jinja2 import Environment
+
+templates = Environment()
+```
+
+Enable `autoescape=True` or configure `select_autoescape()` for HTML templates.
+Review environments that intentionally render plain text. Unknown expanded
+options do not establish that autoescape is disabled.
+
+---
+
+### SKY-D356 · Cleartext Outbound HTTP
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | Python |
+| **Availability** | Unreleased |
+| **What** | A supported `requests`, `httpx` or `urllib.request` API uses an explicit `http://` URL or visible URL prefix |
+| **Risk** | Network observers can read or modify traffic carried over that connection |
+
+```python
+import requests
+
+requests.get("http://api.example.com/status")
+```
+
+Use HTTPS where the service supports it. Proven localhost and loopback
+destinations are excluded. The rule identifies cleartext transport; review the
+data and its consumers to assess security impact. Opaque client instances and
+unknown URL schemes are outside this check's coverage.
+
+---
+
+### SKY-D357 · Untrusted Dynamic Python Import
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Python |
+| **Availability** | Unreleased |
+| **What** | An identified input source selects a module passed to `importlib.import_module()` or `__import__()` |
+| **Risk** | Input can select code that executes during module loading |
+
+```python
+from importlib import import_module
+from flask import request
+
+plugin = import_module(request.args["plugin"])
+```
+
+Select modules from a fixed registry or allowlist. A dynamic module name alone
+does not establish untrusted input: the check requires source evidence and
+does not report every configurable plugin import.
+
+---
+
+### SKY-D358 · Public Gradio Launch Without Configured Auth
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Languages** | Python |
+| **Availability** | Unreleased |
+| **What** | A visible launch branch for a known Gradio interface binds to `0.0.0.0`, `::` or `[::]` without configured `auth` or `auth_dependency` |
+| **Risk** | The interface can be reached by other hosts allowed by the deployment's network controls |
+
+```python
+import gradio as gr
+
+demo = gr.Blocks()
+demo.launch(server_name="0.0.0.0")
+```
+
+Configure authentication or restrict the bind address. Review any proxy
+authentication and firewall controls when assessing exposure. Unknown launch
+options do not prove that authentication is absent.
+
+---
+
+### SKY-D359 · Cached Request-Derived External Flask URL
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | Python |
+| **Availability** | Unreleased |
+| **What** | `url_for(..., _external=True)` contributes to cached content without a proven fixed or trusted Flask host |
+| **Risk** | A request-derived host can enter an absolute link that the cache later serves to other callers |
+
+```python
+from functools import lru_cache
+from flask import url_for
+
+@lru_cache
+def cached_link():
+    return url_for("search", _external=True)
+```
+
+Configure a fixed `SERVER_NAME` or validate accepted hosts before caching
+absolute links. A visible fixed host configuration can resolve the finding;
+opaque or conditional configuration still needs review. Exploitability depends
+on request-host handling and deployment controls.
 
 ---
 
