@@ -65,6 +65,73 @@ ca9 feed update
 Pull requests get three more checks (upgrade review, weakened hardening and
 changed publish jobs). See [In Pull Requests](#in-pull-requests).
 
+### Private And Git Packages (Unreleased)
+
+The next Skylos release stops failing a scan because a lockfile has a package
+from a private registry, Git or a URL. Advisory databases don't cover those
+packages, so they are listed as **not checked** and every public package is
+still checked. This covers `package-lock.json`, `npm-shrinkwrap.json`,
+`pnpm-lock.yaml`, `yarn.lock`, `bun.lock`, `uv.lock`, `poetry.lock`,
+`Pipfile.lock`, `Cargo.lock`, `composer.lock`, `Gemfile.lock` and
+`pubspec.lock`.
+
+The status is `complete_with_non_registry_sources` and `complete` is `false`,
+so the scan never claims those packages are clean. Known vulnerabilities in
+public packages still fail the gate. A pull request that introduces a new
+source is reported as `SKY-SCA-SRC004`. See
+[New Package Sources](#new-package-sources-unreleased).
+
+These still stop the scan with exit code 2:
+
+- **Most packages went unchecked.** At least 5 packages are not checked and
+  they outnumber the packages Skylos could check, with
+  `most_packages_not_checked: true` in the receipt. A private mirror of public
+  packages does this: a pass would say little about your dependencies.
+  Findings for the packages it could check are still reported.
+- **Contradictory records.** A tarball on the public registry that doesn't
+  match its package, a pnpm alternate `id`, an unrecorded Yarn `virtual:` peer,
+  or a malformed source.
+
+### When OSV Cannot Be Reached (Unreleased)
+
+In the next Skylos release, a failed OSV request is retried twice, within a
+20-second budget for the scan. If OSV still doesn't answer, Skylos reuses the
+last good answer for that exact package version, up to 7 days old, from
+`osv-answers.json` in the user cache (`$XDG_CACHE_HOME/skylos`, or
+`~/.cache/skylos`). Every successful scan updates that file, and live answers
+always win.
+
+A scan that used saved answers reports `complete_with_saved_answers` with
+`complete: false`, and prints a warning that newer advisories may be missing.
+Known vulnerabilities still fail the gate. A baseline refuses the scan, an
+upload can't use it to resolve earlier findings, and
+`coverage.required = ["dependencies"]` fails on it.
+
+A package with no saved answer, or one older than 7 days, leaves the scan
+incomplete with exit code 2. A file inside the scanned repository is never read
+or written, so a repository can't supply its own answers. The GitHub workflow
+`skylos cicd init` writes keeps this file between runs with `actions/cache`.
+Other CI systems need their own cache of that path, otherwise a fresh runner
+has nothing saved.
+
+### How Each Package Is Used (Unreleased)
+
+In the next Skylos release, PyPI advisories carry
+`metadata.reachability_tier`, and terminal output shows it in a **Use** column:
+
+| Tier | Shown as | Meaning |
+|---|---|---|
+| `used` | `called at app.py:4` | A listed vulnerable API is called, or coverage shows the code ran |
+| `imported` | `imported` | The package is imported, directly or through a dependency you import, and no vulnerable call was found |
+| `unknown` | `unknown` | Nothing proves it either way: a transitive package, a command-line tool or plugin, a guessed import name, or an incomplete dependency graph |
+| `not_imported` | `no import found` | A declared direct dependency with a complete dependency graph, no import and no sign of indirect use |
+| `unreachable` | `not reached` | The version is outside the affected range, or the code was proved not to run |
+
+Packages sort by severity and, within a severity, what the code uses first.
+`no import found` and `not reached` sort last. Nothing is hidden and the gate
+counts every advisory: "no import found" isn't proof of safety, because a
+package can run without an import. Other ecosystems show `not analyzed`.
+
 ### Package Inventory And Posture
 
 `--format json` adds these blocks to `analysis_summary`, and uploads carry
@@ -260,6 +327,8 @@ nothing in them is installed or run.
 |---|---|---|---|---|
 | A dependency upgrade adds install-time or start-up code | `SKY-SCA-UPG001` | `CRITICAL` | `--review-upgrades` | fails on its own |
 | A dependency upgrade adds code worth reviewing | `SKY-SCA-UPG002` | `MEDIUM` | `--review-upgrades` | listed, not counted |
+| A dependency upgrade removes API your code uses (unreleased) | `SKY-SCA-API001` | `MEDIUM` | `--review-upgrades` | listed, never counted |
+| A package moves to a source this repository did not use (unreleased) | `SKY-SCA-SRC004` | `HIGH` | `--sca` | counts toward `max_dependency_vulnerabilities` |
 | The change weakens install hardening | `SKY-SCA-HRD001` | `HIGH` | `--sca` | fails on its own |
 | The change adds or modifies a job that publishes packages | `SKY-D375` | `MEDIUM` | `--danger` | counts under the normal limits |
 
@@ -385,6 +454,50 @@ Exceptions are read from the merge base only, so a pull request cannot add
 its own. Each one needs a non-empty reason and applies to regressions that
 name that package. `analysis_summary.supply_chain_diff.checks.hardening.exceptions_applied`
 lists the ones used.
+
+### Removed APIs (Unreleased)
+
+In the next Skylos release, `--review-upgrades` also names your lines that use
+something a Python upgrade removed. For each changed version in a lockfile or a
+`requirements*.txt` `==` pin, Skylos reads the old and the new release without
+installing, importing or running them, then checks your code:
+
+```
+Review these 2 call sites
+pos_ciphers.py:1 · urllib3.util.ssl_.DEFAULT_CIPHERS removed in urllib3 2.0.0
+pos_strict.py:3 · urllib3.HTTPConnectionPool(strict=) removed in urllib3 2.0.0
+```
+
+The pull request comment says either that, or `No API-level impact found in N
+call sites (behaviour changes not checked)`. It never says an upgrade is safe.
+
+- **Advice only.** `SKY-SCA-API001` never fails a gate and is not uploaded to
+  Cloud. To turn it off, add it to `ignore`, or mark one line with
+  `# skylos: ignore[SKY-SCA-API001]`.
+- **Could not check.** Names behind a module `__getattr__`, a computed `__all__`,
+  compiled modules with no `.pyi`, and failed downloads say so instead of
+  reporting a clean result.
+- **Not detected:** behaviour changes, changed defaults or return types,
+  positional argument shifts, newly required parameters, methods reached
+  through `self.x` or a return value, and string references such as Django
+  settings.
+- **Python only for now.** npm bumps say only Python package APIs are compared.
+- **Bounds:** 25 packages and 180 seconds per scan. The whole repository is
+  searched, so a monorepo can name lines in another service.
+
+### New Package Sources (Unreleased)
+
+In the next Skylos release, a diff scan with `--sca` reports `SKY-SCA-SRC004`
+when a changed lockfile points a package at a private, Git or URL source this
+repository did not use for it, or at a new host. A package that already came
+from that source stays quiet, and so does a lockfile moved to another folder.
+
+If the package is yours, list it in `internal_packages` under
+`[tool.skylos.supply_chain]` on the target branch. A pull request can't add its
+own exemption, because the policy comes from the base commit.
+
+A package moved between private indexes in `uv.lock`, `poetry.lock` or
+`Pipfile.lock` isn't caught, because those lockfiles don't give Skylos the host.
 
 ### When ca9 Cannot Check
 
@@ -713,6 +826,15 @@ upload came from. Cloud then:
   and findings without a verdict always count. The CLI's `--gate` applies the
   same rule when the option is synced.
 
+### Compliance Reports And Private Packages
+
+A project with a few private or Git packages can get a compliance report. Each
+unchecked package is named as a disclosed limitation, and the report never says
+it was checked. This needs every package named, at most 25 of them, and under
+25% of all packages. Past that the project shows as not ready, as it does after
+a failed query, saved answers or an unread lockfile. This limit is Skylos's own
+choice; no standard sets a number.
+
 ### Which Branches Are Watched
 
 Cloud keeps up to two package lists per project and branch: the latest
@@ -759,6 +881,9 @@ malicious advisory for the version.
   changed requirements pins, `pdm.lock` and `pylock.toml` are listed as not
   read.
 - Cloud's hourly check covers npm and PyPI packages only.
+- Repositories behind a private mirror of public packages have no way yet to
+  declare that mirror as safe to check against OSV (unreleased behaviour: see
+  [Private And Git Packages](#private-and-git-packages-unreleased)).
 - The hooks check the packages inside lockfiles and requirements files
   (`npm ci`, `uv sync`, `pip install -r`) for malware only, not for existence
   or release age; `skylos . -a` checks the rest.
