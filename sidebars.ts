@@ -71,7 +71,6 @@ const sidebars = {
         { type: 'doc', id: 'change-map', label: 'Change Map' },
         { type: 'doc', id: 'graph', label: 'Codebase Graph' },
         { type: 'doc', id: 'code-quality', label: 'Code Quality' },
-        { type: 'doc', id: 'cleanup', label: 'Cleanup' },
         { type: 'doc', id: 'type-checking', label: 'Type Checking' },
         { type: 'doc', id: 'technical-debt', label: 'Technical Debt' },
       ],
@@ -96,6 +95,7 @@ const sidebars = {
       className: 'sb-book-open',
       collapsible: false,
       items: [
+        { type: 'doc', id: 'cleanup', label: 'Skylos cleanup' },
         { type: 'doc', id: 'profiling', label: 'Analysis Profiling' },
         'guides/understanding-output',
         'guides/how-it-works',

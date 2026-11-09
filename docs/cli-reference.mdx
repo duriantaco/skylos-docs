@@ -24,7 +24,7 @@ chooser; `skylos <path> --help` shows source-scan flags.
 | What vulnerabilities are in this container? | `skylos image scan IMAGE@sha256:<digest> --platform os/arch` | A remote registry image scanned through separately installed Trivy |
 | What does the combined repo report contain? | `skylos suite [DIRECTORY]` | Static analysis, technical debt, AI defense, and provenance |
 | Does an agent implementation have deployment guardrails? | `skylos defend [DIRECTORY]` | Recognized Python and TypeScript/JavaScript LLM integrations |
-| What cleanup should I review next? | `skylos cleanup [path]` | Quality, AI-code and dead-code findings, projected into a read-only queue; see [Cleanup](./cleanup) |
+| What cleanup should I review next? | `skylos cleanup [path] --next` | Quality, AI-code and dead-code tasks, with local history and explicit preview/apply options; see [Cleanup](./cleanup) |
 | Which Python dead code can Skylos remove? | `skylos clean [path] --dry-run` | Python import/function cleanup candidates; `--dry-run` never writes |
 
 The three similarly placed checks have different inputs: `verify` scans source
@@ -51,7 +51,7 @@ installed family map and `skylos <family> --help` for its real parser options.
 | `skylos verify [path]` | Scan source for AI-code mistakes and separately model supported Python working changes |
 | `skylos preflight [ARTIFACT]` | Check an exact local built GPU artifact against its fleet; OCI is `UNKNOWN` in the CLI |
 | `skylos done [map\|receipt]` | Run the tests and completion checks on a change, show the change map (`map`), or print the latest receipt (`receipt`) |
-| `skylos cleanup [path]` | Build a prioritized, read-only queue from quality, AI-code and dead-code findings |
+| `skylos cleanup [path]` | Review prioritized tasks, preview supported Python edits, and explicitly apply and check a selected patch |
 | `skylos clean [path]` | Preview or apply Python import/function cleanup |
 | `skylos review [path]` | Record and manage local finding decisions |
 | `skylos baseline [path]` | Save the current finding baseline |
@@ -706,15 +706,20 @@ skylos . --exclude-folder tests --exclude-folder migrations --include-folder ven
 
 Interactive mode requires the `inquirer` package.
 
-## Cleanup Review Queue
+## Skylos Cleanup
 
-`skylos cleanup` reports the next work to review without applying edits. It uses
-local static analysis, or reads an existing analyzer JSON report:
+`skylos cleanup` combines a prioritized work queue, local history and limited
+deterministic edits. The default scan leaves source unchanged. Preview a patch
+for a selected task, then explicitly apply it and request the relevant tests:
 
 ```bash
 skylos cleanup . --top 5
-skylos cleanup . --format json
-skylos cleanup . --from-report findings.json --all-advice
+skylos cleanup . --next
+skylos cleanup . --task TASK_ID
+skylos cleanup . --task TASK_ID --apply --test-cmd "pytest -q test/test_orders.py"
+skylos cleanup . --defer TASK_ID --reason "Review public callers first"
+skylos cleanup . --restore TASK_ID
+skylos cleanup . --history --format json
 ```
 
 | Flag | Description |
@@ -723,14 +728,35 @@ skylos cleanup . --from-report findings.json --all-advice
 | `--top N` | Positive display limit for each queue; default `10` |
 | `--all-advice` | Include optional maintainability advice |
 | `--from-report REPORT` | Reuse analyzer JSON without rescanning; supply the original scan root as the path |
+| `--next` | Show the next open task, or advice when no task is available |
+| `--task ID` | Preview a supported deterministic patch; a unique task-ID prefix is accepted |
+| `--apply` | Apply the selected patch and statically rescan; requires `--task` |
+| `--test-cmd COMMAND` | Explicitly authorize this test command after applying; no shell interpretation |
+| `--defer ID --reason TEXT` | Defer local work without changing raw findings or gate policy |
+| `--restore ID` | Return deferred work to the open queue |
+| `--history` | Read local cleanup history without scanning |
+| `--no-state` | Disable reading and writing cleanup history |
+| `--context` | Add bounded Python excerpts, imports and candidate callers, respecting exclusions |
+| `--review` | Send bounded context to the configured model for separately labeled advice |
+| `--model`, `--provider`, `--base-url` | Configure the optional model review |
 
 `ready` means work exists; `clear` means no visible work in the recorded scope.
-Both exit `0`. `incomplete` retains available work and exits `2`; invalid input
-also exits `2`. This is not a gate or a security verdict. After reviewing and
-changing code, run the relevant checks and scan the same scope again.
+Both exit `0`. Execution reports `verified` only when explicitly requested tests
+pass and a complete comparable rescan removes the target without new defects
+or high-severity review findings. Skipped tests leave `applied_unverified`.
+Unavailable checks produce `incomplete` and exit `2`; invalid input also exits
+`2`. Failed checks exit `1` and attempt rollback while preserving intervening
+file changes. Read the test, rescan and rollback receipts. These are recorded
+checks, not universal behavioral proof or a security verdict.
 
-See [Cleanup](./cleanup) for evidence and coverage limits. The separate
-`skylos clean` command below can apply Python dead-code edits.
+Edits support conservative Python `SKY-U001`, `SKY-U002` and `SKY-L038` cases
+only; unsupported or ambiguous cases require manual review. Local history is
+stored in `.skylos/cache/cleanup.json`; absence becomes `not_reported`, not a
+verified fix. Saved reports cannot authorize edits, model review or history
+changes. `--review` is separate from patch application and requires the LLM
+extra and provider configuration. See [Cleanup](./cleanup) for the full workflow.
+
+The separate `skylos clean` command below retains its Python dead-code workflow.
 
 ## Deterministic Cleanup
 
