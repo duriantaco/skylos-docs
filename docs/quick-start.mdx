@@ -56,6 +56,7 @@ Choose by the thing you need Skylos to inspect:
 | Find container vulnerabilities | `skylos image scan IMAGE@sha256:<digest> --platform os/arch` | Remote registry image scanned by a separately installed Trivy |
 | Run the combined repo report | `skylos suite [DIRECTORY]` | Static, debt, defense, and provenance checks |
 | Check agent guardrails | `skylos defend [DIRECTORY]` | Python and TypeScript/JavaScript LLM and agent implementation source |
+| Work through cleanup | `skylos cleanup [PATH] --next` | Prioritized tasks and local history; selected Python edits require explicit preview/apply options; see [Cleanup](/cleanup) |
 | Remove Python dead code | `skylos clean [PATH] --dry-run` | Python import/function cleanup candidates; `--dry-run` never writes |
 
 `verify` scans source for AI-code defects; its separate Python behavior model
@@ -63,6 +64,21 @@ compares working files with Git HEAD. `preflight` inspects a local built GPU
 artifact. A digest-pinned OCI reference provides identity only and returns
 `UNKNOWN` in the CLI. `image scan` finds container CVEs. Run `skylos --help`
 for this chooser and `skylos commands` for the installed command-family map.
+
+For a focused cleanup workflow, start with a task and review its patch:
+
+```bash
+skylos cleanup . --next
+skylos cleanup . --task TASK_ID
+skylos cleanup . --task TASK_ID --apply --test-cmd "pytest -q test/test_orders.py"
+```
+
+Use an ID from the report and the relevant test command for your project.
+The default command leaves source unchanged and saves local history. Applying
+supports conservative Python unused-function, allowlisted unused-import and
+f-string conversion edits. Other tasks need manual changes. Tests run only
+with `--test-cmd`; a static rescan alone leaves an edit `applied_unverified`.
+See [Cleanup](/cleanup) for supported cases and verification limits.
 
 ## 2. Run Your First Scan
 

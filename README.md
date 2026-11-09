@@ -11,6 +11,7 @@ Documentation for Skylos - a static analysis tool for Python, TypeScript, JavaSc
 | [中文文档](docs/zh-cn/index.mdx) | Chinese docs entry point |
 | [Installation](docs/installation.mdx) | Setup and configuration |
 | [CLI Reference](docs/cli-reference.mdx) | Command chooser, commands, flags, and exit codes |
+| [Cleanup](docs/cleanup.mdx) | Prioritize findings, preview supported Python edits, and record test and rescan receipts |
 | [Release Reliability](docs/release-reliability.mdx) | Source GPU contracts and exact built-artifact preflight |
 | [AI Features](docs/ai-features.mdx) | In-loop verification, AI remediation, local LLM setup |
 | [Why Skylos](docs/why-skylos.mdx) | Comparison with other tools |
@@ -25,6 +26,7 @@ Documentation for Skylos - a static analysis tool for Python, TypeScript, JavaSc
 | What vulnerabilities are in this container? | `skylos image scan IMAGE@sha256:<digest> --platform os/arch` | Remote registry image scanned by separately installed Trivy; `--fail-on` enables gating |
 | What does the combined repo report find? | `skylos suite [DIRECTORY]` | Static, debt, defense, and provenance; findings are report-only by default |
 | Does an agent implementation have deployment guardrails? | `skylos defend [DIRECTORY]` | Python and TypeScript/JavaScript LLM integrations; threshold flags or policy enable gating |
+| What cleanup should I review next? | `skylos cleanup [PATH] --next` | Quality, AI-code and dead-code tasks with local history; explicit options preview, apply and check supported edits; see [Cleanup](docs/cleanup.mdx) |
 | Which Python dead code can Skylos remove? | `skylos clean [PATH] --dry-run` | Python import/function cleanup; no mode is interactive and can write after confirmation |
 
 `verify` scans source for AI-code defects; its separate Python behavior model
@@ -61,6 +63,7 @@ for this chooser or `skylos commands` for the installed command-family map.
 ### Fix
 | Doc | Description |
 |-----|-------------|
+| [Cleanup](docs/cleanup.mdx) | Task IDs, local history, limited deterministic edits, optional context review, and verification receipts |
 | [AI Features](docs/ai-features.mdx) | `skylos agent scan`, `skylos verify`, and verification-backed remediation |
 | [MCP Server](docs/mcp-server.mdx) | Agent-callable tools including `verify_change` for AI-code trust checks |
 

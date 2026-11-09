@@ -1,0 +1,181 @@
+---
+title: "Skylos cleanup"
+description: "Work through findings with local history, supported Python patches, optional context review, and explicit test and rescan receipts."
+---
+
+`skylos cleanup` turns quality, AI-code and dead-code findings into a focused
+workflow: choose a task, inspect its evidence, preview a supported patch,
+apply it explicitly, and check the result.
+
+The default scan leaves source unchanged and saves task history locally.
+Tests run only with `--test-cmd`; model review runs only with `--review`.
+The default cleanup scan does not query dependency registries or upload results.
+
+## Build a queue
+
+Run from the repository root, or pass a source file or directory:
+
+```bash
+skylos cleanup . --next
+skylos cleanup . --top 5
+skylos cleanup src --format json
+skylos cleanup . --all-advice
+```
+
+The path defaults to `.`. Human output is the default; `--format json` supports
+agents and scripts. `--top N` accepts a positive integer and defaults to `10`.
+It limits each queue separately while keeping the full eligible counts.
+
+Defects and findings needing contextual review appear in `tasks`.
+Maintainability recommendations appear in `advisories`. Optional advice follows
+the existing listing policy; `--all-advice` includes it without changing raw
+severity or gate policy. JSON retains the original finding under `finding`.
+
+Tasks include a rule, location, severity, finding purpose, original evidence
+and suggested next action. Related items are grouped by rule and directory;
+that grouping helps review and does not prove a shared root cause.
+
+## Preview and apply one task
+
+Use an ID from the report. Human output shows unique prefixes; JSON contains
+the full IDs.
+
+```bash
+skylos cleanup . --task TASK_ID
+skylos cleanup . --task TASK_ID --apply
+skylos cleanup . --task TASK_ID --apply --test-cmd "pytest -q test/test_orders.py"
+```
+
+`--task` previews a deterministic patch. `--apply` writes the selected patch
+and rescans the same target. Choose a test command for the affected behavior;
+it runs without shell interpretation. Check callers, entry points and dynamic
+use before accepting dead-code removal.
+
+Supported edits are limited to these Python `.py` cases:
+
+| Rule | Supported change | Cases requiring manual review |
+| --- | --- | --- |
+| `SKY-U001` | Delete a conservatively matched unused function | Decorators, defaults, annotations, ambiguous source anchors or uncertain use |
+| `SKY-U002` | Delete an unused `import` statement from an allowlist of standard-library modules | Local or third-party imports, `from` imports, possible project shadowing or other import effects |
+| `SKY-L038` | Simplify a proven f-string conversion, such as `str(value)` to `!s` | A rewrite the detector cannot freshly prove, including shadowed builtins |
+
+The patch is bound to the exact scanned source and is revalidated before
+writing. A stale or unsupported task must be rescanned or changed manually.
+This command does not provide general automatic refactoring.
+
+## Read verification receipts
+
+An edit has separate `tests` and `rescan` receipts in JSON. Inspect them even
+when the command completes successfully.
+
+| Execution status | Meaning |
+| --- | --- |
+| `verified` | Explicitly requested tests passed and a complete comparable rescan removed the target without new defects or high-severity review findings |
+| `applied_unverified` | The patch remains applied, but the required verification evidence is missing, such as skipped tests |
+| `incomplete` | A requested check or comparable rescan could not complete; inspect the receipt and current file |
+| `failed` | A check failed; inspect the rollback receipt to see whether the original source was restored |
+
+`verified` describes the recorded checks, not universal behavioral proof.
+Rollback only replaces a file that still matches the applied patch, so an
+intervening edit is preserved. A finding disappearing by itself is not a
+passing test result.
+
+## Keep local work history
+
+```bash
+skylos cleanup . --defer TASK_ID --reason "Review public callers first"
+skylos cleanup . --restore TASK_ID
+skylos cleanup . --history --format json
+skylos cleanup . --no-state
+```
+
+History lives in `.skylos/cache/cleanup.json` and is scoped to the scan target,
+scanner version and project configuration. An incomplete or differently scoped
+scan cannot close earlier work. A task absent from a complete comparable scan
+becomes `not_reported`; this does not mean its behavior was verified.
+
+IDs can survive line-only shifts when the syntax anchor stays unchanged.
+Substantive source, evidence or path changes can change them. Deferring a task
+changes the local work queue without suppressing the finding or changing gate
+policy. `--no-state` disables history reads and writes; it cannot be combined
+with history actions.
+
+On platforms without the guarded filesystem operations needed for history,
+use `--no-state` to build the queue. Deterministic edits also require those
+operations and remain unavailable there.
+
+## Add source context or model review
+
+```bash
+skylos cleanup . --context --format json
+skylos cleanup . --review --provider anthropic --model YOUR_MODEL
+```
+
+`--context` includes bounded Python excerpts, imports and candidate callers,
+respecting scan exclusions. Caller-name matches are candidates that need
+binding and dynamic-use review. Other languages retain their scanner evidence.
+
+`--review` sends the bounded context to the configured model and returns
+separately labeled subjective advice with source citations. It requires the
+LLM extra and provider configuration; hosted providers may charge for calls.
+Use `--model`, `--provider` and `--base-url` to select the model setup. Model
+review is separate from patch application and does not authorize source edits.
+
+## Reuse a saved report
+
+```bash
+skylos cleanup . --from-report findings.json --format json
+```
+
+`--from-report` accepts existing Skylos analyzer JSON. Supply the original scan
+root as the path so locations stay meaningful. Output records
+`source: saved_report`; analyzers are not rerun. Missing analyzers or coverage
+information make the queue incomplete. Saved reports cannot authorize edits,
+model review or history changes; those operations require a live scan.
+
+## Read the result
+
+| Status | Exit | Meaning |
+| --- | --- | --- |
+| `ready` | `0` | Visible review work is available |
+| `clear` | `0` | No visible work in the recorded cleanup scope |
+| `incomplete` | `2` | Analysis, coverage or requested verification is incomplete; inspect the available evidence |
+
+Invalid input also exits `2`. An explicit edit whose checks fail exits `1`.
+Exit `0` alone does not establish that tests ran. These statuses describe the
+operation and recorded scope, not a security verdict. Language coverage follows
+the underlying analyzers, while deterministic edits have the narrower Python
+limits above.
+
+The separate `skylos clean` command previews or applies Python unused-import
+and unused-function edits. See [CLI Reference](./cli-reference#deterministic-cleanup).
+
+## Cloud Cleanup workspace
+
+Upload through the existing scan flow:
+
+```bash
+skylos . --quality --ai-defects --upload
+```
+
+The Cloud Cleanup workspace projects tasks from the latest native code scan.
+Choose a current task or move to the next one. Related work uses the existing
+issue group, or the same rule and folder when no shared issue is recorded.
+Review whether a shared fix actually applies.
+
+Each task shows recorded evidence and source context, including the scan,
+branch, revision and completeness limits. Copy task includes those identifiers
+and a bounded source excerpt for an agent. Partial loading or incomplete
+analysis remains visible rather than becoming an empty complete queue.
+
+Where a shared issue exists, the workspace uses its existing assignment,
+work status and comments for ownership and outcome notes. Available actions
+follow the workspace role. Record the commit or PR, checks run, and reasons for
+deferral there. Changing work status does not resolve scanner findings;
+comparable follow-up scans determine whether the issue is still reported.
+
+Existing constrained removal-PR eligibility remains separate from task
+visibility. The broader workspace does not automatically rewrite every task.
+CLI observation IDs do not authorize Cloud resolutions.
+
+Check `skylos cleanup --help` after installing a release that includes this command.

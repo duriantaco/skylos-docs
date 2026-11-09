@@ -95,6 +95,7 @@ const sidebars = {
       className: 'sb-book-open',
       collapsible: false,
       items: [
+        { type: 'doc', id: 'cleanup', label: 'Skylos cleanup' },
         { type: 'doc', id: 'profiling', label: 'Analysis Profiling' },
         'guides/understanding-output',
         'guides/how-it-works',
