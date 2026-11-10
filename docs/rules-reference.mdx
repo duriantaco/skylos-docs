@@ -157,10 +157,20 @@ Known malicious versions (an OSV `MAL-*` record or alias, an OpenSSF malicious-p
 
 #### Terraform/AWS Declaration Policies
 
+The additional infrastructure rules `SKY-D402` through `SKY-D411` are unreleased.
+They require a CLI build that includes the expanded infrastructure checks.
+
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
 | `SKY-D400` | Worldwide Administrative Ingress | HIGH | Terraform `.tf`, `.tf.json` | An AWS security-group ingress declaration permits worldwide TCP port 22 or 3389, including all-protocol rules and literal CIDR unions |
 | `SKY-D401` | New Database Storage Encryption Disabled | HIGH | Terraform `.tf`, `.tf.json` | A directly created `aws_db_instance` explicitly sets `storage_encrypted = false` |
+| `SKY-D402` | Public S3 Canned ACL | HIGH | Terraform `.tf`, `.tf.json` | A bucket or bucket ACL requests anonymous or all-AWS-account read access |
+| `SKY-D403` | Public S3 Bucket Policy | HIGH | Terraform `.tf`, `.tf.json` | A bounded literal policy grants unconditional broad S3 access to a wildcard principal |
+| `SKY-D404` | S3 Public Access Protection Disabled | HIGH | Terraform `.tf`, `.tf.json` | One or more bucket public-access-block protections are explicitly false |
+| `SKY-D405` | RDS Public Accessibility Enabled | HIGH | Terraform `.tf`, `.tf.json` | An RDS instance explicitly sets `publicly_accessible = true` |
+| `SKY-D406` | EBS Encryption Disabled | HIGH | Terraform `.tf`, `.tf.json` | A new EBS volume explicitly requests `encrypted = false` |
+| `SKY-D407` | Optional EC2 Metadata Tokens | HIGH | Terraform `.tf`, `.tf.json` | An instance or launch template explicitly makes metadata tokens optional |
+| `SKY-D408` | Worldwide Database Ingress | HIGH | Terraform `.tf`, `.tf.json` | A security-group ingress declaration permits worldwide TCP database or cache ports |
 
 These policies inspect declarations, not deployed resources. Skylos combines
 sibling files within a module and resolves bounded literal locals without
@@ -169,8 +179,24 @@ external modules, data sources, dynamic expressions and unresolved providers sta
 unknown. Per-resource outcomes are `unsafe`, `safe`, `unknown` or
 `not_applicable` in `analysis_summary.configuration_coverage.terraform`.
 Unknown is never a safe result; an explicitly required policy that cannot be
-evaluated produces an analysis error. These two rules do not establish general
+evaluated produces an analysis error. These rules do not establish general
 cloud compliance or prove that a declaration was applied or is reachable.
+
+#### Kubernetes Workload Declaration Policies
+
+| Rule ID | Name | Severity | Languages | Description |
+|---------|------|----------|-----------|-------------|
+| `SKY-D409` | Privileged Container | HIGH | Kubernetes YAML | A Pod, standard workload template, init container or ephemeral container explicitly enables privileged mode |
+| `SKY-D410` | Host Namespace Sharing | HIGH | Kubernetes YAML | A workload explicitly enables `hostPID`, `hostIPC` or `hostNetwork` |
+| `SKY-D411` | Sensitive Host Path Mounted | HIGH | Kubernetes YAML | A container actually mounts a sensitive host directory or container-runtime socket |
+
+These are source review findings. Skylos reads bounded literal YAML, including
+multi-document files and `v1/List`, without deploying manifests or contacting a
+cluster. File and policy outcomes appear in
+`analysis_summary.configuration_coverage.kubernetes`. Unknown is not safe;
+explicitly required unresolved policies produce an analysis error. Helm
+rendering, arbitrary custom workloads, Windows host paths and admission-time
+mutations are outside this scope.
 
 #### AI Defects
 
@@ -3400,6 +3426,130 @@ resource includes a literal encryption setting. Unknown instance expansion or
 provider identity also prevents a safe/unsafe conclusion; zero declared
 instances are `not_applicable`. This rule does not query RDS, validate every
 provider argument, or establish a full database-security policy.
+
+---
+
+### SKY-D402 · Public S3 Canned ACL
+
+**HIGH · Terraform/AWS · Review.** Reports `public-read`, `public-read-write`
+or `authenticated-read` on `aws_s3_bucket` and `aws_s3_bucket_acl`.
+`authenticated-read` grants access to all AWS accounts, rather than only the
+bucket owner's organization. Matching declared public-access blocks leave the
+effective grant unknown. Explicit grants and unresolved ACL expressions are
+outside the canned-ACL model.
+
+Prefer private access or a narrowly scoped bucket policy. This finding describes
+the requested ACL; ownership settings and account-level controls may prevent it
+from taking effect. See [AWS canned ACLs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html#canned-acl).
+
+### SKY-D403 · Public S3 Bucket Policy
+
+**HIGH · Terraform/AWS · Review.** Reports an unconditional broad S3 grant to
+`Principal: "*"` or an AWS wildcard principal in a bounded literal bucket policy.
+Literal JSON strings and literal `jsonencode` objects are supported. The declared
+bucket and resource ARN must match when the policy names a bucket.
+
+Conditions, Deny statements, negated fields, dynamic principals/resources,
+unsupported actions and malformed or over-budget policy data remain unknown.
+The evaluator does not execute expressions or perform general IAM authorization
+analysis. A matching declared public-access block also keeps effective access
+unknown. Restrict the principal and permitted actions, then review
+[S3 public-access controls](https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html).
+
+### SKY-D404 · S3 Public Access Protection Disabled
+
+**HIGH · Terraform/AWS · Review.** Reports a bucket public-access-block
+declaration explicitly setting any of `block_public_acls`, `ignore_public_acls`,
+`block_public_policy` or `restrict_public_buckets` to false.
+
+Enable all four protections unless the exception has been reviewed. Disabling
+one protection does not itself grant access, and more restrictive account or
+organization settings can still block public requests. Omitted or unresolved
+values do not establish safe protection.
+
+### SKY-D405 · RDS Public Accessibility Enabled
+
+**HIGH · Terraform/AWS · Review.** Reports `publicly_accessible = true` on
+`aws_db_instance`. Prefer private accessibility for databases that do not require
+public addressing. Routes, public IP assignment, security groups and database
+authentication are separate controls; the finding does not prove live access.
+An omitted or unresolved value remains unknown.
+
+### SKY-D406 · EBS Encryption Disabled
+
+**HIGH · Terraform/AWS · Review.** Reports an explicit `encrypted = false`
+request for a new `aws_ebs_volume`. Set `encrypted = true`. Snapshot inheritance
+and conflicting or unresolved KMS/encryption declarations remain unknown.
+[Account encryption defaults](https://docs.aws.amazon.com/ebs/latest/userguide/encryption-by-default.html)
+can override the request, so this is not an observation of an unencrypted live
+volume.
+
+### SKY-D407 · Optional EC2 Metadata Tokens
+
+**HIGH · Terraform/AWS · Review.** Reports a literal `metadata_options` block
+setting `http_tokens = "optional"` on `aws_instance` or `aws_launch_template`.
+Prefer `http_tokens = "required"` to require IMDSv2 tokens. An explicitly disabled
+metadata endpoint is exempt. Omitted, dynamic or ambiguous metadata settings
+remain unknown. A single nested block in `.tf.json` can be written as an object
+or a one-element array. See [EC2 metadata options](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-options.html).
+
+### SKY-D408 · Worldwide Database Ingress
+
+**HIGH · Terraform/AWS · Review.** Reports worldwide TCP ingress on database or
+cache ports 1433, 1521, 3306, 5432, 6379, 9042, 9200, 11211, 27017 or 27018.
+Supports the same inline and standalone security-group forms, IPv4/IPv6 CIDR
+unions and all-protocol rules as `SKY-D400`.
+
+Restrict the source or remove the public database port. Egress and protocols or
+port ranges excluding these services do not trigger this rule. Unsupported
+sources, invalid declarations and runtime expressions remain unknown. A rule
+allowing all ports can produce both administrative-ingress and database-ingress
+findings; they describe different policy violations.
+
+### SKY-D409 · Privileged Kubernetes Container
+
+**HIGH · Kubernetes YAML · Review.** Reports an explicit boolean
+`securityContext.privileged: true` on a container, init container or ephemeral
+container in a supported Pod specification. Remove privileged mode or document
+the workload's required exception.
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: review-example
+spec:
+  containers:
+    - name: worker
+      image: busybox:1.37
+      securityContext:
+        privileged: true
+```
+
+This policy does not infer privileged mode from image names, root UID or added
+capabilities. Non-boolean or templated values remain unknown.
+
+### SKY-D410 · Kubernetes Host Namespace Sharing
+
+**HIGH · Kubernetes YAML · Review.** Reports explicit `hostPID: true`,
+`hostIPC: true` or `hostNetwork: true` in a supported Pod specification. These
+settings share host namespaces with the workload. Disable unneeded sharing;
+node agents and other intentionally privileged workloads require review rather
+than an assumption that every occurrence is exploitable.
+
+### SKY-D411 · Sensitive Kubernetes Host Path Mounted
+
+**HIGH · Kubernetes YAML · Review.** Connects a declared `hostPath` volume to
+an actual container mount. Reports the host filesystem root, sensitive host
+directories and container-runtime sockets. A declared but unused volume does not
+trigger the rule. Literal `subPath` values are joined to their host source;
+dynamic subpaths and ambiguous volume references stay unknown.
+
+Read-only mounts can still expose host data, and read-only mounting of a Unix socket
+does not disable the API behind that socket. Finding locations retain the mount
+and host-path source lines so changing either side remains visible in diff
+scans. Prefer a narrowly scoped volume or a suitable persistent volume instead.
+See the [Kubernetes Pod Security Standards](https://kubernetes.io/docs/concepts/security/pod-security-standards/).
 
 ---
 
