@@ -610,6 +610,10 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-L037` | Conditional Returning Bool Literals | LOW | A conditional returning `True` and `False` can use a direct Boolean conversion |
 | `SKY-L038` | Conversion Call Inside F-String | LOW | Builtin `str()`, `repr()`, or `ascii()` inside an f-string can use a conversion flag |
 | `SKY-L039` | Except Clause That Only Re-Raises | LOW | A trailing exception handler only re-raises the caught exception |
+| `SKY-L040` | Constant Assertion In Test | LOW | Python review: a literal-only `assert` condition is always true |
+| `SKY-L041` | Empty Test Body | LOW | Python review: a selected test has only a docstring, `pass`, or ellipsis, without known fixture/setup backing |
+| `SKY-L042` | Repeated Test Assertion | LOW | Python review: adjacent identical assertions repeat a check of unchanged, proven builtin values |
+| `SKY-L043` | Sleep Used For Test Synchronization | LOW | Python review: a fixed positive sleep immediately precedes a local `threading.Event` completion assertion |
 
 ### Performance Rules (SKY-P)
 
@@ -4966,6 +4970,124 @@ are excluded.
 
 SKY-L037, SKY-L038, and SKY-L039 respect configured lint ignores for equivalent
 rewrites, so deliberately disabled suggestions are not repeated.
+
+---
+
+### SKY-L040 · Constant Assertion In Test
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | Python |
+| **Kind** | Review |
+| **What** | A selected test contains an `assert` whose literal-only condition is always true |
+| **Risk** | The assertion cannot fail when the behavior under test is wrong |
+
+```python
+def test_total():
+    result = calculate_total([2, 3])
+    assert True  # SKY-L040: this does not inspect result
+```
+
+Replace the placeholder with the intended contract, such as `assert result == 5`.
+The check handles bounded literal-only expressions, including `assert 1 == 1`.
+It does not infer that runtime names, calls, or overloaded comparisons are
+constant, and does not measure the test's overall assertion coverage.
+
+---
+
+### SKY-L041 · Empty Test Body
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | Python |
+| **Kind** | Review |
+| **What** | A selected test body contains only a docstring, `pass`, or ellipsis |
+| **Risk** | A named test may remain a placeholder instead of checking its intended behavior |
+
+```python
+def test_discount():
+    """A ten-percent discount reduces the total."""
+    pass  # SKY-L041
+```
+
+Review the test's fixtures and setup before changing it. If they do not supply
+the intended checks, implement the behavior, for example:
+
+```python
+def test_discount():
+    assert apply_discount(100, percent=10) == 90
+```
+
+Fixture parameters, known `usefixtures`/autouse fixtures, local setup/teardown
+hooks, and possible ancestor `conftest.py` fixtures prevent this finding.
+External plugin behavior is not modeled. This is a placeholder-body check,
+not a claim that every test without a literal `assert` is empty.
+
+---
+
+### SKY-L042 · Repeated Test Assertion
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | Python |
+| **Kind** | Review |
+| **What** | Adjacent identical assertions check unchanged values proven to be builtin scalars or immutable tuples |
+| **Risk** | Repeating the same observation can leave another intended property unchecked |
+
+```python
+def test_item_count(payload):
+    count = len(payload)
+    assert count == 3
+    assert count == 3  # SKY-L042
+```
+
+Builtin `len` produces the scalar proof in this example. Review whether the
+second assertion should check a different property, such as the payload's
+contents, or whether it should be removed. The detector does not equate
+repeated property reads, unknown objects with custom equality, or assertions
+separated by calls or mutations. Different assertion messages remain distinct.
+
+---
+
+### SKY-L043 · Sleep Used For Test Synchronization
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | Python |
+| **Kind** | Review |
+| **What** | A fixed positive `time.sleep` immediately precedes a completion assertion on a locally constructed `threading.Event` |
+| **Risk** | A fixed delay guesses when work finishes and can become flaky under different scheduling |
+
+```python
+from threading import Event, Thread
+from time import sleep
+
+def test_job_completes():
+    complete = Event()
+    worker = Thread(target=complete.set)
+    worker.start()
+    sleep(0.05)  # SKY-L043
+    assert complete.is_set()
+    worker.join(timeout=1)
+```
+
+Review replacing the sleep and completion assertion with an explicit bounded
+wait that checks its result, such as `assert complete.wait(timeout=1)`, while
+preserving worker cleanup. The rule requires stable standard-library bindings
+and a local Event; arbitrary sleeps are not findings. Timing-oriented names or
+clock measurements, unknown/rebound Event objects, and namespace mutation can
+make the check abstain. It does not verify runtime scheduling or external patches.
+
+These four checks require a CLI build containing `SKY-L040`–`SKY-L043`.
+They run with `--quality` and appear as LOW review tasks in
+[`skylos cleanup`](./cleanup.mdx#review-python-test-quality). They select directly
+declared Python tests using configured pytest collection or proven unittest
+bases, and exclude skipped/xfail scopes, opt-outs, unknown wrappers and golden
+fixtures. They neither infer AI authorship nor provide automatic edits.
 
 ---
 

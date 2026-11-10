@@ -50,6 +50,38 @@ and retains the complete inventory in local history. A finding in a changed
 file can predate your edit; this is a review selection, not proof of a new
 defect. Saved reports cannot provide this live diff context.
 
+## Review Python test quality
+
+**Preview:** requires a CLI build containing `SKY-L040`–`SKY-L043`;
+older installed versions do not emit these findings.
+
+Quality scans include four bounded checks for selected Python pytest and
+unittest tests. They emit **LOW review findings**, which enter the cleanup task
+queue for manual review:
+
+| Rule | Evidence to review |
+| --- | --- |
+| [SKY-L040](./rules-reference.mdx#sky-l040--constant-assertion-in-test) | A literal-only assertion is always true and cannot check a failure |
+| [SKY-L041](./rules-reference.mdx#sky-l041--empty-test-body) | A test has only a docstring, `pass`, or ellipsis, without known fixture/setup backing |
+| [SKY-L042](./rules-reference.mdx#sky-l042--repeated-test-assertion) | Adjacent identical assertions repeat a check of unchanged, proven builtin values |
+| [SKY-L043](./rules-reference.mdx#sky-l043--sleep-used-for-test-synchronization) | A fixed sleep immediately precedes a local Event completion assertion |
+
+```bash
+skylos . --quality
+skylos . --quality --format json
+skylos cleanup . --top 5 --context
+```
+
+These commands inspect source without running tests or requesting model review.
+The selector respects configured pytest collection, skipped/xfail scopes and
+test opt-outs. Unknown wrappers, helper scopes and golden fixtures do not become
+test subjects. Fixture arguments, local hooks, known autouse/usefixtures marks,
+and possible ancestor `conftest.py` checks prevent empty-body findings.
+
+Review the intended behavior and make any change manually, then rescan the same
+scope. These checks do not establish AI authorship, general assertion coverage,
+or passing runtime behavior, and have no supported automatic cleanup edit.
+
 ## Preview and apply one task
 
 Use an ID from the report. Human output shows unique prefixes; JSON contains
