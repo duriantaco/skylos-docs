@@ -4938,6 +4938,11 @@ message = f"Value: {value!s}"
 
 Use `!r` for `repr()` and `!a` for `ascii()`. The rule verifies builtin
 bindings and accounts for format specifiers before suggesting a rewrite.
+Debug fields such as `{str(value)=:>8}` are excluded: replacing the expression
+would change its displayed label. The detector requires source text proving an
+ordinary field, and cleanup binds the rewrite to the exact conversion call.
+These protections require a CLI build containing the preview changes in
+[PR #1207](https://github.com/duriantaco/skylos/pull/1207).
 
 This is optional style advice. The finding remains in JSON with listing
 metadata; use `--all-advice` or explicitly select the rule to show it and

@@ -14,6 +14,10 @@ assign an AI-authorship score.
 
 These options describe current development source. Check
 `skylos cleanup --help` in your installed release before using a new option.
+The stricter Python replacement verification and test reachability/collection
+handling described below are preview changes in
+[PR #1207](https://github.com/duriantaco/skylos/pull/1207) and require a CLI build
+containing those changes.
 
 The default scan leaves source unchanged and saves task history locally.
 Tests run only with `--test-cmd`; model review runs only with `--review`.
@@ -77,6 +81,9 @@ The selector respects configured pytest collection, skipped/xfail scopes and
 test opt-outs. Unknown wrappers, helper scopes and golden fixtures do not become
 test subjects. Fixture arguments, local hooks, known autouse/usefixtures marks,
 and possible ancestor `conftest.py` checks prevent empty-body findings.
+Proven loop jumps and returns keep unreachable statements out of test-quality
+advice. Collection metadata changes apply to the affected test while preserving
+eligible sibling tests.
 
 Review the intended behavior and make any change manually, then rescan the same
 scope. These checks do not establish AI authorship, general assertion coverage,
@@ -112,7 +119,7 @@ Supported edits are limited to these cases:
 | --- | --- | --- |
 | `SKY-U001` in Python | Delete a conservatively matched unused function | Decorators, defaults, annotations, ambiguous source anchors or uncertain use |
 | `SKY-U002` in Python | Delete an unused `import` statement from an allowlist of standard-library modules | Local or third-party imports, `from` imports, possible project shadowing or other import effects |
-| `SKY-L038` in Python | Simplify a proven f-string conversion, such as `str(value)` to `!s` | A rewrite the detector cannot freshly prove, including shadowed builtins |
+| `SKY-L038` in Python | Simplify a proven f-string conversion, such as `str(value)` to `!s` | A rewrite the detector cannot freshly prove, including shadowed builtins and debug fields whose expression text contributes to output |
 | `SKY-U002` in TypeScript/TSX | Remove one explicit unused named `import type` binding from a same-directory local provider | Value or mixed imports, ambient declarations, ambiguous providers and unsupported module resolution |
 
 The patch is bound to the exact scanned source and is revalidated before
@@ -144,9 +151,13 @@ passing test result.
 
 An opaque command exiting zero is insufficient for `verified`: passing tests
 must be observed through fresh JUnit results. Test count, evidence type and
-whether changed Python lines were exercised remain separate. Unrelated passing
-tests do not show that the changed code ran; deletion-only edits or unavailable
-tracing can leave exercise unknown.
+whether changed Python lines were exercised remain separate. A Python replacement
+stays `applied_unverified` when tracing shows that its changed lines were not
+exercised. Unknown exercise requires a completed bounded source-effect proof
+before the replacement can be verified. An affirmative tracing miss is never
+overridden by that model. Deletion-only edits have no replacement lines to trace;
+their verification is limited to observed tests and the comparable rescan, and
+the receipt records that limitation.
 
 Apply checks include static security and secrets analysis before and after the
 edit, alongside quality, AI-code and dead-code checks. They do not enable
