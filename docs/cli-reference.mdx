@@ -51,7 +51,7 @@ installed family map and `skylos <family> --help` for its real parser options.
 | `skylos verify [path]` | Scan source for AI-code mistakes and separately model supported Python working changes |
 | `skylos preflight [ARTIFACT]` | Check an exact local built GPU artifact against its fleet; OCI is `UNKNOWN` in the CLI |
 | `skylos done [map\|receipt]` | Run the tests and completion checks on a change, show the change map (`map`), or print the latest receipt (`receipt`) |
-| `skylos cleanup [path]` | Review prioritized tasks, preview supported Python edits, and explicitly apply and check a selected patch |
+| `skylos cleanup [path]` | Review findings, organize local plans, preview supported edits, and explicitly apply and check a selected patch |
 | `skylos clean [path]` | Preview or apply Python import/function cleanup |
 | `skylos review [path]` | Record and manage local finding decisions |
 | `skylos baseline [path]` | Save the current finding baseline |
@@ -708,13 +708,14 @@ Interactive mode requires the `inquirer` package.
 
 ## Skylos Cleanup
 
-`skylos cleanup` combines a prioritized work queue, local history and limited
-deterministic edits. The default scan leaves source unchanged. Preview a patch
+`skylos cleanup` combines existing detector evidence with a prioritized queue,
+local history, named plans and limited deterministic edits. The default scan leaves source unchanged. Preview a patch
 for a selected task, then explicitly apply it and request the relevant tests:
 
 ```bash
 skylos cleanup . --top 5
 skylos cleanup . --next
+skylos cleanup . --diff origin/main --context
 skylos cleanup . --task TASK_ID
 skylos cleanup . --task TASK_ID --apply --test-cmd "pytest -q test/test_orders.py"
 skylos cleanup . --defer TASK_ID --reason "Review public callers first"
@@ -727,34 +728,54 @@ skylos cleanup . --history --format json
 | `--format human` / `--format json` | Human output by default, or machine-readable JSON |
 | `--top N` | Positive display limit for each queue; default `10` |
 | `--all-advice` | Include optional maintainability advice |
+| `--diff BASE` | Scan the full Git project and display tasks in changed files; does not prove each finding is new |
 | `--from-report REPORT` | Reuse analyzer JSON without rescanning; supply the original scan root as the path |
 | `--next` | Show the next open task, or advice when no task is available |
 | `--task ID` | Preview a supported deterministic patch; a unique task-ID prefix is accepted |
 | `--apply` | Apply the selected patch and statically rescan; requires `--task` |
 | `--test-cmd COMMAND` | Explicitly authorize this test command after applying; no shell interpretation |
+| `--junit-report PATH` | Read the authorized runner's fresh project-relative JUnit report; pytest produces one automatically |
 | `--defer ID --reason TEXT` | Defer local work without changing raw findings or gate policy |
 | `--restore ID` | Return deferred work to the open queue |
 | `--history` | Read local cleanup history without scanning |
 | `--no-state` | Disable reading and writing cleanup history |
-| `--context` | Add bounded Python excerpts, imports and candidate callers, respecting exclusions |
+| `--create-plan NAME --plan-task ID` | Create an ordered local plan; repeat `--plan-task` for Python anchored tasks |
+| `--prerequisite TEXT`, `--acceptance-check TEXT` | Store plan requirements as text; never executes them |
+| `--plan NAME`, `--plans` | Inspect one plan or list local plans |
+| `--move-task ID --before ID` | Reorder work in the selected plan |
+| `--complete-task ID --note TEXT` | Record manual, unverified completion; stale steps require a note |
+| `--context` | Add bounded source lines, static graph impact, candidate callers and suggested test files |
 | `--review` | Send bounded context to the configured model for separately labeled advice |
+| `--reviews` | Read saved cited advice with current/stale source status |
+| `--promote-review ID` | Explicitly add current saved advice to the selected plan, retaining its advice label |
 | `--model`, `--provider`, `--base-url` | Configure the optional model review |
 
 `ready` means work exists; `clear` means no visible work in the recorded scope.
-Both exit `0`. Execution reports `verified` only when explicitly requested tests
+Both exit `0`. Execution reports `verified` only when fresh observed tests
 pass and a complete comparable rescan removes the target without new defects
 or high-severity review findings. Skipped tests leave `applied_unverified`.
 Unavailable checks produce `incomplete` and exit `2`; invalid input also exits
 `2`. Failed checks exit `1` and attempt rollback while preserving intervening
 file changes. Read the test, rescan and rollback receipts. These are recorded
 checks, not universal behavioral proof or a security verdict.
+An opaque exit zero is insufficient: tests must be observed through fresh JUnit
+results. Test count and whether changed code was exercised remain separate.
+Apply scans check security/secrets as well as quality/AI-code/dead code; they do
+not enable dependency registry checks.
 
-Edits support conservative Python `SKY-U001`, `SKY-U002` and `SKY-L038` cases
-only; unsupported or ambiguous cases require manual review. Local history is
+Edits support conservative Python `SKY-U001`, `SKY-U002` and `SKY-L038` cases,
+plus a narrow TypeScript/TSX same-directory singleton named `import type`
+removal. Unsupported or ambiguous cases require manual review; no compiler or
+package script runs by default. Named plans currently require Python anchors.
+Local history is
 stored in `.skylos/cache/cleanup.json`; absence becomes `not_reported`, not a
 verified fix. Saved reports cannot authorize edits, model review or history
 changes. `--review` is separate from patch application and requires the LLM
 extra and provider configuration. See [Cleanup](./cleanup) for the full workflow.
+Saved reviews retain citations, model/provider and source hashes unless
+`--no-state` is selected. Advice never authorizes edits or verifies a fix.
+Check installed `skylos cleanup --help`: new options describe current source and
+may not yet be in your packaged release.
 
 The separate `skylos clean` command below retains its Python dead-code workflow.
 

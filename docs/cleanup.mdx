@@ -1,11 +1,19 @@
 ---
 title: "Skylos cleanup"
-description: "Work through findings with local history, supported Python patches, optional context review, and explicit test and rescan receipts."
+description: "Review detector evidence, organize local plans, preview supported edits, and record observed tests and comparable rescans."
 ---
 
 `skylos cleanup` turns quality, AI-code and dead-code findings into a focused
 workflow: choose a task, inspect its evidence, preview a supported patch,
 apply it explicitly, and check the result.
+
+Detection comes from Skylos's existing rule engines. Cleanup adds the work
+queue, source context, ordered plans and explicit edit/check loop. Each task
+names a rule, file, line and reason; it does not identify who wrote the code or
+assign an AI-authorship score.
+
+These options describe current development source. Check
+`skylos cleanup --help` in your installed release before using a new option.
 
 The default scan leaves source unchanged and saves task history locally.
 Tests run only with `--test-cmd`; model review runs only with `--review`.
@@ -20,6 +28,7 @@ skylos cleanup . --next
 skylos cleanup . --top 5
 skylos cleanup src --format json
 skylos cleanup . --all-advice
+skylos cleanup . --diff origin/main --context
 ```
 
 The path defaults to `.`. Human output is the default; `--format json` supports
@@ -34,6 +43,12 @@ severity or gate policy. JSON retains the original finding under `finding`.
 Tasks include a rule, location, severity, finding purpose, original evidence
 and suggested next action. Related items are grouped by rule and directory;
 that grouping helps review and does not prove a shared root cause.
+
+`--diff BASE` scans the full Git project and selects tasks in changed files,
+including staged, unstaged and untracked source. It pins the Git comparison
+and retains the complete inventory in local history. A finding in a changed
+file can predate your edit; this is a review selection, not proof of a new
+defect. Saved reports cannot provide this live diff context.
 
 ## Preview and apply one task
 
@@ -51,17 +66,32 @@ and rescans the same target. Choose a test command for the affected behavior;
 it runs without shell interpretation. Check callers, entry points and dynamic
 use before accepting dead-code removal.
 
-Supported edits are limited to these Python `.py` cases:
+Pytest test runs produce fresh JUnit evidence automatically. For another
+runner, have the authorized command write a report and supply its relative path:
+
+```bash
+skylos cleanup . --task TASK_ID --apply \
+  --test-cmd "YOUR_RUNNER_WITH_JUNIT_OUTPUT" --junit-report reports/tests.xml
+```
+
+Supported edits are limited to these cases:
 
 | Rule | Supported change | Cases requiring manual review |
 | --- | --- | --- |
-| `SKY-U001` | Delete a conservatively matched unused function | Decorators, defaults, annotations, ambiguous source anchors or uncertain use |
-| `SKY-U002` | Delete an unused `import` statement from an allowlist of standard-library modules | Local or third-party imports, `from` imports, possible project shadowing or other import effects |
-| `SKY-L038` | Simplify a proven f-string conversion, such as `str(value)` to `!s` | A rewrite the detector cannot freshly prove, including shadowed builtins |
+| `SKY-U001` in Python | Delete a conservatively matched unused function | Decorators, defaults, annotations, ambiguous source anchors or uncertain use |
+| `SKY-U002` in Python | Delete an unused `import` statement from an allowlist of standard-library modules | Local or third-party imports, `from` imports, possible project shadowing or other import effects |
+| `SKY-L038` in Python | Simplify a proven f-string conversion, such as `str(value)` to `!s` | A rewrite the detector cannot freshly prove, including shadowed builtins |
+| `SKY-U002` in TypeScript/TSX | Remove one explicit unused named `import type` binding from a same-directory local provider | Value or mixed imports, ambient declarations, ambiguous providers and unsupported module resolution |
 
 The patch is bound to the exact scanned source and is revalidated before
 writing. A stale or unsupported task must be rescanned or changed manually.
 This command does not provide general automatic refactoring.
+
+The TypeScript subset requires a supported local tsconfig, another module
+marker and a self-contained structural type provider. Provider/configuration
+hashes and resolution alternatives are checked again before application and
+after checks. Other TypeScript tasks remain review work. No compiler, runtime
+or package script runs by default.
 
 ## Read verification receipts
 
@@ -70,7 +100,7 @@ when the command completes successfully.
 
 | Execution status | Meaning |
 | --- | --- |
-| `verified` | Explicitly requested tests passed and a complete comparable rescan removed the target without new defects or high-severity review findings |
+| `verified` | Fresh observed tests passed and a complete comparable rescan removed the target without new defects or high-severity review findings |
 | `applied_unverified` | The patch remains applied, but the required verification evidence is missing, such as skipped tests |
 | `incomplete` | A requested check or comparable rescan could not complete; inspect the receipt and current file |
 | `failed` | A check failed; inspect the rollback receipt to see whether the original source was restored |
@@ -79,6 +109,18 @@ when the command completes successfully.
 Rollback only replaces a file that still matches the applied patch, so an
 intervening edit is preserved. A finding disappearing by itself is not a
 passing test result.
+
+An opaque command exiting zero is insufficient for `verified`: passing tests
+must be observed through fresh JUnit results. Test count, evidence type and
+whether changed Python lines were exercised remain separate. Unrelated passing
+tests do not show that the changed code ran; deletion-only edits or unavailable
+tracing can leave exercise unknown.
+
+Apply checks include static security and secrets analysis before and after the
+edit, alongside quality, AI-code and dead-code checks. They do not enable
+dependency registry checks. Receipts record the categories checked. A bounded
+Python source-effect model can report equivalence, differences or unknowns;
+it does not execute the program or establish general runtime equivalence.
 
 ## Keep local work history
 
@@ -104,22 +146,54 @@ On platforms without the guarded filesystem operations needed for history,
 use `--no-state` to build the queue. Deterministic edits also require those
 operations and remain unavailable there.
 
+## Organize an ordered local plan
+
+```bash
+skylos cleanup . --create-plan imports --plan-task FIRST_ID --plan-task SECOND_ID \
+  --prerequisite "Review public callers" --acceptance-check "pytest -q"
+skylos cleanup . --plan imports
+skylos cleanup . --plan imports --move-task SECOND_ID --before FIRST_ID
+skylos cleanup . --plan imports --complete-task FIRST_ID --note "Reviewed manually"
+skylos cleanup . --plans
+```
+
+A plan stores explicitly selected anchored tasks in your chosen order and scope.
+Named plans currently require Python syntax anchors; supported TypeScript
+import edits can be selected directly with `--task`. Source changes can make a
+step stale. A missing finding never completes it, and manual completion stays
+unverified. Stale completion requires a note.
+
+Prerequisites and acceptance checks are recorded text. Adding a command there
+does not execute or authorize it.
+
 ## Add source context or model review
 
 ```bash
 skylos cleanup . --context --format json
 skylos cleanup . --review --provider anthropic --model YOUR_MODEL
+skylos cleanup . --reviews
+skylos cleanup . --plan imports --promote-review REVIEW_ID
 ```
 
-`--context` includes bounded Python excerpts, imports and candidate callers,
-respecting scan exclusions. Caller-name matches are candidates that need
-binding and dynamic-use review. Other languages retain their scanner evidence.
+`--context` includes bounded Python and TypeScript/JavaScript excerpts, static
+graph impact, candidate callers and suggested test files while respecting scan
+exclusions. Human output marks the reported line among nearby source lines.
+Source-resolved relationships and simple-name candidates stay distinct;
+neither proves runtime reachability. Suggested tests do not authorize execution.
+Graph coverage and budget limits remain visible. Other languages retain their
+scanner evidence.
 
 `--review` sends the bounded context to the configured model and returns
 separately labeled subjective advice with source citations. It requires the
 LLM extra and provider configuration; hosted providers may charge for calls.
 Use `--model`, `--provider` and `--base-url` to select the model setup. Model
 review is separate from patch application and does not authorize source edits.
+
+Completed reviews persist locally with citations, model/provider details and
+source/context hashes unless `--no-state` is set. `--reviews` distinguishes
+current and stale advice. Explicit promotion adds current advice to a named
+plan as `review_advice`; it cannot create a scanner defect, authorize an edit
+or count as verification evidence.
 
 ## Reuse a saved report
 
@@ -144,8 +218,8 @@ model review or history changes; those operations require a live scan.
 Invalid input also exits `2`. An explicit edit whose checks fail exits `1`.
 Exit `0` alone does not establish that tests ran. These statuses describe the
 operation and recorded scope, not a security verdict. Language coverage follows
-the underlying analyzers, while deterministic edits have the narrower Python
-limits above.
+the underlying analyzers, while deterministic edits have the narrower limits
+above.
 
 The separate `skylos clean` command previews or applies Python unused-import
 and unused-function edits. See [CLI Reference](./cli-reference#deterministic-cleanup).
@@ -158,7 +232,9 @@ Upload through the existing scan flow:
 skylos . --quality --ai-defects --upload
 ```
 
-The Cloud Cleanup workspace projects tasks from the latest native code scan.
+The Cloud Cleanup workspace projects tasks from a selected native code scan,
+defaulting to the latest available source. Choose a branch/source scan and an
+optional comparison independently of an active removal PR's original source.
 Choose a current task or move to the next one. Related work uses the existing
 issue group, or the same rule and folder when no shared issue is recorded.
 Review whether a shared fix actually applies.
@@ -177,5 +253,29 @@ comparable follow-up scans determine whether the issue is still reported.
 Existing constrained removal-PR eligibility remains separate from task
 visibility. The broader workspace does not automatically rewrite every task.
 CLI observation IDs do not authorize Cloud resolutions.
+
+Explicit scan uploads can also include up to 20 valid local cleanup outcome
+receipts from the Git root and selected upload root. If cleanup ran in a
+subdirectory, upload that same path to include its receipts. This metadata
+contains allowlisted IDs, relative paths, hashes and check outcomes; it excludes
+test commands, logs and source excerpts. Normal uploaded findings retain their
+own evidence policy.
+
+Cloud displays these as **client claims**, including recorded test counts,
+changed-code exercise and actual checked categories. A working-tree result
+remains unbound; committing later does not rebind its old test evidence. Even
+a reported clean outcome head matching the upload does not independently prove
+test execution, coverage or behavior preservation. CI identity identifies the
+uploader, not whether those checks ran. Receipts alone never pass a gate or
+resolve an issue.
+
+Comparable progress uses complete raw inventories, including optional and
+suppressed findings, and requires compatible recorded scope, root, version,
+check profile, analyzer configuration claims and trusted source scans. Missing
+evidence shows **Progress not checked**, with unknown counts. A Done
+check-policy digest does not establish analyzer configuration equivalence.
+Covered disappearance is **not reported**, separate from behavior verification
+and shared issue resolution. These Cloud source changes require the normal
+application deployment before they appear on the hosted site.
 
 Check `skylos cleanup --help` after installing a release that includes this command.

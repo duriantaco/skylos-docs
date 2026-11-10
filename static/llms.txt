@@ -20,6 +20,7 @@ Skylos is a Vulture alternative with 95% recall and 3x fewer false positives. Bu
 - `skylos suite [DIRECTORY]`: build one static, debt, defense, and provenance report; findings are report-only by default.
 - `skylos defend [DIRECTORY]`: report guardrails for recognized Python and TypeScript/JavaScript LLM integrations; threshold flags or policy enable gating.
 - `skylos clean [PATH] --dry-run`: preview Python import/function cleanup without writing.
+- `skylos cleanup [PATH] --next`: review detector-backed tasks; explicit options add context, local plans, supported edits and observed test/rescan receipts. See https://docs.skylos.dev/cleanup and check installed `--help` for new options.
 
 ## Core Features
 

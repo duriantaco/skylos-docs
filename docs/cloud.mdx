@@ -298,12 +298,20 @@ When you upload a scan with `skylos cloud` or `--upload`, Skylos Cloud receives 
 | git author email of each flagged line | |
 | a map of your functions and classes (names, files, lines, sizes, which calls which) | |
 | summary counts and gate data | |
+| optional cleanup outcome receipts: bounded IDs, relative paths, source/applied hashes, scanner/config scope and test/rescan/rollback observations | cleanup test commands, raw test logs or source excerpts inside those receipts |
 | with dependency checks on: each package's ecosystem, name, version, direct/dev flag and manifest path, plus the supply-chain posture checks | |
 | with dependency checks on: each CI job's triggers, runner, permissions, secret names (never values), installs, commands that may install packages out of sight (such as `make`, `docker build` or a repository script), download hosts (never full URLs) and publish steps, and committed agent hooks and MCP servers with commands redacted. These come from the repository top, also when you scan a subfolder | |
 
 Uploaded findings can include security-sensitive metadata and contextual evidence needed to explain results. Treat cloud scan results as sensitive security data even though Skylos does not upload the full repo as source blobs during normal scan upload.
 
 Scanner-comparison receipts are narrower than normal scan uploads: scanner messages, source snippets, fingerprints, and absolute local paths remain local. Cloud receives aggregate evidence and repository-relative review metadata only.
+
+Cleanup receipts are also bounded client observations. Explicit uploads look at
+the Git root and selected upload root; upload the same subdirectory used for
+cleanup to include that scope's receipts. A later commit does not rebind earlier
+working-tree checks. Cloud keeps upload identity, reported checks and scanner
+resolution separate. See [Cleanup](./cleanup#cloud-cleanup-workspace) for task
+source selection, outcome evidence and comparable-progress limits.
 
 ## Next Step
 

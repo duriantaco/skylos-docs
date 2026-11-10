@@ -11,7 +11,7 @@ Documentation for Skylos - a static analysis tool for Python, TypeScript, JavaSc
 | [中文文档](docs/zh-cn/index.mdx) | Chinese docs entry point |
 | [Installation](docs/installation.mdx) | Setup and configuration |
 | [CLI Reference](docs/cli-reference.mdx) | Command chooser, commands, flags, and exit codes |
-| [Cleanup](docs/cleanup.mdx) | Prioritize findings, preview supported Python edits, and record test and rescan receipts |
+| [Cleanup](docs/cleanup.mdx) | Review detector evidence, organize local plans, preview supported edits, and record observed checks |
 | [Release Reliability](docs/release-reliability.mdx) | Source GPU contracts and exact built-artifact preflight |
 | [AI Features](docs/ai-features.mdx) | In-loop verification, AI remediation, local LLM setup |
 | [Why Skylos](docs/why-skylos.mdx) | Comparison with other tools |
@@ -63,7 +63,7 @@ for this chooser or `skylos commands` for the installed command-family map.
 ### Fix
 | Doc | Description |
 |-----|-------------|
-| [Cleanup](docs/cleanup.mdx) | Task IDs, local history, limited deterministic edits, optional context review, and verification receipts |
+| [Cleanup](docs/cleanup.mdx) | Task IDs, source context, local plans, constrained edits, cited advice, and test/rescan evidence |
 | [AI Features](docs/ai-features.mdx) | `skylos agent scan`, `skylos verify`, and verification-backed remediation |
 | [MCP Server](docs/mcp-server.mdx) | Agent-callable tools including `verify_change` for AI-code trust checks |
 
