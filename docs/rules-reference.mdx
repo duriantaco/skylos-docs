@@ -311,6 +311,17 @@ Dockerfile `RUN` instructions, and selected Dockerfile build inputs.
 | `SKY-D348` | Insecure Temporary Filename | HIGH | `tempfile.mktemp()` creates a predictable filename without securely creating the file, allowing race-condition attacks |
 | `SKY-D349` | Server-Side Template Injection | CRITICAL | Untrusted input reaches a template engine as template source (for example Flask `render_template_string` or Jinja2 `Environment.from_string`), letting an attacker run code on the server |
 
+Skylos 5.5.0 and 5.6.0 can incorrectly report `SKY-D340` in release-only
+GitHub Actions workflows. The recognition described here is part of the pending
+fix for this behavior. [Issue #1212](https://github.com/duriantaco/skylos/issues/1212)
+
+With that fix, `SKY-D340` recognizes workflows triggered only by `release`,
+including `types: [published]`, and publishing steps whose own or enclosing job's
+`if` condition requires `github.event_name == 'release'`. With `&&`, at least one
+condition must require release. With `||`, every branch must require it. Mixed
+triggers need a release guard on the publishing job or step. Ambiguous or
+unsupported conditions keep the warning. Other security checks still run.
+
 #### GitHub Actions / CI/CD Security
 
 These rules scan `.github/workflows/*.yml`, `.github/workflows/*.yaml`,
