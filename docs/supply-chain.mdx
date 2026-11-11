@@ -114,9 +114,9 @@ or written, so a repository can't supply its own answers. The GitHub workflow
 Other CI systems need their own cache of that path, otherwise a fresh runner
 has nothing saved.
 
-### How Each Package Is Used (Unreleased)
+### How Each Package Is Used
 
-In the next Skylos release, PyPI advisories carry
+PyPI advisories carry
 `metadata.reachability_tier`, and terminal output shows it in a **Use** column:
 
 | Tier | Shown as | Meaning |
@@ -130,7 +130,30 @@ In the next Skylos release, PyPI advisories carry
 Packages sort by severity and, within a severity, what the code uses first.
 `no import found` and `not reached` sort last. Nothing is hidden and the gate
 counts every advisory: "no import found" isn't proof of safety, because a
-package can run without an import. Other ecosystems show `not analyzed`.
+package can run without an import.
+
+### JS/TS Imports For npm Advisories
+
+From Skylos 5.6.0, `--sca` can show where selected JavaScript and TypeScript
+files import a directly declared npm dependency with an advisory. Skylos matches
+the import to the exact affected version in a v2 or v3 `package-lock.json` or
+`npm-shrinkwrap.json`. It recognizes static imports, re-exports, literal dynamic
+imports, and unshadowed bare `require()` calls.
+
+The **Use** column shows `JS/TS import at path:line`. JSON, SARIF and Cloud
+upload payloads carry `metadata.import_usage` with up to five source locations.
+The source selection and scan limits appear in
+`analysis_summary.npm_import_usage`.
+
+Type-only imports, missing evidence, unsupported lockfiles, and ambiguous
+resolution stay `unknown`. TypeScript `baseUrl`, inherited configurations,
+matching path aliases, and custom resolvers can leave a match unknown. File and
+changed-file scans collect evidence from their selected source files.
+
+This evidence identifies a static source import and matching lock entry.
+Runtime execution and vulnerable API calls require separate analysis. The gate
+evaluates every advisory at its original severity. Ecosystems without usage
+analysis show `not analyzed`.
 
 ### Package Inventory And Posture
 
