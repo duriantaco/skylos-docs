@@ -87,7 +87,7 @@ If Skylos is installed in a virtual environment, point to the venv Python:
 
 ### Authentication (API Key)
 
-To use all tools and track credit usage, add your API key:
+To use all tools, add your API key:
 
 ```json
 {
@@ -124,16 +124,14 @@ Get your API key from [skylos.dev/dashboard/settings](https://skylos.dev/dashboa
 | `graph_find`, `graph_show`, `graph_impact` | **Free** | No key needed. Runs locally; reads the codebase graph built by `skylos graph` |
 | `graph_areas`, `graph_relevant` | **Free** | No key needed. Runs locally; the codebase's areas, and the code that matters most to the files you are changing |
 | `graph_pending`, `graph_describe` | **Free** | No key needed. Runs locally; your agent writes the plain-English descriptions |
-| `remediate` | **10** | AI-powered fix generation |
+| `remediate` | **Free** | Runs locally; AI fix generation on your own model key. The model cost goes to your provider |
 
 Analysis tools (`analyze`, `security_scan`, `quality_check`, `secrets_scan`,
 `verify_change`, `verify_agent` and `change_map`) run entirely on your machine — they don't cost credits.
-Only the `remediate` tool, which uses LLM-powered fix generation, costs 10
-credits per call.
+The `remediate` tool does not cost credits either. It runs on your machine
+with your own model key, so you pay your model provider directly.
 
-Every plan pays for `remediate` with credits, Enterprise included. Enterprise includes 5,000 credits a year.
-
-See [Billing & Credits](/billing) for pricing and credit packs.
+See [Billing & Credits](/billing) for what does cost credits.
 
 ### Rate Limits
 

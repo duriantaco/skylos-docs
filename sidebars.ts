@@ -50,6 +50,7 @@ const sidebars = {
         { type: 'doc', id: 'project-policy', label: 'Project Policy' },
         { type: 'doc', id: 'custom-rules', label: 'Custom Rules' },
         { type: 'doc', id: 'billing', label: 'Billing & Credits' },
+        { type: 'doc', id: 'compliance-reports', label: 'Compliance Reports' },
       ],
     },
     {

@@ -3,7 +3,7 @@ import type {Config} from '@docusaurus/types';
 
 const config: Config = {
   title: 'Skylos — Dead Code Detection, Vibe Coding Guardrails & SAST',
-  tagline: 'Find dead code, vibe coding defects, prompt injection, and security vulnerabilities. Framework-aware static analysis with 98% recall and 3x fewer false positives than Vulture.',
+  tagline: 'Find dead code, vibe coding defects, prompt injection, and security vulnerabilities. Framework-aware static analysis that runs on your machine.',
   favicon: 'img/favicon-96x96.png',
 
   url: 'https://docs.skylos.dev',
@@ -42,7 +42,7 @@ const config: Config = {
         name: 'Skylos',
         applicationCategory: 'DeveloperApplication',
         operatingSystem: 'Windows, macOS, Linux',
-        offers: { '@type': 'Offer', price: '9', priceCurrency: 'USD' },
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
         description: 'Dead code detection, vibe coding guardrails, prompt injection scanning, and SAST for Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, and Shell. Framework-aware analysis with AI-powered fixes.',
         url: 'https://github.com/duriantaco/skylos',
         downloadUrl: 'https://pypi.org/project/skylos/',
@@ -84,7 +84,7 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           routeBasePath: '/',
-          editUrl: 'https://github.com/duriantaco/skylos/tree/main/docs/',
+          editUrl: 'https://github.com/duriantaco/skylos-docs/tree/main/',
         },
         blog: {
           showReadingTime: true,

@@ -1,0 +1,135 @@
+---
+title: "Compliance Reports"
+description: "What a Skylos Cloud compliance report is, which frameworks it covers, the files you get, how an auditor verifies it, what it costs, and what it does not do."
+---
+
+A compliance report turns the scans stored in Skylos Cloud into evidence
+mapped to the requirements of one framework. It is evidence for an assessor.
+It is not a certificate, and Skylos does not audit you.
+
+For the step-by-step guide with screenshots, see
+[skylos.dev/docs/compliance-reports](https://skylos.dev/docs/compliance-reports).
+
+## What A Report Is
+
+A report covers one framework and the projects you pick. It reads the latest
+trusted CI scan of each project's default branch, your fix deadlines and your
+approved exceptions.
+
+It lists every requirement in Skylos's catalog for that framework, not only
+the ones a Skylos rule maps to. For some frameworks the catalog is a subset:
+PCI DSS, the EU Cyber Resilience Act and others are listed in part. Each
+listed requirement gets a status:
+
+- Open findings
+- No open findings from mapped rules
+- Scan activity recorded
+- Deviation noted
+- Not scanned
+- Not evidenced by static analysis, with the reason
+
+The first page gives one of four results for the Skylos default security
+policy: **Policy met**, **Policy met, fixes due**, **Policy not met** or
+**Not assessed**. The result is about that policy. It is never a statement
+that you meet a framework.
+
+## Frameworks
+
+| Framework | Edition |
+|-----------|---------|
+| SOC 2 Trust Services Criteria | 2017 TSC, revised points of focus 2022 |
+| OWASP Top 10 | 2025 |
+| CWE Top 25 | 2025 |
+| PCI DSS | 4.0.1 (Requirement 6, 8.6.2, and the other principal requirements as single rows) |
+| ISO/IEC 27001 | 2022, Annex A |
+| HIPAA Security Rule | 45 CFR Part 164, Subpart C |
+| NIST Secure Software Development Framework | SP 800-218 v1.1 |
+| EU Cyber Resilience Act | Regulation (EU) 2024/2847, Annex I and parts of Articles 13 and 14 |
+
+The Compliance page in the dashboard shows the current list.
+
+## What You Get
+
+The same stored report downloads in five formats:
+
+- HTML
+- PDF
+- CSV
+- JSON, which is the signed original
+- SARIF
+
+Each report has two editions. The **full** edition contains file paths,
+finding text and exception reasons, so keep it inside your team. The
+**external** edition shows counts only and is the one to send to an auditor
+or a customer.
+
+Every download is free after the report is generated.
+
+## The Verification Link
+
+Each report prints a **Check this copy** link to a public page at
+`skylos.dev/verify/report/<id>`. The page says:
+
+- whether Skylos signed the report
+- whether the record Skylos stores is unchanged
+
+The page checks the record Skylos holds, not the file in your hand. A PDF,
+HTML or CSV copy is not verified by opening the link, so an edited copy can
+carry a working link. The JSON download is the signed original: compare a
+copy against it before relying on the copy.
+
+The page never shows your organization, repositories or findings.
+
+A valid signature shows that Skylos Cloud generated exactly this record at
+the stated time and that the record has not changed. It does not show that
+the code is secure or that any requirement is met.
+
+## The SOC 2 Pre-Assessment
+
+A report for the SOC 2 framework has an extra Part A. It is shaped like
+sections III to V of a SOC 2 Type 2 report:
+
+- a system description, with a Skylos draft where your answers are missing
+- control tests C1 to C6, each with its population and its result
+- deviations, with management's corrective actions
+- a readiness table per criterion
+
+It also includes `merged_prs.csv`, with the Skylos scan, the gate result, any
+override and the approval for each merged pull request.
+
+This is a pre-assessment you prepare before an auditor's work. It is not a
+SOC 2 report from an auditor.
+
+## What It Costs
+
+A report costs **500 credits** on every plan, Free included. It is charged
+once per framework and project selection. Retrying the same request does not
+charge twice.
+
+Checking readiness on the Compliance page is free. If a selected project is
+not ready, the page says so before you pay.
+
+See [Billing & Credits](/billing) for credit packs.
+
+## What Skylos Does Not Do
+
+- It does not certify you, audit you or decide compliance. A qualified assessor, such as a SOC 2 auditor or a PCI QSA, does that.
+- It does not show that the code is secure. No open findings is not the same as no vulnerabilities.
+- It does not cover process, people, physical or infrastructure controls. Most of each framework is made of these. Those rows say "Not evidenced by static analysis" with the reason.
+- The mappings from findings to requirements are Skylos's own.
+
+## What Is Not Recorded
+
+- Uploads that did not come from trusted CI. An unverified upload does not count.
+- Findings hidden inside the scan by inline comments or Skylos config. The report names the scans that did this, but it does not count the hidden findings or show who accepted them. Record accepted risks as exceptions in Skylos Cloud instead.
+- Changes pushed straight to the default branch, without a pull request.
+- Deployed systems, runtime behaviour and deployed configuration.
+- Whether a vulnerable dependency is reachable or exploitable.
+- A software bill of materials. The CLI can write one with `skylos sbom`, but Skylos Cloud does not store it.
+- Merge and deploy dates of fixes. A finding counts as gone at the first trusted scan without it.
+
+## Next Steps
+
+- [Step-by-step guide with screenshots](https://skylos.dev/docs/compliance-reports)
+- [Billing & Credits](/billing)
+- [Enterprise Trust](/enterprise-trust)
