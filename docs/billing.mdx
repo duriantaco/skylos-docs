@@ -1,14 +1,21 @@
 ---
 title: "Billing & Credits"
-description: "Skylos Cloud plans (Free, Workspace, Enterprise), the 14-day trial, credit packs, the Workspace pass, and what costs credits"
+description: "Skylos Cloud plans (Free, Workspace, Growth, Enterprise), yearly prices, the 14-day trial, credit packs, and what costs credits"
 ---
 
-Skylos Cloud has three plans: **Free**, **Workspace** and **Enterprise**.
-There are no subscriptions and no seats. You buy once, and nothing renews by
-itself.
+Skylos Cloud has four plans: **Free**, **Workspace**, **Growth** and
+**Enterprise**. The paid plans have a flat yearly price. Nothing is charged
+by seat, line of code or pull request.
 
-Credits pay for AI and compute actions. Any purchase also turns on the
-Workspace plan for 12 months (see [How the Workspace plan works](#how-the-workspace-plan-works)).
+| Plan | Price | Credits included |
+|------|-------|------------------|
+| **Free** | $0 | Buy packs when you need them |
+| **Workspace** | $3,000 a year | 1,000 a year |
+| **Growth** | $12,000 a year | 3,000 a year |
+| **Enterprise** | From $30,000 a year | 5,000 a year |
+
+Credits pay for AI and compute actions. Workspace and Growth renew each year
+until you turn renewal off (see [How the yearly plans work](#how-the-yearly-plans-work)).
 
 The CLI, the agent hooks and the PR gate in your own CI are free, with no
 account.
@@ -58,38 +65,39 @@ Only compute actions in Skylos Cloud cost credits:
 The MCP `remediate` tool charges its credits before it runs, even with
 `dry_run=True`.
 
-## Credit Packs And The Workspace Pass
+## Credit Packs
 
-| Purchase | Credits | Price | Per credit | Workspace plan |
-|------|---------|-------|------------|------------|
-| **Starter** pack | 50 | $9 | $0.180 | 12 months, up to 3 people |
-| **Builder** pack | 250 | $39 | $0.156 | 12 months, up to 3 people |
-| **Team** pack | 1,000 | $129 | $0.129 | 12 months, up to 3 people |
-| **Scale** pack | 5,000 | $499 | $0.100 | 12 months, up to 3 people |
-| **Workspace pass** | 1,000 | $990 | - | 12 months, unlimited members |
+| Pack | Credits | Price | Per credit |
+|------|---------|-------|------------|
+| **Starter** | 50 | $9 | $0.180 |
+| **Builder** | 250 | $39 | $0.156 |
+| **Team** | 1,000 | $129 | $0.129 |
+| **Scale** | 5,000 | $499 | $0.100 |
+
+A pack is paid once and adds credits. It does not change the plan, and it
+works on every plan, Free included.
 
 "Team" is the name of a credit pack, not a plan.
 
 Credits never expire.
 
-"People" counts members and pending invites, owner included. A workspace with
-more than 3 people needs the Workspace pass. A credit pack bought by such a
-workspace adds credits only.
-
 ---
 
-## How The Workspace Plan Works
+## How The Yearly Plans Work
 
-- Any purchase on Billing turns on the Workspace plan for 12 months from that purchase.
-- If the workspace already has a later end date, it keeps the later one.
-- Nothing renews by itself. There is no subscription to cancel.
-- When the 12 months end, nothing is charged. The workspace moves to Free. Its settings and issues stay, and new scans keep the newest 10 per project.
-- Your credits stay. Buy again to turn the Workspace plan back on.
+- Each payment keeps the plan on for one year and adds that year's credits.
+- The plan renews each year at the same price. Billing shows the renewal date and price.
+- Workspace owners get an email before the paid year ends, with the renewal date and price.
+- You can turn renewal off at any time from **Manage renewal** on Billing. Nothing more is charged, and the plan runs to the end of the year you paid for.
+- When a plan ends, the workspace moves to Free. Its settings and issues stay, and new scans keep the newest 10 per project.
+- Your credits stay.
 
-Workspaces that bought before the 12-month terms keep their old terms.
+Purchases made before 11 November 2026 keep the terms they were sold under.
+A credit pack or Workspace pass bought before then still gives its 12 months
+of the Workspace plan.
 
 :::tip
-Credits never expire. Only the Workspace plan has an end date.
+Credits never expire. Only the plan has an end date.
 :::
 
 ---
@@ -98,9 +106,11 @@ Credits never expire. Only the Workspace plan has an end date.
 
 These features depend on the plan, not on credits.
 
+Growth includes everything in Workspace, with 50 projects and single sign-on.
+
 | | Free | Workspace | Enterprise |
 |---|---|---|---|
-| Cloud projects | 1 | 10 | Up to 9,999 |
+| Cloud projects | 1 | 10 (50 on Growth) | Up to 9,999 |
 | Stored scans per project | Newest 10 | Newest 500 | Newest 10,000 |
 | Data retention you can set | 30 to 365 days | Up to 1,095 days | Up to 1,095 days |
 | PR pass or fail check | Yes | Yes | Yes |
@@ -116,23 +126,22 @@ These features depend on the plan, not on credits.
 | Slack and Discord notifications | No | Yes | Yes |
 | Teams, outbound webhooks and Jira | No | Yes | Yes |
 | GitHub organization connect and bulk add | No | Yes | Yes |
-| Members | No invites | Up to 3 with a pack, unlimited with the pass | Unlimited |
-| Single sign-on (SSO) | No | No | Yes |
+| Members | No invites | Unlimited | Unlimited |
+| Single sign-on (SSO) | No | Growth only | Yes |
 | Audit export of who wrote each change | No | No | Yes |
 
 ---
 
 ## Enterprise
 
-Enterprise starts at **$5,000 a year** and includes **5,000 credits a year**.
+Enterprise starts at **$30,000 a year** and includes **5,000 credits a year**.
 Skylos sets it up by hand.
 
 Talk to us when you need:
 
-- More than 10 projects
-- SSO
+- More than 50 projects
 - Invoice or purchase-order billing
-- A DPA or a security questionnaire
+- A security questionnaire
 
 Contact `founder@skylos.dev`.
 
@@ -164,7 +173,7 @@ Buy credits: https://skylos.dev/dashboard/billing
 ### Dashboard
 
 Go to [skylos.dev/dashboard/billing](https://skylos.dev/dashboard/billing) to
-see your balance, your plan and its end date, and recent credit activity. Only
+see your balance, your plan, its renewal or end date, and recent credit activity. Only
 workspace owners can buy and see billing activity.
 
 ---
@@ -172,10 +181,11 @@ workspace owners can buy and see billing activity.
 ## How Purchasing Works
 
 1. Go to **skylos.dev/dashboard/billing** (or run `skylos credits` in the CLI to get the link).
-2. Pick a credit pack or the Workspace pass.
+2. Pick the Workspace plan or a credit pack.
 3. You're redirected to a secure checkout page (powered by Lemon Squeezy).
-4. After payment, credits are added to the workspace.
-5. The Workspace plan is on for 12 months from the purchase.
+4. After payment, credits are added to the workspace. A plan purchase also turns the plan on for the year.
+
+To start Growth or Enterprise, email `founder@skylos.dev`.
 
 ---
 
@@ -222,11 +232,11 @@ on the [billing page](https://skylos.dev/dashboard/billing).
 **Do credits expire?**
 No. Credits never expire. Buy them once, use them whenever.
 
-**Does the Workspace plan expire?**
-Yes. Each purchase turns it on for 12 months. When it ends, the workspace moves to Free and keeps its credits. Buy again to turn it back on.
+**Does the Workspace plan renew?**
+Yes. Workspace and Growth renew each year until you turn renewal off on Billing. With renewal off, the plan runs to the end of the paid year, then the workspace moves to Free and keeps its credits.
 
 **Can I get a refund?**
-Refunds follow the Lemon Squeezy checkout terms, the law, and any written agreement with Skylos. Contact `founder@skylos.dev`. A full refund removes that purchase's credits.
+Refunds follow the Lemon Squeezy checkout terms, the law, and any written agreement with Skylos. Contact `founder@skylos.dev`. A full refund removes that payment's credits and its year of the plan.
 
 **What happens if my balance hits zero mid-CI-run?**
 Nothing changes for the scan. Uploads never cost credits, so the upload, PR checks and merge gate keep working. Only compute actions, such as scan comparisons and AI fix PRs, stop until you add credits.
