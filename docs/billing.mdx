@@ -14,7 +14,7 @@ by seat, line of code or pull request.
 | **Growth** | $12,000 a year | 3,000 a year |
 | **Enterprise** | From $30,000 a year | 5,000 a year |
 
-Credits pay for AI and compute actions. Workspace and Growth renew each year
+Credits pay for AI fix PRs, cleanup PRs and compliance reports. Workspace and Growth renew each year
 until you turn renewal off (see [How the yearly plans work](#how-the-yearly-plans-work)).
 
 The CLI, the agent hooks and the PR gate in your own CI are free, with no
@@ -25,7 +25,7 @@ account.
 Your first workspace gets a **Workspace trial**:
 
 - **14 days** of the Workspace plan
-- **50 credits** for compute actions such as scan comparisons, AI fix PRs and MCP remediation (scan uploads are free)
+- **50 credits** for AI fix PRs and weekly cleanup PRs (scan uploads are free)
 - No card, and nothing renews or charges you
 
 The trial is given once per account and once per GitHub user. Later
@@ -44,6 +44,8 @@ credits stay yours. Credits work on every plan, Free included.
 | Agent hooks and `skylos done` | Run on your machine |
 | MCP `analyze` without a key | 5 calls per rolling 24 hours, counted in the MCP server's memory |
 | MCP scan tools with a key (`security_scan`, `quality_check`, `secrets_scan`, `provenance_scan` and others) | Run on your machine; 0 credits |
+| MCP `remediate` tool | Runs on your machine with your own model key; 0 credits. The model cost goes to your provider |
+| Scan comparison (diff between two scans) | 0 credits |
 | Scan uploads (`--upload`, CI) and storing results | Never cost credits, on any plan. Plan limits cap projects and how many scans are kept |
 | Cloud scans of a GitHub repository (GitHub App, no CI) | 0 credits; Free gets 5 per 24 hours |
 | The PR pass or fail check and the merge gate | Never use credits |
@@ -51,19 +53,16 @@ credits stay yours. Credits work on every plan, Free included.
 
 ## What Costs Credits
 
-Only compute actions in Skylos Cloud cost credits:
+Three actions in Skylos Cloud cost credits:
 
 | Action | Credits |
 |--------|---------|
-| Scan comparison (diff between two scans) | 2 |
 | AI fix PR | 3 |
 | Weekly cleanup PR | 3 |
-| MCP AI remediation (`remediate` tool) | 10 |
-| Deep scan, where your workspace offers it (refunded if no report is made) | 10 |
-| Compliance report | 500 |
+| [Compliance report](/compliance-reports) | 500 |
 
-The MCP `remediate` tool charges its credits before it runs, even with
-`dry_run=True`.
+Each action shows its price before it runs. These actions work on every
+plan, Free included, when the workspace has the credits.
 
 ## Credit Packs
 
@@ -158,12 +157,12 @@ skylos credits
 Output:
 ```
 My Org (Workspace plan)
-Balance: 1,038 credits
+Balance: 994 credits
 
 Recent activity:
   +1000  Purchased 1000 credits (team pack)
-  -2  Used feature: Compare two scans side by side
-  -10  Used feature: MCP AI remediation
+  -3  Used feature: AI fix pull request
+  -3  Used feature: Weekly cleanup pull request
 
 Buy credits: https://skylos.dev/dashboard/billing
 ```
@@ -181,7 +180,7 @@ workspace owners can buy and see billing activity.
 ## How Purchasing Works
 
 1. Go to **skylos.dev/dashboard/billing** (or run `skylos credits` in the CLI to get the link).
-2. Pick the Workspace plan or a credit pack.
+2. Pick the Workspace plan or a credit pack. A credit pack adds credits only; it does not turn a plan on.
 3. You're redirected to a secure checkout page (powered by Lemon Squeezy).
 4. After payment, credits are added to the workspace. A plan purchase also turns the plan on for the year.
 
@@ -198,19 +197,14 @@ skylos . --upload
 ```
 
 Uploads keep working at zero credits. They never cost credits, so results are
-still stored and your PR checks and merge gate keep working. Only compute
-actions stop until you add credits.
+still stored and your PR checks and merge gate keep working. Only AI fix
+PRs, cleanup PRs and compliance reports stop until you add credits.
 
 ### MCP Server
 
-The `remediate` tool returns an error:
-
-```
-Insufficient credits. Required: 10, available: 0. Buy credits at https://skylos.dev/dashboard/billing
-```
-
-The scan tools (`analyze`, `security_scan`, `quality_check`, `secrets_scan`)
-cost 0 credits, so they keep running.
+MCP tools cost 0 credits, so they keep running. That includes the scan tools
+(`analyze`, `security_scan`, `quality_check`, `secrets_scan`) and `remediate`,
+which runs the model on your own key.
 
 ### CI/CD
 
@@ -239,10 +233,10 @@ Yes. Workspace and Growth renew each year until you turn renewal off on Billing.
 Refunds follow the Lemon Squeezy checkout terms, the law, and any written agreement with Skylos. Contact `founder@skylos.dev`. A full refund removes that payment's credits and its year of the plan.
 
 **What happens if my balance hits zero mid-CI-run?**
-Nothing changes for the scan. Uploads never cost credits, so the upload, PR checks and merge gate keep working. Only compute actions, such as scan comparisons and AI fix PRs, stop until you add credits.
+Nothing changes for the scan. Uploads never cost credits, so the upload, PR checks and merge gate keep working. Only AI fix PRs, cleanup PRs and compliance reports stop until you add credits.
 
 **Is there a free trial?**
 Yes. Your first workspace gets a 14-day Workspace trial with 50 credits, and no card. Local scanning is free with no limits.
 
 **What's the difference between plan-gated and credit-gated?**
-Plan features (longer history, team review, integrations, PR comments) need the Workspace plan but don't cost credits. Compute actions (scan comparisons, AI fix PRs, MCP remediation, compliance reports) cost credits on every plan, Free and Enterprise included. Scan uploads never cost credits.
+Plan features (longer history, team review, integrations, PR comments) need the Workspace plan but don't cost credits. Credit actions (AI fix PRs, weekly cleanup PRs, compliance reports) cost credits on every plan, Free and Enterprise included. Scan uploads, scan comparisons and MCP tools never cost credits.
