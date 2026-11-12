@@ -16,8 +16,10 @@ A report covers one framework and the projects you pick. It reads the latest
 trusted CI scan of each project's default branch, your fix deadlines and your
 approved exceptions.
 
-It lists every requirement of the framework, not only the ones a Skylos rule
-maps to. Each requirement gets a status:
+It lists every requirement in Skylos's catalog for that framework, not only
+the ones a Skylos rule maps to. For some frameworks the catalog is a subset:
+PCI DSS, the EU Cyber Resilience Act and others are listed in part. Each
+listed requirement gets a status:
 
 - Open findings
 - No open findings from mapped rules
@@ -69,14 +71,18 @@ Each report prints a **Check this copy** link to a public page at
 `skylos.dev/verify/report/<id>`. The page says:
 
 - whether Skylos signed the report
-- whether the stored copy is unchanged
-- whether the copy the reader holds matches, by its SHA-256
+- whether the record Skylos stores is unchanged
+
+The page checks the record Skylos holds, not the file in your hand. A PDF,
+HTML or CSV copy is not verified by opening the link, so an edited copy can
+carry a working link. The JSON download is the signed original: compare a
+copy against it before relying on the copy.
 
 The page never shows your organization, repositories or findings.
 
-A valid signature shows that Skylos Cloud generated exactly this report at
-the stated time and that it has not changed. It does not show that the code
-is secure or that any requirement is met.
+A valid signature shows that Skylos Cloud generated exactly this record at
+the stated time and that the record has not changed. It does not show that
+the code is secure or that any requirement is met.
 
 ## The SOC 2 Pre-Assessment
 
