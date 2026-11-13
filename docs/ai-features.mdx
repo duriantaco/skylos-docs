@@ -150,7 +150,9 @@ result compares supported working-tree functions with Git HEAD; that behavior
 model does not restrict every analyzer finding to changed files. Findings can
 include hallucinated references, unfinished generated code, stale references,
 disabled controls, dependency hallucinations, API signature hallucinations,
-and weakened assertions. Full scan JSON reports the strict AI-defect rules
+weakened assertions, and, in a CLI build containing them, tests that cannot fail
+([`SKY-L044`](./rules-reference.mdx#sky-l044--test-runs-no-project-code) and
+[`SKY-L045`](./rules-reference.mdx#sky-l045--test-assertion-always-true)). Full scan JSON reports the strict AI-defect rules
 under `ai_defects` rather than `quality` or `danger`.
 
 Path targets enable dependency hallucination checks by default, which may query
