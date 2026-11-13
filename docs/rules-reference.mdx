@@ -653,6 +653,10 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-L041` | Empty Test Body | LOW | Python review: a selected test has only a docstring, `pass`, or ellipsis, without known fixture/setup backing |
 | `SKY-L042` | Repeated Test Assertion | LOW | Python review: adjacent identical assertions repeat a check of unchanged, proven builtin values |
 | `SKY-L043` | Sleep Used For Test Synchronization | LOW | Python review: a fixed positive sleep immediately precedes a local `threading.Event` completion assertion |
+| `SKY-L044` | Test Runs No Project Code | LOW | Python review: a test reads only values it builds itself and pure builtins, so no project code can change its result |
+| `SKY-L045` | Test Assertion Always True | LOW | Python review: an assertion is true for every value, such as `len(x) >= 0`, `x or True`, or `assert (x == 1, "message")` |
+| `SKY-L046` | Test Result Never Checked | LOW | Python review: a test ends by storing a result it never checks and has no assertion |
+| `SKY-L047` | Duplicate Test | LOW | Python review: a test repeats an earlier test's decorators, parameters and body under another name |
 
 ### Performance Rules (SKY-P)
 
@@ -5332,8 +5336,122 @@ and a local Event; arbitrary sleeps are not findings. Timing-oriented names or
 clock measurements, unknown/rebound Event objects, and namespace mutation can
 make the check abstain. It does not verify runtime scheduling or external patches.
 
-These four checks require a CLI build containing `SKY-L040`–`SKY-L043`.
-They run with `--quality` and appear as LOW review tasks in
+---
+
+### SKY-L044 · Test Runs No Project Code
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | Python |
+| **Kind** | Review |
+| **What** | Every name a selected test reads is one it bound itself or a pure builtin such as `len`, `sum` or `sorted` |
+| **Risk** | Nothing from the project can change the test's result, so it passes even when the code it names is broken |
+
+```python
+def test_provider_inferred_from_claude_model():  # SKY-L044
+    model = "claude-3-7-sonnet-latest"
+    if "claude" in model.lower():
+        provider = "anthropic"
+    else:
+        provider = "openai"
+    assert provider == "anthropic"
+```
+
+The test re-implements the logic it claims to check. Call the code under test
+and assert on what it returns, for example
+`assert infer_provider("claude-3-7-sonnet-latest") == "anthropic"`.
+
+A parameter (fixture), decorator, import, module-level name, `self` attribute
+other than a standard `unittest` assertion, nested function, `raise`, or a
+builtin that can reach outside the test (`open`, `eval`, `print`) leaves the
+test alone. A test with no assertion at all is also left alone when fixtures,
+setup hooks or a `conftest.py` may supply its checks. Empty bodies stay
+`SKY-L041` and literal-only assertions stay `SKY-L040`.
+
+---
+
+### SKY-L045 · Test Assertion Always True
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | Python |
+| **Kind** | Review |
+| **What** | A selected test asserts a condition that is true for every value of the names in it |
+| **Risk** | The assertion cannot fail, so it does not check the behavior it appears to check |
+
+```python
+def test_deserialize_items():
+    result = deserialize_items(payload)
+    assert len(result) >= 0  # SKY-L045: a length is never negative
+    assert (result[0].kind == "message", "wrong kind")  # SKY-L045: a non-empty tuple
+```
+
+Reported forms: a non-empty tuple, list, set or dict display (the common
+`assert (condition, "message")` mistake), `x or True`, `len(x) >= 0` with the
+builtin `len`, `isinstance(x, object)`, `x is x`, and `self.assertTrue(True)`
+or `self.assertEqual` on equal literals. `x == x` is not reported, because it
+can be false (NaN, a custom `__eq__`). Literal-only conditions such as
+`assert True` stay `SKY-L040`.
+
+---
+
+### SKY-L046 · Test Result Never Checked
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | Python |
+| **Kind** | Review |
+| **What** | A selected test ends by storing a call's result in a name it never reads, and nothing in the test checks anything |
+| **Risk** | The test only proves that the call did not raise; the result it computed is never compared with anything |
+
+```python
+def test_common_name_cross_package_gets_lower_confidence(self):
+    files = {"pkg/service.py": SERVICE, "pkg/main.py": MAIN}
+    unused = self._get_unused(files)  # SKY-L046
+```
+
+Assert on the stored result. A call whose result is not kept (`run()`), a name
+starting with `_`, an `xfail` test, a test using a `benchmark` or snapshot
+fixture, and a test that calls a helper in the same file which asserts or
+raises are left alone.
+
+---
+
+### SKY-L047 · Duplicate Test
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | Python |
+| **Kind** | Review |
+| **What** | A selected test has the same decorators, parameters and body (docstring aside) as an earlier test in the same module or class |
+| **Risk** | The copy adds run time without checking anything new, and the case its name describes may be untested |
+
+```python
+def test_allows_change_when_any_test_file_changed(tmp_path):
+    findings = detect_gaps(tmp_path, [source, test_file])
+    assert findings == []
+
+
+def test_allows_change_when_meaningful_test_file_changed(tmp_path):  # SKY-L047
+    findings = detect_gaps(tmp_path, [source, test_file])
+    assert findings == []
+```
+
+Remove the copy, or change it to cover the case its name describes. Tests
+whose name selects recorded data (`vcr`, cassette and snapshot fixtures or
+markers), bodies that call nothing, and a second definition under the same name
+are not reported.
+
+`skylos verify` and the agent edit hook also report `SKY-L044` and
+`SKY-L045` as AI-code defects (`vacuous_test`). The hook passes them back to
+the agent as notes and does not block the edit.
+
+These checks require a CLI build containing the rule IDs above (`SKY-L044`–`SKY-L047`
+are not yet released). They run with `--quality` and appear as LOW review tasks in
 [`skylos cleanup`](./cleanup.mdx#review-python-test-quality). They select directly
 declared Python tests using configured pytest collection or proven unittest
 bases, and exclude skipped/xfail scopes, opt-outs, unknown wrappers and golden

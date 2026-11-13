@@ -56,10 +56,11 @@ defect. Saved reports cannot provide this live diff context.
 
 ## Review Python test quality
 
-**Preview:** requires a CLI build containing `SKY-L040`–`SKY-L043`;
-older installed versions do not emit these findings.
+**Preview:** requires a CLI build containing `SKY-L040`–`SKY-L043`
+(`SKY-L044`–`SKY-L047` are not yet released); older installed versions do not
+emit these findings.
 
-Quality scans include four bounded checks for selected Python pytest and
+Quality scans include eight bounded checks for selected Python pytest and
 unittest tests. They emit **LOW review findings**, which enter the cleanup task
 queue for manual review:
 
@@ -69,6 +70,10 @@ queue for manual review:
 | [SKY-L041](./rules-reference.mdx#sky-l041--empty-test-body) | A test has only a docstring, `pass`, or ellipsis, without known fixture/setup backing |
 | [SKY-L042](./rules-reference.mdx#sky-l042--repeated-test-assertion) | Adjacent identical assertions repeat a check of unchanged, proven builtin values |
 | [SKY-L043](./rules-reference.mdx#sky-l043--sleep-used-for-test-synchronization) | A fixed sleep immediately precedes a local Event completion assertion |
+| [SKY-L044](./rules-reference.mdx#sky-l044--test-runs-no-project-code) | A test reads only values it builds itself, so no project code can change its result |
+| [SKY-L045](./rules-reference.mdx#sky-l045--test-assertion-always-true) | An assertion is true for every value, such as `len(x) >= 0` or `assert (x == 1, "message")` |
+| [SKY-L046](./rules-reference.mdx#sky-l046--test-result-never-checked) | A test stores a result it never checks and has no assertion |
+| [SKY-L047](./rules-reference.mdx#sky-l047--duplicate-test) | A test repeats an earlier test's decorators, parameters and body |
 
 ```bash
 skylos . --quality
