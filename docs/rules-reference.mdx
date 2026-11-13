@@ -1039,6 +1039,25 @@ let safe = Path::new(&filename).file_name().ok_or("bad file")?;
 fs::read_to_string(safe)?;
 ```
 
+A prefix check counts as containment only when the prefix ends with a
+separator. `/srv/files2/x` also starts with `/srv/files`, so this check lets a
+request reach a sibling folder:
+
+```python
+# Bad
+target = os.path.realpath(os.path.join(BASE, name))
+if not target.startswith(BASE):
+    abort(403)
+
+# Good
+if not target.startswith(BASE + os.sep):
+    abort(403)
+```
+
+The same applies to TypeScript and JavaScript: use `root + path.sep`, not
+`root`, in `target.startsWith(...)`. A prefix that is only a separator, such as
+`'/'` or `os.sep`, proves nothing.
+
 ---
 
 ### SKY-D216 · SSRF
@@ -3238,7 +3257,7 @@ The finding needs no proof that the value is attacker-controlled: the guard
 in the code shows its author treats it as untrusted. It is not reported when
 the same function also resolves the path and checks containment
 (`is_relative_to`, `relative_to`, `commonpath`, or a normalized path with
-`startswith`), keeps only the file name (`basename`, `secure_filename`,
+`startswith` on a prefix that ends with a separator), keeps only the file name (`basename`, `secure_filename`,
 `.name`), uses `safe_join`, rejects or strips a leading separator or an
 absolute path, validates the value with another call, pattern or allowlist, or
 removes the sequence in a `while` loop. Test files are not checked.
