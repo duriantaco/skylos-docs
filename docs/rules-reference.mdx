@@ -111,6 +111,8 @@ host validation when assessing a finding's impact.
 | `SKY-D357` | Untrusted Dynamic Python Import | HIGH | Python | An identified input source selects a module for `import_module()` or `__import__()` |
 | `SKY-D358` | Public Gradio Launch Without Configured Auth | HIGH | Python | A visible Gradio launch branch binds to all interfaces without configured authentication |
 | `SKY-D359` | Cached Request-Derived External Flask URL | MEDIUM | Python | Cached content includes an external Flask URL without a proven fixed or trusted host |
+| `SKY-D378` | Incomplete Path Traversal Defence | MEDIUM | Python | The code handles `..` itself, but the defence can be bypassed before the path reaches a file operation |
+| `SKY-D379` | Catastrophic Regex Backtracking | MEDIUM | Python | A regular expression whose matching time grows exponentially, or at least cubically, with input length |
 
 #### TypeScript-Specific Security
 
@@ -3187,6 +3189,88 @@ Configure a fixed `SERVER_NAME` or validate accepted hosts before caching
 absolute links. A visible fixed host configuration can resolve the finding;
 opaque or conditional configuration still needs review. Exploitability depends
 on request-host handling and deployment controls.
+
+---
+
+### SKY-D378 · Incomplete Path Traversal Defence
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | Python |
+| **Availability** | Unreleased |
+| **What** | A function guards a value against `..` and the value still reaches a file operation, but the guard can be bypassed: `..` with a separator is removed with a single `replace`, or `..` is rejected or removed and the value is then joined after a base directory |
+| **Risk** | `....//` still leaves `../` after one removal, and an absolute path such as `/etc/passwd` replaces the base directory in `os.path.join`, `Path(base, name)` and `base / name` |
+
+```python
+import os
+
+def read(name):
+    name = name.replace("../", "")
+    with open(os.path.join(BASE, name)) as handle:
+        return handle.read()
+
+def save(name, data):
+    if ".." in name:
+        raise ValueError("bad name")
+    with open(os.path.join(UPLOADS, name), "wb") as handle:
+        handle.write(data)
+```
+
+Resolve the joined path and check that it stays inside the base directory:
+
+```python
+from pathlib import Path
+
+def read(name):
+    base = Path(BASE).resolve()
+    target = (base / name).resolve()
+    if not target.is_relative_to(base):
+        raise ValueError("outside the base directory")
+    return target.read_text()
+```
+
+The finding needs no proof that the value is attacker-controlled: the guard
+in the code shows its author treats it as untrusted. It is not reported when
+the same function also resolves the path and checks containment
+(`is_relative_to`, `relative_to`, `commonpath`, or a normalized path with
+`startswith`), keeps only the file name (`basename`, `secure_filename`,
+`.name`), uses `safe_join`, rejects or strips a leading separator or an
+absolute path, validates the value with another call, pattern or allowlist, or
+removes the sequence in a `while` loop. Test files are not checked.
+
+---
+
+### SKY-D379 · Catastrophic Regex Backtracking
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | Python |
+| **Availability** | Unreleased |
+| **What** | A pattern written as a string in a `re` call (`compile`, `match`, `fullmatch`, `search`, `sub`, `subn`, `split`, `findall`, `finditer`) whose matching steps grow exponentially, or at least cubically, with the input length |
+| **Risk** | Text of a few dozen to a few thousand characters can keep a worker busy for seconds or longer (regular expression denial of service, CWE-1333) |
+
+```python
+import re
+
+NAME = re.compile(r"(\w+\s?)+$")
+NAME.match("a" * 40 + "!")
+```
+
+Skylos parses each literal pattern and counts the steps of its own
+backtracking matcher on generated inputs of growing length; nothing from the
+scanned project runs. A finding is reported only for measured growth, and
+`metadata.regex_attack` gives the input shape (`prefix`, `pump`, `suffix`)
+that shows it. A pattern that only looks nested, such as `(\d+\.)+\d+$`, is not
+reported, and neither is quadratic growth.
+
+Rewrite repeated parts so they cannot match the same text, use a possessive
+repeat or atomic group (`(?>...)`), or limit the input length before matching.
+Patterns built at run time, unknown flags and `re` names rebound in the file
+give no verdict. The finding does not prove that attacker-controlled text
+reaches the pattern; review where the matched text comes from. Test files are
+not checked.
 
 ---
 
