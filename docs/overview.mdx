@@ -1,6 +1,6 @@
 ---
 title: "What is Skylos?"
-description: "Open-source SAST, dead code detection, AI code security, deployment config checks, and CI/CD PR gating for Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, and Shell repositories."
+description: "Open-source SAST, dead code detection, AI code security, deployment config checks, and CI/CD PR gating for Python, TypeScript, JavaScript, Java, Go, PHP, Rust, Ruby, Dart, C#, C++, Kotlin, Swift, and Shell repositories."
 ---
 
 ## Ship Cleaner, Safer Code
@@ -44,6 +44,9 @@ chooser.
 
 ## How Skylos Is Different
 
+Skylos is not a replacement for every specialized scanner. It is a local-first
+repo and PR checker that puts several common review checks behind one CLI.
+
 ### Framework-Aware Dead Code
 
 Generic unused-code tools often flag route handlers, pytest fixtures, Pydantic
@@ -52,7 +55,12 @@ framework and language patterns so dynamic code is less likely to appear as
 dead.
 
 Skylos understands patterns from ecosystems such as FastAPI, Django, Flask,
-pytest, SQLAlchemy, Next.js, React, package exports, and plugin loading.
+pytest, SQLAlchemy, Next.js (App/Pages Router files and metadata routes),
+React, Laravel (auto-discovered commands, listeners, components, factories,
+seeders), Drupal (classes named in an extension's YAML, discovered plugins, OOP
+hooks, procedural hooks in `.module`/`.install`/`.inc`/`.theme` files,
+post-update functions), tool config files, package exports and entrypoints,
+and plugin loading.
 
 ### Data-Flow Security Scanning
 
@@ -64,16 +72,56 @@ template rendering, subprocess execution, and deserialization.
 ### PR-Native Enforcement
 
 Skylos can run locally or in CI. Diff-aware scans keep new work separate from
-legacy findings, and GitHub annotations put results where reviewers already
-work. Standards-backed quality checks can start as advisory CI signals before
+legacy findings, CI thresholds gate merges, baselines hold existing findings,
+and GitHub annotations put results where reviewers already work.
+Standards-backed quality checks can start as advisory CI signals before
 becoming hard merge gates.
 
 ### Local-First By Default
 
-Core static analysis runs on your machine without an API key or source upload.
-Cloud upload, LLM-assisted review, and remediation are optional. Dependency
-checks can query OSV or package registries, and direct image scanning contacts
-a registry through Trivy.
+Core static analysis runs on your machine without an API key or source upload,
+and does not call an LLM. Cloud upload, LLM-assisted review, and remediation
+are optional. Dependency checks can query OSV or package registries, and
+direct image scanning contacts a registry through Trivy. See
+[What leaves your machine](https://github.com/duriantaco/skylos/blob/main/docs/privacy-and-network.md).
+
+### AI-Assisted Change Review
+
+Skylos checks for removed validation, auth, logging, CSRF, rate limiting,
+timeouts, real-package API hallucinations, and other guardrails in generated
+or edited code.
+
+### Agent-Loop Verification
+
+`skylos verify` and the MCP `verify_change` tool use a versioned result schema
+for AI-code trust, security, and secret findings, so coding agents can
+self-correct before a human sees the change. The CLI renders a human report on
+a terminal and JSON when redirected or written with `-o`.
+
+### Evidence-Backed AI Defects
+
+`--ai-defects` and full scans put strict AI-code failure checks under
+`ai_defects`, including phantom references, fake package APIs, nonexistent
+packages, impossible dependency versions, and weakened test assertions. The
+category/tag is `ai_defect`; several rules intentionally keep historical
+`SKY-L` or `SKY-D` IDs for suppression and baseline compatibility, while new
+AI-defect-only checks use `SKY-A`.
+
+### Verification-Backed Remediation
+
+Security fixes are checked by re-running analysis, and supported findings can
+include targeted regression-test proof metadata.
+
+### Project-Specific Rules
+
+Add local YAML rules and extend prompt, credential, sensitive-file, and timeout
+dictionaries from config. See [Configuration](/configuration) and
+[`skylos rules`](/cli-reference#skylos-rules).
+
+### One Command Surface
+
+Dead code, security, secrets, dependency, quality, technical debt, agent
+review, and pre-deployment agent verification commands share the same CLI.
 
 ## Language Support
 
@@ -82,14 +130,21 @@ a registry through Trivy.
 | Python | Yes | Yes | Yes |
 | TypeScript / JavaScript | Yes | Yes | Yes |
 | Java | Yes | Yes | Yes |
-| Go | Yes | Selected | Selected |
-| Kotlin | Yes | Secrets | No |
-| PHP | Yes | Selected | No |
-| Rust | Yes | Selected | No |
-| Dart | Yes | Selected | No |
-| C# | Yes | Selected | No |
-| Shell | No | Selected | No |
-| Deployment config | No | Selected | No |
+| Go | Yes | Partial | Partial |
+| PHP | Yes | Yes | No |
+| Rust | Experimental | Partial | Partial |
+| Ruby | Partial | Partial | No |
+| Dart | Yes | Partial | No |
+| C# | Partial | Partial | Partial |
+| C++ | Partial | No | No |
+| Kotlin | Partial | Partial | No |
+| Swift | Partial | No | No |
+| Shell | No | Partial | No |
+| Deployment config | No | Partial | No |
+
+Go dead-code and security checks need the native `skylos-go` engine, Dart
+needs the `skylos[dart]` extra, and Rust dead code is hidden below the default
+confidence threshold.
 
 For detailed scanner scope, see [Language Support](/language-support) and
 [Rules Reference](/rules-reference).
