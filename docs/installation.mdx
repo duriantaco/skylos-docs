@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: "Install Skylos via pip. Static analysis and dead code detection for Python 3.10+, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, and Shell."
+description: "Install Skylos via pip or the container image. Static analysis and dead code detection on Python 3.11+ for Python, TypeScript, JavaScript, Java, Go, PHP, Rust, Ruby, Dart, C#, C++, Kotlin, Swift, and Shell."
 ---
 
 import Tabs from '@theme/Tabs';
@@ -8,7 +8,7 @@ import TabItem from '@theme/TabItem';
 
 ## Prerequisites
 
-* Python 3.10+
+* Python 3.11+
 * `pip` or `uv`
 
 ## Install
@@ -28,20 +28,54 @@ uv pip install skylos
   </TabItem>
 </Tabs>
 
-Install optional LLM-powered agent workflows:
+## Optional Extras
 
 ```bash
+# Core static analysis
+pip install skylos
+
+# LLM-powered agent workflows
 pip install "skylos[llm]"
-```
 
-Install all published optional extras:
+# Ruff Python linting through `skylos lint`
+pip install "skylos[lint]"
 
-```bash
+# Ed25519 verification for `skylos verify-verdict`
+pip install "skylos[verdict]"
+
+# Dart analysis, 4.47.2 and later (builds the Dart parser from source; needs a C compiler)
+pip install "skylos[dart]"
+
+# All published optional extras
 pip install "skylos[all]"
 ```
 
-The published extras are defined in the Skylos `pyproject.toml`. At the time of
-writing they are `web`, `llm`, `test`, and `all`.
+The published extras are defined in the Skylos `pyproject.toml`. They are
+`llm`, `lint`, `test`, `verdict`, `dart`, and `all`.
+
+### Dart Parser And C Compiler
+
+Before 4.47.2, `pip install skylos` also installs a Dart parser that builds
+from source and needs a C compiler. From 4.47.2, Dart support is the optional
+`skylos[dart]` extra. If the install fails for lack of a compiler, use the
+[container image](#container-image). Without the extra, a scan that includes
+`.dart` files reports them as not analysed instead of skipping them silently;
+see [Language Support](/language-support).
+
+### Go Engine
+
+Go dead-code and security checks need the native `skylos-go` engine. From
+4.50 the PyPI wheels for Linux, macOS and Windows (x86_64 and arm64) include
+it, the container image includes it and the GitHub Action builds it. On other
+platforms `skylos doctor` prints the command that builds it from source, and
+`SKYLOS_GO_BIN` points Skylos at a separately built engine.
+
+### Optional Rust Acceleration
+
+Optional Rust acceleration can be
+[built from source](https://github.com/duriantaco/skylos/blob/main/rust/README.md).
+The standard installation uses Python fallbacks. See the build guide for
+accelerated operations and possible differences in findings.
 
 ## Container Image
 
@@ -63,6 +97,24 @@ docker run --rm \
 
 For CI, prefer a pinned release tag instead of `latest`.
 
+The unqualified image uses Python 3.14. Runtime-specific tags are also
+published for Python 3.11 through 3.15, so container scans can match a local or
+CI parser exactly:
+
+```bash
+docker run --rm -v "$PWD":/work -w /work ghcr.io/duriantaco/skylos:latest-python3.15 . --json --no-provenance
+```
+
+## Files That Cannot Be Parsed
+
+If a Python file cannot be parsed, Skylos names it as not analysed, marks
+coverage incomplete, and reports every other finding; the file is never
+treated as clean. The exit code is decided on the code that was analysed;
+`--strict` exits 2 instead, and so does a scan where most of the code could
+not be analysed. See
+[Exit Codes And Incomplete Analysis](https://github.com/duriantaco/skylos/blob/main/docs/cli-output.md#exit-codes-and-incomplete-analysis)
+and [Exit Codes](/cli-reference#exit-codes).
+
 ## Initialization
 
 Run the init command to create a default configuration in your project root.
@@ -70,7 +122,9 @@ Run the init command to create a default configuration in your project root.
 skylos init
 ```
 
-This will create or append to your `pyproject.toml` file.
+This will create or append to your `pyproject.toml` file. Repositories without
+a `pyproject.toml` can put the same keys in `skylos.toml`; see
+[Configuration](/configuration#where-settings-come-from).
 
 ## Configuration
 
@@ -97,4 +151,9 @@ strict = false  # Set true to disable interactive bypass in CI
 Run a scan on your current directory to verify everything is working.
 ```bash
 skylos --version
+skylos doctor
 ```
+
+`skylos doctor` checks installation and language-engine health: it shows
+whether Dart support is installed and whether the Go engine is available, and
+prints the version-matched build command when it is not.

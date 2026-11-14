@@ -7,7 +7,7 @@ description: "Frequently asked questions about Skylos"
 
 ### What is Skylos?
 
-Skylos is a static analysis tool for Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, and Shell that detects:
+Skylos is a static analysis tool for 13 languages (Python, TypeScript/JavaScript, Java, Go, PHP, Rust, Ruby, Dart, C#, C++, Kotlin, Swift, and Shell; see [Language Support](/language-support)) that detects:
 
 - **Dead code:** Unused functions, imports, classes, variables
 - **Security vulnerabilities:** SQL injection, command injection, SSRF, XSS
@@ -17,18 +17,49 @@ Unlike simple linters, Skylos uses taint analysis to trace data flow and framewo
 
 ### Is Skylos free?
 
-Yes. Skylos is open source and free to use. Core static analysis runs locally
-without an API key. Optional agent workflows can use your own OpenAI,
+The Skylos CLI is free and open source (Apache-2.0). Core static analysis runs
+locally without an API key. Optional agent workflows can use your own OpenAI,
 Anthropic, or local OpenAI-compatible model endpoint.
+
+Skylos Cloud has a Free plan for one project and a Workspace plan: $3,000 a
+year for any number of people and up to 10 projects. Growth is $12,000 a year,
+with up to 50 projects and single sign-on. Your first workspace gets a 14-day
+Workspace trial with 50 credits, no card needed. Plans renew each year until
+you turn renewal off on Billing. Credit packs (from $9 for 50 credits) pay for
+AI actions and add credits only. There are no seats. Prices are in USD, plus
+sales tax or VAT. Credits never expire. See [Billing & Credits](/billing).
+
+### Does Skylos require an LLM?
+
+No. Core static analysis runs locally without API keys. LLM features are
+optional through `skylos[llm]` and agent commands.
+
+### Does Skylos replace Bandit, Semgrep, CodeQL, or Vulture?
+
+No. Skylos can run alongside them. It focuses on framework-aware dead-code
+signal, PR gating, AI-era regression checks, and a combined workflow across
+dead code, security, secrets, quality, and AI-defect checks.
+
+### Does Skylos replace Ruff?
+
+No. `skylos lint` is an optional convenience entry point that delegates to
+Ruff. Install it with `pip install "skylos[lint]"`; normal Skylos scans do not
+run Ruff or merge Ruff violations into `SKY-*` findings.
 
 ### What Python versions are supported?
 
-Python 3.10 and newer are supported.
+Python 3.11 and newer are supported. The container image uses Python 3.14 by
+default and has tags for Python 3.11 through 3.15; see
+[Installation](/installation#container-image).
 
 ### Does Skylos work with my framework?
 
 Skylos has built-in awareness for Django, Flask, FastAPI, Pydantic, pytest,
-SQLAlchemy, Next.js, React, package entrypoints, and common plugin patterns.
+SQLAlchemy, Next.js (App/Pages Router files and metadata routes), React,
+Laravel (auto-discovered commands, listeners, components, factories, seeders),
+Drupal (classes named in an extension's YAML, discovered plugins, OOP hooks,
+procedural hooks in `.module`/`.install`/`.inc`/`.theme` files, post-update
+functions), tool config files, package entrypoints, and common plugin patterns.
 Other frameworks work but may need baselines, whitelists, or tracing for
 implicitly-called code.
 
@@ -113,6 +144,23 @@ ignore = ["SKY-D201", "SKY-L002"]
 skylos . --json -o report.json
 ```
 
+### Can I use it only on changed code?
+
+Yes. Use `skylos . -a --diff origin/main` locally or configure CI gates to focus
+on new findings. A removed security control, such as a deleted auth
+decorator (SKY-L021), is still reported with `--diff`, including when the
+change only deletes the decorator line.
+
+### Does `skylos done` catch every way to fake a finished change?
+
+No. It compares test functions (pytest, unittest, JavaScript/TypeScript), so
+rewriting a custom test-runner script or deleting cases from a test data file
+is not caught, and a test can still be weakened in ways its static assertion
+count cannot see. See the done gate's
+[limits](https://github.com/duriantaco/skylos/blob/main/docs/done-gate.md#not-yet)
+and its
+[benchmark](https://github.com/duriantaco/skylos/blob/main/docs/done-gate-benchmark.md).
+
 ### What does --confidence do?
 
 Filters findings by certainty. Default is 60. Use `--confidence 80` for fewer, safer results or `--confidence 40` to include more uncertain findings.
@@ -151,6 +199,12 @@ Skylos should detect framework decorators. If it doesn't, ensure the file import
 ### Why is dynamically-called code flagged?
 
 Static analysis can't see runtime behavior like `getattr()` calls. Use `--trace` to capture runtime calls, add `# noqa: skylos`, or lower the confidence threshold.
+
+### How should I handle intentional dynamic code?
+
+Use baselines, whitelists, inline suppressions, or runtime tracing. See the
+[configuration docs](/configuration) and
+[smart tracing docs](/smart-tracing).
 
 ### Why are my test fixtures flagged?
 
@@ -213,6 +267,37 @@ No. A token only lets you upload. The gate passes when the issues that fail it
 are fixed. On the Workspace and Enterprise plans, a workspace admin or owner can
 override a failed gate in Skylos Cloud (Merge anyway); they must give a reason, and it is
 recorded with the scan.
+
+---
+
+## MCP Server
+
+### Does the MCP server need an account?
+
+Without `SKYLOS_API_KEY` the MCP server exposes `analyze` (dead code,
+five calls per rolling 24 hours) and the local map tools (`change_map` and the
+`graph_*` tools, no limit: they read the repository on your machine and send
+nothing to Skylos Cloud). Every other MCP tool (`verify_change`, `verify_agent`,
+`security_scan`, `secrets_scan`, and so on) returns an authentication error
+until the server is started with `SKYLOS_API_KEY` set; create a free key in
+the Skylos Cloud dashboard settings. MCP scans (analyze, security, quality,
+secrets, provenance) cost no credits, and neither does `remediate`, which runs
+the model on your own key.
+
+The CLI equivalents (`skylos verify`, `skylos defend`, `skylos . -a`) and
+`skylos agent install-hooks` run on your machine with no account or key;
+their dependency and package checks still query public registries (see
+[What leaves your machine](https://github.com/duriantaco/skylos/blob/main/docs/privacy-and-network.md)).
+See [MCP Server](/mcp-server).
+
+### Can the MCP server run in Docker or over the network?
+
+Yes. `skylos mcp --transport sse` (or `streamable-http`) serves MCP over HTTP
+on `MCP_BIND` (default `127.0.0.1`) and `PORT` (default `8080`), and refuses
+to start without `SKYLOS_MCP_TOKEN` (at least 16 characters), the bearer token
+every client must send. The image built from `skylos_mcp/Dockerfile` sets
+`MCP_BIND=0.0.0.0` so a published port reaches it. See
+[Network Transports](/mcp-server#network-transports-and-docker).
 
 ---
 
@@ -325,6 +410,11 @@ Check for different Python versions, exclusion settings, or Skylos versions betw
 ### Error parsing a file
 
 Skylos requires valid Python syntax. Verify with `python -m py_compile path/to/file.py` and fix any syntax errors.
+
+A file that cannot be parsed is named as not analysed and coverage is marked
+incomplete; every other finding is still reported and the file is never
+treated as clean. `--strict` exits 2 instead. See
+[Files That Cannot Be Parsed](/installation#files-that-cannot-be-parsed).
 
 ### AI features not working
 

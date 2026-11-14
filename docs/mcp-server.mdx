@@ -19,7 +19,7 @@ This is not a summarizer or wrapper — it runs the same analysis as `skylos . -
 
 ## What Skylos Detects
 
-Skylos is a hybrid static analysis tool for Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, and Shell. Through MCP, your AI assistant gets access to:
+Skylos is a hybrid static analysis tool for Python, TypeScript/JavaScript, Java, Go, PHP, Rust, Ruby, Dart, C#, C++, Kotlin, Swift, and Shell (see [Language Support](/language-support)). Through MCP, your AI assistant gets access to:
 
 | Capability | What It Finds | Rule IDs |
 |------------|---------------|----------|
@@ -106,9 +106,14 @@ To use all tools, add your API key:
 Get your API key from [skylos.dev/dashboard/settings](https://skylos.dev/dashboard/settings).
 
 **Without an API key**, the MCP server still works but in limited mode:
-- `analyze` is available, limited to 5 calls per day
+- `analyze` (dead code) is available, limited to five calls per rolling 24 hours
 - The local map tools (`change_map`, `graph_find`, `graph_show`, `graph_impact`, `graph_areas`, `graph_relevant`, `graph_pending`, `graph_describe`) are available with no limit: they read the repository on your machine and send nothing to Skylos Cloud
-- `security_scan`, `quality_check`, `secrets_scan`, and `remediate` require authentication
+- Every other MCP tool (`verify_change`, `verify_agent`, `security_scan`, `quality_check`, `secrets_scan`, `remediate`, and so on) returns an authentication error until the server is started with `SKYLOS_API_KEY` set
+
+The API key is free; create one in the Skylos Cloud dashboard settings. The CLI
+equivalents (`skylos verify`, `skylos defend`, `skylos . -a`) and
+`skylos agent install-hooks` run on your machine with no account or key; their
+dependency and package checks still query public registries.
 
 **With an API key**, all tools are available:
 
@@ -128,8 +133,14 @@ Get your API key from [skylos.dev/dashboard/settings](https://skylos.dev/dashboa
 
 Analysis tools (`analyze`, `security_scan`, `quality_check`, `secrets_scan`,
 `verify_change`, `verify_agent` and `change_map`) run entirely on your machine — they don't cost credits.
+MCP scans (analyze, security, quality, secrets, provenance) cost no credits.
 The `remediate` tool does not cost credits either. It runs on your machine
 with your own model key, so you pay your model provider directly.
+
+With `SKYLOS_API_KEY` set, the server checks the key every 15 minutes and asks
+Skylos Cloud to charge each scan call, and each remediate call when it starts
+generating fixes; dry runs send no charge request. Skylos Cloud charges these
+tools 0 credits. These requests send no code or findings.
 
 See [Billing & Credits](/billing) for what does cost credits.
 
@@ -137,7 +148,7 @@ See [Billing & Credits](/billing) for what does cost credits.
 
 | Plan | Rate Limit |
 |------|-----------|
-| No API key | 5 calls/day (`analyze` only) |
+| No API key | 5 calls per rolling 24 hours (`analyze` only; local map tools have no limit) |
 | Free | 50 calls/hour |
 | Workspace | 500 calls/hour |
 | Enterprise | 5,000 calls/hour |
@@ -160,6 +171,24 @@ By default, analysis results are stored in `~/.skylos/mcp_results/`. Override wi
   }
 }
 ```
+
+### Network Transports And Docker
+
+`skylos mcp --transport sse` (or `streamable-http`) serves MCP over HTTP on
+`MCP_BIND` (default `127.0.0.1`) and `PORT` (default `8080`), and refuses to
+start without `SKYLOS_MCP_TOKEN` (at least 16 characters), the bearer token
+every client must send. The image built from `skylos_mcp/Dockerfile` sets
+`MCP_BIND=0.0.0.0` so a published port reaches it:
+
+```bash
+export SKYLOS_MCP_TOKEN="$(openssl rand -hex 24)"
+docker build -f skylos_mcp/Dockerfile -t skylos-mcp .
+docker run --rm -p 8080:8080 -e SKYLOS_MCP_TOKEN skylos-mcp
+```
+
+Clients connect to `http://localhost:8080/sse` with
+`Authorization: Bearer <token>`. Behind a proxy, set `SKYLOS_MCP_PUBLIC_URL`
+to the address clients use.
 
 ## Available Tools
 
@@ -372,7 +401,7 @@ Set `dry_run=false` only when you're ready to modify files. Fixes that break tes
 - Maximum fixes capped at `max_fixes` to prevent runaway changes
 
 :::note
-The `remediate` tool requires an LLM API key. Set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` in the MCP server's environment, or configure keys via `skylos key`.
+The `remediate` tool requires an LLM API key. Set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` in the MCP server's environment, or configure keys via `skylos key`. It also requires `SKYLOS_API_KEY`; it costs no Skylos credits.
 :::
 
 ## Available Resources
@@ -498,7 +527,7 @@ Recommendation: Move these to environment variables or a secrets manager.
 3. **Results** are stored in-memory and on disk (`~/.skylos/mcp_results/`) for later retrieval via resources
 4. **Remediation** uses Skylos's LLM orchestrator to generate, apply, test, and verify fixes
 
-The MCP server runs 100% locally. Your code never leaves your machine (unless you use the `remediate` tool, which sends code snippets to your configured LLM provider for fix generation).
+The MCP server runs 100% locally. Your code never leaves your machine (unless you use the `remediate` tool, which sends code snippets to your configured LLM provider for fix generation). With `SKYLOS_API_KEY` set, the server also checks the key with Skylos Cloud every 15 minutes and sends a charge request for each scan or remediate call; these requests carry no code or findings.
 
 ## Troubleshooting
 
@@ -538,7 +567,7 @@ python -m pip install skylos
 
 ## Privacy
 
-- **Static analysis**: Runs 100% locally. No data leaves your machine.
+- **Static analysis**: Runs 100% locally. No code or findings leave your machine. With `SKYLOS_API_KEY` set, the server checks the key every 15 minutes and asks Skylos Cloud to charge each scan or remediate call (0 credits); dry runs send no charge request.
 - **Secrets scanning**: 100% local. Detected secrets are never transmitted.
 - **Remediation**: Sends code snippets to your configured LLM provider (OpenAI, Anthropic, or local). Use a local LLM (Ollama) for full privacy.
 - **Results storage**: Stored locally at `~/.skylos/mcp_results/`. No telemetry or data collection.

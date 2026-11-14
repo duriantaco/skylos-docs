@@ -1,9 +1,15 @@
 ---
 title: "Configuration"
-description: "Configure Skylos via pyproject.toml. Set exclusions, confidence thresholds, quality gate rules, and framework-specific settings."
+description: "Configure Skylos via pyproject.toml or skylos.toml. Set exclusions, confidence thresholds, quality gate rules, vibe dictionaries, dead-code entrypoints, and monorepo settings."
 ---
 
-Skylos uses `pyproject.toml` for configuration. Run `skylos init` to generate a configuration file with sensible defaults, or add the `[tool.skylos]` section to an existing file.
+Skylos reads the `[tool.skylos]` table in `pyproject.toml`, or the same keys at
+the top level of `skylos.toml` or `.skylos.toml`, so TypeScript, Go and Java
+repositories need no `pyproject.toml`. Run `skylos init` to add a
+`[tool.skylos]` section with thresholds, ignores, and vibe dictionary
+extensions to `pyproject.toml`, or add the section to an existing file. See
+[Where Settings Come From](#where-settings-come-from) for how Skylos finds and
+merges these files.
 
 ## Configuration File
 ```toml
@@ -14,6 +20,9 @@ nesting = 3
 max_args = 5
 max_lines = 50
 duplicate_strings = 3
+
+# Folders to skip in the main scan, skylos debt and skylos clean
+exclude = ["node_modules", "dist"]
 
 # Rules to ignore (by rule ID)
 ignore = []
@@ -41,6 +50,13 @@ names = [
 [tool.skylos.overrides."src/plugins/*"]
 # Per-path whitelist rules
 whitelist = ["*Plugin", "*Handler"]
+
+[tool.skylos.vibe]
+# Teach Skylos about project-specific AI-code mistakes
+extra_phantom_names = ["verify_enterprise_auth"]
+extra_phantom_decorators = ["tenant_admin_required"]
+extra_credential_names = ["tenant_signing_secret"]
+extra_network_timeout_calls = ["vendor_sdk.fetch"]
 
 [tool.skylos.dead_code]
 entrypoints = []
@@ -91,8 +107,41 @@ include_source = false
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
+| `exclude` | list | `[]` | Folders to exclude. Applies to the main scan and to commands such as `skylos debt` and `skylos clean`; see [Exclude And Include](#exclude-and-include) |
+| `include_generated` | bool | `false` | Also scan generated and vendored files that a full scan skips; see [Generated And Vendored Files](#generated-and-vendored-files) |
 | `ignore` | list | `[]` | List of rule IDs to suppress (e.g., `["SKY-L002", "SKY-Q301"]`) |
 | `model` | string | `"gpt-4.1"` | LLM model for AI-powered features |
+
+### Vibe Dictionary Extensions
+
+The `[tool.skylos.vibe]` section lets teams teach Skylos about local fake-auth
+helpers, project credential names, sensitive files, and network calls that
+must set timeouts. `skylos init` writes these keys with empty lists:
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `extra_phantom_names` | list | `[]` | Local fake-auth or security helper names, such as `verify_enterprise_auth` |
+| `extra_phantom_decorators` | list | `[]` | Local auth decorator names, such as `tenant_admin_required` |
+| `extra_credential_names` | list | `[]` | Project credential names, such as `tenant_signing_secret` |
+| `extra_sensitive_file_keywords` | list | `[]` | Project-specific sensitive-file keywords |
+| `extra_network_timeout_calls` | list | `[]` | Network calls that must set a timeout, such as `vendor_sdk.fetch` |
+
+```toml
+[tool.skylos.vibe]
+extra_phantom_names = ["verify_enterprise_auth"]
+extra_phantom_decorators = ["tenant_admin_required"]
+extra_credential_names = ["tenant_signing_secret"]
+extra_network_timeout_calls = ["vendor_sdk.fetch"]
+```
+
+### LLM Prompt Templates
+
+LLM prompt templates are not read from the repository: pass a trusted file
+with `--prompt-template KIND=PATH` to `skylos agent scan`, `agent audit`,
+`agent security-quick` or `agent security-deep` (KIND is `security`,
+`quality`, `security_audit` or `review`). A template extends Skylos' built-in
+prompt; it does not replace the JSON-only output contract or untrusted-code
+safety rules.
 
 ### Installed Type Checker (Unreleased)
 
@@ -275,8 +324,10 @@ whitelist = ["on_*", "*_listener"]
 
 Use `[[tool.skylos.dead_code.entrypoints]]` when code is live because a
 project-specific framework, plugin loader, or decorator calls it implicitly.
-Entrypoint rules are more precise than broad whitelists because they can match
-definition type, name, path, decorator, base class, and parent class metadata.
+Dead-code entrypoints let teams mark proprietary framework classes, lifecycle
+methods, and decorator-registered functions as live. Entrypoint rules are more
+precise than broad whitelists because they can match definition type, name,
+path, decorator, base class, and parent class metadata.
 
 ```toml
 [tool.skylos.dead_code]
@@ -360,11 +411,95 @@ complexity = 12
 
 Currently supported language overrides: `typescript` and `java`.
 
-## Configuration Resolution
+## Where Settings Come From
 
-Skylos searches for `pyproject.toml` by walking up from the target path to the filesystem root. The first file containing `[tool.skylos]` is used. If no configuration is found, Skylos applies the built-in defaults.
+Skylos walks up from the scan path to the repository root (the folder with
+`.git`) and reads, in each folder, the first of these that exists:
 
-This approach was chosen over per-directory configuration to keep analysis consistent across monorepos while still allowing project-level customization.
+1. `.skylos.toml`
+2. `skylos.toml`
+3. `pyproject.toml` with a `[tool.skylos]` table (a `pyproject.toml` without
+   one is skipped, so it no longer hides the settings above it)
+
+If no configuration is found, Skylos applies the built-in defaults.
+
+### `skylos.toml`
+
+`skylos.toml` takes the same keys as `[tool.skylos]`, at the top level, so
+TypeScript, Go and Java repositories need no `pyproject.toml`:
+
+```toml
+# skylos.toml
+exclude = ["generated", "dist"]
+
+[gate]
+max_security = 0
+
+[done]
+test_command = "npm test"
+```
+
+### Monorepos
+
+In a monorepo every file found on the way up applies: the repository root is
+the base and the file nearest the scanned folder wins per key. A key set in a
+package replaces the root's value (lists are replaced, not concatenated);
+tables such as `[gate]` merge key by key. Set `root = true` in a package's file
+to ignore everything above it:
+
+```toml
+# packages/api/skylos.toml
+root = true
+```
+
+`skylos doctor` lists the files in use, nearest first, and the ones it ignored.
+
+In PR CI, settings come from the base commit only, with the same rules, and
+`skylos done` reports an added or edited `skylos.toml` as a change to Skylos
+settings (SKY-A114). `[done]` and `[approval]` settings are read from the
+repository root's file.
+
+### One Explicit File
+
+To use one file instead of discovery, pass `--config-file PATH` or set
+`SKYLOS_CONFIG_FILE`; it may use `[tool.skylos]`, `[skylos]`, or (when named
+`skylos.toml`) top-level keys.
+
+### Skylos Cloud Policy
+
+Synced Skylos Cloud policy keeps its protected precedence over
+repository-controlled config. See [Project Policy](/project-policy) and
+[Quality Gate](/quality-gate).
+
+## Exclude And Include
+
+The top-level `[tool.skylos].exclude` list applies to the main scan and
+commands such as `skylos debt` and `skylos clean`. Pass `--exclude` for
+command-local additions or `--include-folder` to override an excluded folder.
+
+```toml
+[tool.skylos]
+exclude = ["node_modules", "dist"]
+```
+
+```bash
+skylos . --exclude tests --include-folder venv
+```
+
+## Generated And Vendored Files
+
+A full scan skips generated and vendored files (Django migrations,
+`static/**/lib/**`, `*.min.js`, `*.min.css`, vendored-library banners) and says
+how many in one line of output. Set `include_generated = true` under
+`[tool.skylos]` (or pass `--include-generated`) to scan them:
+
+```toml
+[tool.skylos]
+include_generated = true
+```
+
+See
+[What a full scan leaves out](https://github.com/duriantaco/skylos/blob/main/docs/cli-output.md#what-a-full-scan-leaves-out).
 
 ## Default Excluded Folders
 
