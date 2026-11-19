@@ -7,11 +7,25 @@ Skylos is local-first. The CLI does the analysis on your machine or in CI. **Sky
 
 ## Start Here: `skylos cloud`
 
-To use Skylos Cloud, you need one command:
+Skylos Cloud takes three steps and no token:
 
 ```bash
-skylos cloud
+skylos cloud        # 1. sign in once in your browser; connects this repo, scans and uploads
+skylos cicd init    # 2. writes .github/workflows/skylos.yml and prints what to do next
+                    # 3. open its pull request, install the Skylos GitHub App, merge
 ```
+
+1. `skylos cloud` opens your browser the first time to sign in and pick or
+   create this repo's project, then scans and uploads. A scan from your
+   machine is saved for review but never blocks a merge.
+2. `skylos cicd init` writes the workflow and lists what to do next: open a
+   pull request that adds it, install the Skylos GitHub App on the repository,
+   wait for the checks.
+3. After the merge, every pull request is checked and can be blocked, and each
+   push to the default branch uploads a verified scan. CI signs in with its
+   GitHub identity (OIDC); you never create or paste a secret.
+
+The rest of this section is about step 1.
 
 `skylos cloud` runs every check (`-a`), shows the findings, uploads them to
 Skylos Cloud, then prints this branch's quality gate and one link to it.
@@ -26,11 +40,11 @@ Skylos Cloud, then prints this branch's quality gate and one link to it.
 - Exit code: 0 even when the gate fails. Add `--gate` to exit 1 on a failed
   gate (use this in CI).
 - Takes the same scan flags as `skylos .`, e.g. `skylos cloud src --exclude build`.
-- No terminal and no login: it stops before scanning and exits 1 with
-  "Not connected to Skylos Cloud. Run skylos login in a terminal, or set
-  SKYLOS_TOKEN to a project token (create one in your project's Settings on
-  skylos.dev)." In GitHub Actions or GitLab CI it uses the CI identity (OIDC)
-  or `SKYLOS_TOKEN`.
+- No terminal and no sign-in: it stops before scanning and exits 1 with
+  "Skylos Cloud sign-in required. Run skylos cloud PATH in a terminal without
+  output-format flags to sign in in your browser, then retry." In GitHub
+  Actions or GitLab CI it uses the CI identity (OIDC); other CI systems use a
+  `SKYLOS_TOKEN` secret.
 
 ### What You See
 

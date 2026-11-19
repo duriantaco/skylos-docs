@@ -12,23 +12,41 @@ This guide covers the fastest path from installation to a useful local scan.
 Skylos works as a local CLI first; cloud upload, LLM review, and CI gates are
 optional layers you can add later.
 
-## The Three Commands
+## Key Commands
 
 ```bash
 pip install skylos
-skylos .            # find problems; your code and findings stay on your machine
-skylos cloud        # optional: track results per branch on Skylos Cloud
-skylos cicd init    # add a Skylos check to every pull request
 ```
 
-- `skylos .` finds problems. Your code and findings stay on your machine.
-- `skylos cloud` is optional. It tracks results per branch on [Skylos Cloud](/cloud).
-- `skylos cicd init` adds a Skylos check to every pull request. See [CI/CD Integration](/ci-cd).
+No account needed. Your code and findings stay on your machine.
 
-`skylos .` finds dead code. `skylos . -a` runs every check (security, secrets,
-quality, AI-code defects, dependencies) and still stays local, except that it
-looks up package names online: OSV.dev for known CVEs, and PyPI or npm for
-packages that don't exist.
+| To | Run |
+|:---|:---|
+| Find dead code | `skylos .` |
+| Run every check: security, secrets, dependencies, quality, AI-code mistakes | `skylos . -a` |
+| Check only what your branch changed | `skylos . -a --diff origin/main` |
+| Fail the build when the gate fails | `skylos . --gate` |
+| Check the agent really finished (runs your tests) | `skylos done --base main` |
+| Check every pull request in CI | `skylos cicd init` |
+| Set up Claude Code and Codex in this repo | `skylos setup` |
+
+`skylos . -a` stays local, except that it looks up package names online:
+OSV.dev for known CVEs, and PyPI or npm for packages that don't exist.
+
+## Skylos Cloud in Three Steps
+
+Optional. Track every branch and block pull requests from one dashboard. No
+token to copy.
+
+```bash
+skylos cloud        # 1. sign in once in your browser; connects this repo, scans and uploads
+skylos cicd init    # 2. writes .github/workflows/skylos.yml and prints what to do next
+                    # 3. open its pull request, install the Skylos GitHub App, merge
+```
+
+Scans from your machine are saved for review but never block a merge. After
+step 3, every pull request is checked, and CI uploads with its GitHub identity
+(OIDC), so you never add a secret. See [Cloud Platform](/cloud).
 
 The steps below go through each one in more detail.
 
