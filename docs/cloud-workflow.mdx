@@ -5,18 +5,17 @@ description: "The verified end-to-end flow from the local Skylos CLI to Skylos C
 
 This is the operational guide for the cloud workflow. It reflects the current `skylos` CLI and `skylos-cloud` app behavior.
 
-Short version, three steps and no token:
+Short version: five steps, in this order, and no token. See
+[Getting Started](/#skylos-cloud-step-by-step) for what each step shows.
 
 ```bash
-skylos cloud        # 1. sign in once in your browser; connects this repo, scans and uploads
-skylos cicd init    # 2. writes .github/workflows/skylos.yml and prints what to do next
-                    # 3. open its pull request, install the Skylos GitHub App, merge
+pip install skylos
+skylos cloud        # 1. sign in on skylos.dev, pick the project; scans and uploads
+                    # 2. click the Open: link it prints to see the scan
+skylos cicd init    # 3. writes .github/workflows/skylos.yml
+                    # 4. open that pull request, install the Skylos GitHub App, merge
+skylos setup        # 5. after the merge: makes the Skylos check required
 ```
-
-Scans from your machine are saved for review but never block a merge; after
-step 3, CI checks every pull request and uploads with its GitHub identity
-(OIDC). See [Cloud Platform](/cloud#start-here-skylos-cloud) for what
-`skylos cloud` sends and what it prints.
 
 Use this page when you want to answer:
 - Which command should I run?
