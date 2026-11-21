@@ -527,7 +527,7 @@ Recommendation: Move these to environment variables or a secrets manager.
 3. **Results** are stored in-memory and on disk (`~/.skylos/mcp_results/`) for later retrieval via resources
 4. **Remediation** uses Skylos's LLM orchestrator to generate, apply, test, and verify fixes
 
-The MCP server runs 100% locally. Your code never leaves your machine (unless you use the `remediate` tool, which sends code snippets to your configured LLM provider for fix generation). With `SKYLOS_API_KEY` set, the server also checks the key with Skylos Cloud every 15 minutes and sends a charge request for each scan or remediate call; these requests carry no code or findings.
+The MCP server runs locally. Your code never leaves your machine (unless you use the `remediate` tool, which sends code snippets to your configured LLM provider for fix generation). Dependency and package checks look up package names in public registries. With `SKYLOS_API_KEY` set, the server also checks the key with Skylos Cloud every 15 minutes and sends a charge request for each scan or remediate call; these requests carry no code or findings.
 
 ## Troubleshooting
 
@@ -567,8 +567,8 @@ python -m pip install skylos
 
 ## Privacy
 
-- **Static analysis**: Runs 100% locally. No code or findings leave your machine. With `SKYLOS_API_KEY` set, the server checks the key every 15 minutes and asks Skylos Cloud to charge each scan or remediate call (0 credits); dry runs send no charge request.
-- **Secrets scanning**: 100% local. Detected secrets are never transmitted.
+- **Static analysis**: Runs locally. No code or findings leave your machine; dependency and package checks look up package names in public registries. With `SKYLOS_API_KEY` set, the server checks the key every 15 minutes and asks Skylos Cloud to charge each scan or remediate call (0 credits); dry runs send no charge request.
+- **Secrets scanning**: Runs locally. Detected secrets are never transmitted.
 - **Remediation**: Sends code snippets to your configured LLM provider (OpenAI, Anthropic, or local). Use a local LLM (Ollama) for full privacy.
 - **Results storage**: Stored locally at `~/.skylos/mcp_results/`. No telemetry or data collection.
 

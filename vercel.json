@@ -1,0 +1,8 @@
+{
+  "redirects": [
+    { "source": "/case-studies", "destination": "https://skylos.dev/benchmarks", "permanent": true },
+    { "source": "/case-studies/", "destination": "https://skylos.dev/benchmarks", "permanent": true },
+    { "source": "/why-skylos", "destination": "/competitors", "permanent": true },
+    { "source": "/why-skylos/", "destination": "/competitors", "permanent": true }
+  ]
+}

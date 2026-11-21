@@ -7,7 +7,11 @@ description: "Frequently asked questions about Skylos"
 
 ### What is Skylos?
 
-Skylos is a static analysis tool for 13 languages (Python, TypeScript/JavaScript, Java, Go, PHP, Rust, Ruby, Dart, C#, C++, Kotlin, Swift, and Shell; see [Language Support](/language-support)) that detects:
+Skylos is an open-source, local-first check for code written with AI coding agents such as Claude Code, Codex and Cursor. It fails a branch on deleted or skipped tests, packages that don't exist, security bugs, secrets and vulnerable dependencies, and it finds dead code.
+
+Depth varies by language and check. Deepest in Python, TypeScript/JavaScript and Java. Go, PHP and Dart get dead-code and security checks. Rust gets security checks. Ruby, C#, C++, Kotlin, Swift and Shell get partial checks. See [Language Support](/language-support).
+
+Its static checks cover:
 
 - **Dead code:** Unused functions, imports, classes, variables
 - **Security vulnerabilities:** SQL injection, command injection, SSRF, XSS
@@ -71,7 +75,7 @@ implicitly-called code.
 | Bandit | Security | Pattern matching |
 | Skylos | Dead code + Security + Quality | Taint analysis + Framework awareness |
 
-Skylos catches vulnerabilities that pattern matchers miss (indirect data flows) and has fewer false positives for dead code (framework awareness).
+Taint analysis lets Skylos follow indirect data flows, and framework awareness keeps framework-called code out of dead-code results. Pylint and Bandit check things Skylos does not, so run them alongside it.
 
 ---
 
