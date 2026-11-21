@@ -2,8 +2,8 @@ import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 
 const config: Config = {
-  title: 'Skylos — Dead Code Detection, Vibe Coding Guardrails & SAST',
-  tagline: 'Find dead code, vibe coding defects, prompt injection, and security vulnerabilities. Framework-aware static analysis that runs on your machine.',
+  title: 'Skylos Docs',
+  tagline: 'Open-source PR gate that checks what AI coding agents changed before merge.',
   favicon: 'img/favicon-96x96.png',
 
   url: 'https://docs.skylos.dev',
@@ -28,7 +28,7 @@ const config: Config = {
       tagName: 'meta',
       attributes: {
         name: 'keywords',
-        content: 'dead code detection, python static analysis, typescript static analysis, javascript static analysis, java static analysis, go static analysis, php static analysis, rust static analysis, dart static analysis, shell script security, SAST, unused code finder, security scanner, code quality, vulture alternative, django dead code, fastapi dead code, typescript dead code, MCP server, vibe coding, AI generated code, prompt injection detection, AI supply chain security, phantom function, hallucinated dependency, copilot code review',
+        content: 'AI generated code, coding agent checks, pull request gate, hallucinated dependency, phantom function, vibe coding, AI supply chain security, MCP server, copilot code review, SAST, security scanner, code quality, python static analysis, typescript static analysis, javascript static analysis, java static analysis, go static analysis, php static analysis, rust static analysis, dart static analysis, shell script security, dead code detection, unused code finder, django dead code, fastapi dead code, typescript dead code',
       },
     },
     {
@@ -43,7 +43,7 @@ const config: Config = {
         applicationCategory: 'DeveloperApplication',
         operatingSystem: 'Windows, macOS, Linux',
         offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-        description: 'Dead code detection, vibe coding guardrails, prompt injection scanning, and SAST for Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, and Shell. Framework-aware analysis with AI-powered fixes.',
+        description: "Skylos is an open-source, local-first check for code written with AI coding agents such as Claude Code, Codex and Cursor. It fails a branch on deleted or skipped tests, packages that don't exist, security bugs, secrets and vulnerable dependencies, and it finds dead code.",
         url: 'https://github.com/duriantaco/skylos',
         downloadUrl: 'https://pypi.org/project/skylos/',
       }),
@@ -138,7 +138,7 @@ const config: Config = {
           label: 'Docs',
         },
         {
-          to: '/case-studies',
+          href: 'https://skylos.dev/benchmarks',
           label: 'Benchmarks',
           position: 'right',
         },
@@ -192,7 +192,7 @@ const config: Config = {
             { label: 'Vibe Coding Guardrails', to: '/concepts/vibe-coding' },
             { label: 'Code Quality', to: '/code-quality' },
             { label: 'AI Features', to: '/ai-features' },
-            { label: 'Case Studies', to: '/case-studies' },
+            { label: 'Benchmarks', href: 'https://skylos.dev/benchmarks' },
           ],
         },
         {

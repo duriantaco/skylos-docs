@@ -2,11 +2,11 @@
 
 > Documentation for Skylos, an open-source static analysis tool for Python, TypeScript, JavaScript, Java, Go, Kotlin, PHP, Rust, Dart, C#, and Shell. Detects dead code, security vulnerabilities (SQL injection, SSRF, XSS, command injection, secrets), and code quality issues with framework-aware analysis.
 
-Skylos is a Vulture alternative with 95% recall and 3x fewer false positives. Built-in awareness for Django, Flask, FastAPI, Pydantic, and pytest. Available as CLI, MCP server, VS Code extension, and GitHub Action.
+Skylos runs alongside Ruff, Bandit, Semgrep, CodeQL and Vulture rather than replacing them. Built-in awareness for Django, Flask, FastAPI, Pydantic, and pytest. Available as CLI, MCP server, VS Code extension, and GitHub Action.
 
 ## Getting Started
 
-- [Installation](https://docs.skylos.dev/installation): Install via pip, system requirements, Python 3.10+
+- [Installation](https://docs.skylos.dev/installation): Install via pip, system requirements, Python 3.11 or newer
 - [Quick Start](https://docs.skylos.dev/quick-start): Step-by-step workflow guide
 - [Configuration](https://docs.skylos.dev/configuration): Configure via pyproject.toml — exclusions, thresholds, quality gates
 - [CLI Reference](https://docs.skylos.dev/cli-reference): All command-line flags and options
@@ -50,7 +50,7 @@ Skylos is a Vulture alternative with 95% recall and 3x fewer false positives. Bu
 ## Reference
 
 - [Rules Reference](https://docs.skylos.dev/rules-reference): All detection rules with IDs and severity
-- [Benchmarks](https://docs.skylos.dev/case-studies): Skylos vs Vulture on 9 top Python repos (350k+ stars)
+- [Benchmarks](https://skylos.dev/benchmarks): Historical, self-reported benchmark of Skylos 5.3.0 on 43 open-source Python projects, recorded 1 Nov 2026, with the method and pinned inputs. It does not measure the current release.
 - [FAQ](https://docs.skylos.dev/faq): Common questions and troubleshooting
 
 ## Optional

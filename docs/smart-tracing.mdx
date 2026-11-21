@@ -214,11 +214,11 @@ By default, Skylos excludes pytest internals. Your test functions themselves are
 
 ## Comparison
 
-| Approach | Accuracy | Speed | Setup |
-|----------|----------|-------|-------|
-| Static only | 70-85% | Fast | None |
-| Static + Framework rules | 85-95% | Fast | None |
-| Static + `--trace` | 95-99% | Slower (runs tests) | Requires tests |
+| Approach | What it can see | Speed | Setup |
+|----------|-----------------|-------|-------|
+| Static only | Calls written in the code | Fast | None |
+| Static + Framework rules | Also functions a framework calls implicitly (routes, hooks, protocol methods) | Fast | None |
+| Static + `--trace` | Also functions your tests call dynamically (`getattr`, visitors, plugin hooks) | Slower (runs tests) | Requires tests |
 
 ---
 

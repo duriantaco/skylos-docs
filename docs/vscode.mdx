@@ -6,7 +6,7 @@ description: 'Real-time AI-powered code analysis as you type'
 :::info
   **Prerequisites**:
   - VS Code version 1.87 or higher
-  - Python 3.10+ (for Skylos CLI)
+  - Python 3.11 or newer (for Skylos CLI)
   - OpenAI or Anthropic API key only for LLM fix generation
 :::
 
@@ -245,25 +245,25 @@ To see all issues, check the Problems panel (`Cmd + Shift + M`) or the Output pa
 <details>
 <summary>Issue: Python version errors with Skylos CLI</summary>
 
-Skylos requires Python 3.10+. Check your version:
+Skylos requires Python 3.11 or newer. Check your version:
 ```bash
 python --version
 ```
 
-If you're on an older version, upgrade Python or use a virtual environment with 3.10+.
+If you're on an older version, upgrade Python or use a virtual environment with Python 3.11 or newer.
 </details>
 
 <details>
 <summary>Issue: "TypeError: unsupported operand type(s) for |"</summary>
 
-This happens when running Skylos with Python 3.9 or earlier. The `|` type union syntax requires Python 3.10+.
+This happens when Skylos runs on a Python version older than it supports.
 
-**Solution:** Upgrade to Python 3.10 or higher.
+**Solution:** Upgrade to Python 3.11 or newer.
 </details>
 
 ## Privacy
 
-- **Skylos CLI** runs 100% locally — no network calls
+- **Skylos CLI** runs locally. Dependency checks look up package names online: OSV.dev for known CVEs, and PyPI or npm for packages that don't exist
 - **Realtime verify** uses `skylos verify` locally and does not send code to an LLM provider
 - **Fix with AI** sends only the code needed for the selected fix to OpenAI/Anthropic
 - Your API keys are stored in VS Code settings (local to your machine)

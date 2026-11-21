@@ -158,9 +158,9 @@ const sidebars = {
     },
 
     {
-      type: 'doc',
-      id: 'case-studies',
-      label: 'Case Studies',
+      type: 'link',
+      href: 'https://skylos.dev/benchmarks',
+      label: 'Benchmarks',
       className: 'sb-chart',
     },
     {
