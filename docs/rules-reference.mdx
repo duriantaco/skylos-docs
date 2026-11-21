@@ -563,6 +563,10 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-Q408` | Undeclared npm Dependency | MEDIUM | TypeScript, JavaScript, package.json | Literal source or supported config use names a package missing from its owning package.json; workspace source imports require their own declaration |
 | `SKY-Q409` | Unlisted npm Script Binary | MEDIUM | package.json | A simple script invokes a known npm binary without its provider declared locally or in an ancestor package; unknown and dynamic commands remain unresolved |
 | `SKY-Q410` | Discarded Local Async Result | MEDIUM | TypeScript, JavaScript | A stable local async callable returns a promise discarded as an expression statement; awaited, returned, stored, rejection-handled and explicit void uses stay quiet |
+| `SKY-Q411` | Unused pnpm Catalog Entry | LOW | pnpm-workspace.yaml | A catalog or named-catalog entry that no workspace package.json references through the catalog: protocol; unreadable manifests, pnpmfile hooks and competing catalog sources hold back every claim |
+| `SKY-Q412` | Unresolved pnpm Catalog Reference | MEDIUM | package.json | A workspace member declares catalog:, catalog:default or catalog:<name> for a package the referenced catalog does not define |
+| `SKY-Q413` | Referenced Optional Peer Dependency | LOW | TypeScript, JavaScript, package.json | A peer marked optional in peerDependenciesMeta is imported by a static runtime import; type-only, dynamic and guarded loads stay quiet and packages with subpath exports are skipped |
+| `SKY-Q414` | Unresolved Import | MEDIUM | TypeScript, JavaScript, Vue/Svelte/Astro scripts | A literal relative or path-alias import, `export … from`, `require()` or `import()` names no file; existing assets, virtual modules, ambient `declare module` and unreadable bundler aliases stay quiet; bare packages are SKY-Q408 |
 | `SKY-Q501` | God Class | MEDIUM | Python | 20 methods / 15 attributes |
 | `SKY-Q502` | Class Too Large | MEDIUM | Python | Class has too many methods or attributes for maintainable ownership |
 | `SKY-Q701` | Coupling Between Objects (CBO) | MEDIUM/HIGH | Python | Ce > 4 |
@@ -587,7 +591,7 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-C303` | Too Many Arguments | MEDIUM | All | 5 arguments |
 | `SKY-C304` | Function Too Long | MEDIUM | All | 50 lines |
 | `SKY-C401` | Duplicated Code Clone | MEDIUM | Python | Similar code block repeated across functions or files |
-| `SKY-CIRC` | Circular Dependency | MEDIUM | Python | Modules import each other in a cycle |
+| `SKY-CIRC` | Circular Dependency | MEDIUM | Python, TypeScript, JavaScript | Modules import each other in a cycle (TS/JS: runtime imports only; `import type` and `import()` do not count) |
 
 ### Typing Practice Rules (SKY-T)
 
@@ -681,7 +685,8 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-U004` | Unused Class | LOW | Class defined but never instantiated or subclassed |
 | `SKY-U005` | Unused Dependency | MEDIUM | With `--quality`, a declared Python or npm dependency has no supported source, command or configuration use; unresolved consumers prevent absence claims |
 | `SKY-U006` | Unused Parameter | LOW | Function parameter is never referenced |
-| `SKY-U007` | Unused TypeScript Enum Member | LOW | An unread member of a used module-local enum or a closed private package enum with resolved direct named imports; public, reflective, dynamic, escaped and mutated enum surfaces stay live |
+| `SKY-U007` | Unused TypeScript Enum Member | LOW | An unread member of a module-local enum, or of an exported enum in an internal (non-public) module; public, tagged, reflective, dynamic, escaped and mutated enum surfaces stay live |
+| `SKY-U008` | Unused TypeScript Namespace Member | LOW | An unread variable, type or interface member of an `export namespace` in an internal module; escaping, merged, tagged and public namespaces stay live |
 | `SKY-UC001` | Unreachable Code (Python) | MEDIUM | Code after `return`, `raise`, `break`, or `continue` |
 | `SKY-UC002` | Unreachable Code (TS) | MEDIUM | Code after `return`, `throw`, `break`, or `continue` |
 
@@ -704,6 +709,8 @@ can be removed.
 | `SKY-UC001` | Unreachable Code | MEDIUM | Code after `return`, `raise`, `break`, `continue`, or always-false condition |
 | `SKY-E002` | Empty File | LOW | Empty Python file (no code, or docstring-only) |
 | `SKY-E003` | Unused TypeScript/JavaScript File | LOW | File is not reachable from a recognized entry point or another live module |
+| `SKY-E004` | Unnecessary TypeScript/JavaScript Export | LOW | A value, re-export, type or interface export no project file requests; public modules and `@public`/`@alpha`/`@beta` exports stay silent |
+| `SKY-E005` | Duplicate TypeScript/JavaScript Export | LOW | One unchanging binding exported under two names (`export const B = A`, `export default A`); tag an intentional alias `@alias` |
 | `SKY-SC001` | Smart Contract Security Issue | HIGH | Contract code contains a known security-sensitive pattern |
 
 ---
