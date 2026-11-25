@@ -312,6 +312,12 @@ from markupsafe import Markup
 return Markup(f"<div>{user_comment}</div>")
 ```
 
+### Weak RSA keys in Python
+
+- A Django mail app can let each domain choose a key size for signing email. If a domain leaves it blank, the app uses the default.
+- If that default is 1024 bits and the app uses it to create a key with OpenSSL, Skylos flags the line that sets the default. It can follow the setting across Python files.
+- Set the default to at least 2048 bits for new keys. [See rule SKY-D383](./rules-reference#sky-d383).
+
 ---
 
 ## Dangerous Function Detection

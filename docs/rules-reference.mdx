@@ -113,6 +113,7 @@ host validation when assessing a finding's impact.
 | `SKY-D359` | Cached Request-Derived External Flask URL | MEDIUM | Python | Cached content includes an external Flask URL without a proven fixed or trusted host |
 | `SKY-D378` | Incomplete Path Traversal Defence | MEDIUM | Python | The code handles `..` itself, but the defence can be bypassed before the path reaches a file operation |
 | `SKY-D379` | Catastrophic Regex Backtracking | MEDIUM | Python | A regular expression whose matching time grows exponentially, or at least cubically, with input length |
+| `SKY-D383` | Weak RSA key size | MEDIUM | Python | A Django or Oslo default can make OpenSSL create an RSA key smaller than 2048 bits |
 
 #### TypeScript-Specific Security
 
@@ -3306,6 +3307,20 @@ Patterns built at run time, unknown flags and `re` names rebound in the file
 give no verdict. The finding does not prove that attacker-controlled text
 reaches the pattern; review where the matched text comes from. Test files are
 not checked.
+
+---
+
+### SKY-D383 · Weak RSA key size {#sky-d383}
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Languages** | Python |
+| **Availability** | Unreleased |
+
+- Skylos checks Django form defaults and integer settings registered with Oslo (`cfg.IntOpt`).
+- It warns when `openssl genrsa` can use a default below 2048 bits. The warning points to the line that sets the size.
+- For example, if a Django form sets `initial=1024`, change it to `initial=2048` or higher. New keys that use the default will then use the larger size.
 
 ---
 
