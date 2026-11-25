@@ -28,6 +28,7 @@ Each command answers a different question. The source scan requires a path.
 | What do I tell my CTO? | `skylos report [path]` | Every main source analyzer locally, then one self-contained HTML page (or `--format md`): verdict, top five risks with fixes, issue counts, coverage gaps, scan date, commit and version |
 | What does the combined repo report contain? | `skylos suite [DIRECTORY]` | Static analysis, technical debt, AI app safety, and provenance; local findings are report-only by default |
 | Does an agent implementation have deployment guardrails? | `skylos defend [DIRECTORY]` | Recognized Python and TypeScript/JavaScript LLM integrations; gating requires a threshold flag or policy |
+| Are there import cycles or architecture layer violations? | `skylos lint [path]` | Local Python, TypeScript and JavaScript import graphs and the project's configured layer rules |
 | What cleanup should I review next? | `skylos cleanup [path] --next` | Quality, AI-code and dead-code tasks, with local history and explicit preview/apply options; see [Cleanup](./cleanup) |
 | Which Python dead code can Skylos remove? | `skylos clean [path] --dry-run` | Python import/function cleanup candidates; `--dry-run` never writes |
 | Will this exact local GPU build fit the declared fleet? | `skylos preflight [ARTIFACT]` | A local built artifact plus `.skylos/gpu-targets.yml` or `.yaml`; OCI input is identity-only and returns `UNKNOWN` in the CLI |
@@ -57,6 +58,8 @@ The report commands have different gate and network behavior:
   gate.
 - `defend` reports guardrail findings by default. It becomes a gate with
   `--fail-on`, `--min-score`, or gate settings in an explicit policy.
+- `lint` runs local static architecture checks and exits `0` when clean, `1`
+  when it reports findings, and `2` on an error or incomplete scan.
 - `cleanup` changes source only with `--apply`, and runs tests only with
   `--test-cmd`. A change stays `applied_unverified` when tests were skipped;
   see [Skylos Cleanup](#skylos-cleanup) for its exit codes.
@@ -79,7 +82,7 @@ The report commands have different gate and network behavior:
 | AI double-check of issues | `skylos . -a --ai-review` | Unused-code issues in every language and security issues in Python files get an AI verdict: confirmed, AI disagrees, or unsure. Uses your model key, plus Jev when `TYPESAFE_API_KEY` is set. Nothing is hidden and blocking never changes; with `skylos cloud --ai-review` the verdicts show on the Cloud PR board and Issues | [AI review](https://github.com/duriantaco/skylos/blob/main/docs/ai-review.md) |
 | One-page report to share | `skylos report .` | Writes `skylos-report.html`: the verdict ("Not ready: 1 blocking issue"), the five risks to fix first with one-line fixes and docs links, counts by category, suppressed counts and what the scan did not cover; nothing is uploaded | [CLI output modes](https://github.com/duriantaco/skylos/blob/main/docs/cli-output.md) |
 | Combined repo report | `skylos suite .` | Reports static findings, technical debt, AI app safety, and provenance; SCA can query OSV, and findings alone exit `0` | [`skylos suite`](#skylos-suite-directory) |
-| Optional Python linting | `pip install "skylos[lint]" && skylos lint .` | Runs Ruff with its native configuration, output, fixes, and exit codes through the Skylos CLI | [Python linting](https://github.com/duriantaco/skylos/blob/main/docs/python-linting.md) |
+| Architecture linting | `skylos lint` | Reports module import cycles in Python, TypeScript and JavaScript, cycles between sibling Python packages, and configured import layer violations | [Architecture linting](/code-quality#architecture-linting) |
 | Agent branch done check | `skylos done --base origin/main` | Runs your tests and flags deleted, skipped or weakened tests, loosened test settings and CI test steps, silenced checks, and test-only special cases; writes a receipt | [Done gate](https://github.com/duriantaco/skylos/blob/main/docs/done-gate.md) |
 | Change map for review | `skylos done map --base origin/main` | Old and new code of each changed Python or TypeScript/JavaScript function, calls added and removed, who calls it and whether those callers were updated, removed auth checks, breaking signatures, and what to read first, read, skim or skip, with a count of the changed lines a person has to read; `--format json` for a review agent. The pull request comment from `skylos cicd init` shows what to read first, and the Skylos Done check's summary has the full map | [Change map](/change-map) |
 | MCP change map | `change_map` MCP tool | Gives a review agent the change map as JSON before it reads the diff, including what to read first, read, skim and skip. Needs no Skylos API key and has no daily limit; the map is built on your machine | [Change map](/change-map#in-the-agent-loop) |
@@ -144,7 +147,7 @@ installed family map and `skylos <family> --help` for its real parser options.
 | `skylos review [path]` | Record and manage local finding decisions |
 | `skylos baseline [path]` | Save the current finding baseline |
 | `skylos debt [path]` | Rank technical-debt hotspots and trends |
-| `skylos lint [RUFF_ARGS ...]` | Forward arguments to `ruff check` |
+| `skylos lint [path]` | Check import cycles and configured architecture layers. Defaults to the current directory |
 | `skylos sbom [path]` | Export supported dependency inventory as CycloneDX JSON |
 | `skylos discover [path]` | Inventory recognized Python and TypeScript/JavaScript LLM integrations and tools |
 | `skylos defend [DIRECTORY]` | Report static guardrails; threshold flags or policy make it a gate |
@@ -168,6 +171,20 @@ installed family map and `skylos <family> --help` for its real parser options.
 
 `skylos run` and `skylos city` are removed compatibility names and exit `2`
 with replacement guidance.
+
+### Skylos Lint
+
+```bash
+skylos lint
+```
+
+Pass a project directory to check another location. In CI, add
+`--diff origin/main` to focus on changed code or `--format json` for structured
+findings.
+
+To track new architecture findings, first save the current findings with
+`skylos baseline . --architecture`. Run `skylos lint --baseline` from the
+same directory. [Architecture linting](/code-quality#architecture-linting)
 
 ### `skylos init`
 

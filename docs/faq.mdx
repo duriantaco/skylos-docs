@@ -42,9 +42,9 @@ dead code, security, secrets, quality, and AI-defect checks.
 
 ### Does Skylos replace Ruff?
 
-No. `skylos lint` is an optional convenience entry point that delegates to
-Ruff. Install it with `pip install "skylos[lint]"`; normal Skylos scans do not
-run Ruff or merge Ruff violations into `SKY-*` findings.
+Run `ruff check` directly for Ruff's Python lint rules. `skylos lint` checks
+module import cycles, Python sibling-package cycles, and configured
+architecture layers. [Architecture linting](/code-quality#architecture-linting)
 
 ### What Python versions are supported?
 

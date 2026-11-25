@@ -28,6 +28,9 @@ uv pip install skylos
   </TabItem>
 </Tabs>
 
+The core install includes `skylos lint` for local architecture checks.
+[Architecture linting](/code-quality#architecture-linting)
+
 ## Optional Extras
 
 ```bash
@@ -36,9 +39,6 @@ pip install skylos
 
 # LLM-powered agent workflows
 pip install "skylos[llm]"
-
-# Ruff Python linting through `skylos lint`
-pip install "skylos[lint]"
 
 # Ed25519 verification for `skylos verify-verdict`
 pip install "skylos[verdict]"
@@ -51,7 +51,7 @@ pip install "skylos[all]"
 ```
 
 The published extras are defined in the Skylos `pyproject.toml`. They are
-`llm`, `lint`, `test`, `verdict`, `dart`, and `all`.
+`llm`, `test`, `verdict`, `dart`, and `all`.
 
 ### Dart Parser And C Compiler
 

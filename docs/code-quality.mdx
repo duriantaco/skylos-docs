@@ -10,6 +10,22 @@ import TabItem from '@theme/TabItem';
 **Enable quality checks:** `skylos . --quality`
 :::
 
+## Architecture linting
+
+Run from your project root.
+
+```bash
+skylos lint
+```
+
+The command checks module import cycles and configured layer boundaries in
+Python, TypeScript, and JavaScript. It also finds cycles between sibling Python
+packages. Cycle findings list the contributing import sites.
+
+The check runs locally. Exit code `0` means clean, `1` means findings, and
+`2` means the analysis could not complete or the command failed. See the
+[CLI reference](/cli-reference#skylos-lint) for diff scans and baselines.
+
 ## What Counts As Good Coding Practice
 
 Skylos treats a coding practice as enforceable only when it has a clear source of authority. That source can be a language standard, a security standard, an accepted ecosystem tool, a framework convention, or an explicit repository policy.
