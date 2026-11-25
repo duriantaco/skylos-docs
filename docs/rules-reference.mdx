@@ -584,6 +584,7 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-Q804` | DIP Violation | MEDIUM/HIGH | Python | Stable module depends on unstable module |
 | `SKY-Q805` | Architecture Layer Policy Violation | MEDIUM/HIGH | Python | Module imports across a forbidden architectural layer boundary |
 | `SKY-Q806` | Opaque Identifier | LOW | Python | Long-lived vague variable hides direct RHS key/subscript meaning |
+| `SKY-Q807` | Sibling Package Dependency Cycle | LOW | Python | Resolved top-level imports form a cycle between sibling packages |
 
 ### Structure Rules (SKY-C)
 
@@ -592,7 +593,7 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-C303` | Too Many Arguments | MEDIUM | All | 5 arguments |
 | `SKY-C304` | Function Too Long | MEDIUM | All | 50 lines |
 | `SKY-C401` | Duplicated Code Clone | MEDIUM | Python | Similar code block repeated across functions or files |
-| `SKY-CIRC` | Circular Dependency | MEDIUM | Python, TypeScript, JavaScript | Modules import each other in a cycle (TS/JS: runtime imports only; `import type` and `import()` do not count) |
+| `SKY-CIRC` | Circular Dependency | LOW | Python, TypeScript, JavaScript | Modules import each other in a cycle through resolved load-time imports |
 
 ### Typing Practice Rules (SKY-T)
 
@@ -4401,6 +4402,32 @@ This rule is intentionally conservative. It skips short-lived temps, counters, e
 
 ---
 
+### SKY-Q807 · Sibling Package Dependency Cycle
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Languages** | Python |
+| **What** | Sibling packages depend on one another through resolved top-level imports |
+
+A package cycle can span different files in each package. For example,
+`shop.billing.invoices` imports `shop.orders.records`, while
+`shop.orders.checkout` imports `shop.billing.records`. The
+`shop.billing` and `shop.orders` packages depend on one another even
+though the imports between individual modules form no loop.
+
+Skylos groups imports by sibling packages with a scanned `__init__.py`.
+It reports one finding for each mutually dependent group and lists the
+contributing import sites. Test files and imports inside functions or
+`if TYPE_CHECKING` blocks are outside this check.
+
+Run `skylos lint` to check the current directory. To include the rule in
+ordinary quality scans and the `skylos cleanup` queue, set
+`check_package_cycles = true` under `[tool.skylos.architecture]` in
+`pyproject.toml`.
+
+---
+
 ### SKY-C303 · Too Many Arguments
 
 | | |
@@ -4450,10 +4477,18 @@ def create_user(data: UserData): ...
 
 | | |
 |---|---|
-| **Severity** | MEDIUM |
-| **Languages** | Python |
+| **Severity** | LOW |
+| **Languages** | Python, TypeScript, JavaScript |
 | **What** | Modules import each other in a cycle |
 | **Risk** | Cycles make initialization order, tests, and refactors harder to reason about |
+
+Skylos follows Python top-level imports and TypeScript or JavaScript
+load-time imports. Type-only imports and dynamic `import()` are
+outside the cycle check. Findings list contributing import sites.
+
+To record existing architecture findings, run
+`skylos baseline . --architecture`. Then use `skylos lint --baseline`
+to check for findings outside that baseline.
 
 ---
 
