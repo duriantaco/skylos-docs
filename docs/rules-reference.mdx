@@ -194,6 +194,13 @@ cloud compliance or prove that a declaration was applied or is reachable.
 | `SKY-D413` | Ambiguous HTTP/1 request framing | MEDIUM | Envoy YAML | A downstream HTTP/1 connection manager enables `allow_chunked_length`. |
 | `SKY-D414` | DNS retained during S3 deletion | MEDIUM | Terraform plan JSON | A Route 53 CNAME survives a matching S3 bucket deletion or delete-first replacement. |
 
+#### Rust Unix file permissions
+
+| Rule ID | Name | Severity | Input | What triggers a review |
+|---------|------|----------|-------|------------------------|
+| `SKY-D415` | Unix permission value grants write access to all users | MEDIUM | Rust | A standard filesystem permission value is made writable for the owner, group and others. |
+| `SKY-D416` | Non-octal Unix permission mode literal | MEDIUM | Rust | A decimal or hexadecimal literal sets a Unix permission mode through a standard filesystem extension. |
+
 #### Kubernetes Workload Declaration Policies
 
 | Rule ID | Name | Severity | Languages | Description |
@@ -697,6 +704,7 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-U006` | Unused Parameter | LOW | Function parameter is never referenced |
 | `SKY-U007` | Unused TypeScript Enum Member | LOW | An unread member of a module-local enum, or of an exported enum in an internal (non-public) module; public, tagged, reflective, dynamic, escaped and mutated enum surfaces stay live |
 | `SKY-U008` | Unused TypeScript Namespace Member | LOW | An unread variable, type or interface member of an `export namespace` in an internal module; escaping, merged, tagged and public namespaces stay live |
+| `SKY-U009` | Unused private Rust enum variant | LOW | A fully observed Cargo binary uses a sibling of an unreferenced private enum variant. Rust review confidence is 40. Incomplete, conditional, macro-dependent, unsafe or FFI targets stay outside this check. |
 | `SKY-UC001` | Unreachable Code (Python) | MEDIUM | Code after `return`, `raise`, `break`, or `continue` |
 | `SKY-UC002` | Unreachable Code (TS) | MEDIUM | Code after `return`, `throw`, `break`, or `continue` |
 
@@ -3722,6 +3730,14 @@ Run `skylos rules terraform-plan plan.json --format json` on a local export of t
 Exit 0 means the supported check completed with no match, 1 means a finding, and 2 means incomplete. Review the plan before applying it. Retire or retarget DNS and allow cached answers to expire before releasing the bucket name.
 
 ---
+
+### SKY-D415 · Unix permission value grants write access to all users
+
+On Unix, `std::fs::Permissions::set_readonly(false)` gives the owner, group and others a write bit. The call modifies an in-memory value. A later filesystem operation must apply it for a file's permissions to change. Skylos reports this as a nonblocking review when it identifies the standard receiver or associated function and the literal argument. Review who should be allowed to write before applying the mode.
+
+### SKY-D416 · Non-octal Unix permission mode literal
+
+A decimal or hexadecimal mode passed to a resolved standard Unix permissions extension may select different bits from the ones the author intended. Skylos checks `PermissionsExt::from_mode` and `set_mode`, `OpenOptionsExt::mode`, and `DirBuilderExt::mode` on identified standard types. Values from zero to seven, octal and binary literals, named flags and computed masks are outside this review. Check the intended permissions before choosing their octal representation. This advisory stays visible when the gate passes.
 
 ### SKY-D510 · Prototype Pollution
 
