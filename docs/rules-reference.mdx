@@ -94,6 +94,7 @@ use the `SKY-A` prefix.
 | `SKY-D231` | CORS Misconfiguration | HIGH | Python | Wildcard origins with credentials or open write routes, echoed `Origin` without an allowlist |
 | `SKY-D232` | JWT Vulnerabilities | CRITICAL | Python | `algorithms=['none']`, `verify=False`, weak secrets |
 | `SKY-D234` | Mass Assignment | HIGH | Python | Django `Meta.fields = '__all__'` exposes all model fields |
+| `SKY-D385` | Concurrent Django debit | MEDIUM | Python | A Django view saves a debit calculated from a previously checked model field. |
 | `SKY-D282` | Webhook Signature Verification Issue | HIGH | Python, TS | Matching request payload is not proven verified before body trust or event side effects |
 | `SKY-D283` | Unauthenticated Control, Destructive or Admin Route | HIGH | Python | A route that controls a device or the host, deletes data, acts as admin or runs commands, with nothing that authenticates the caller |
 | `SKY-D510` | Prototype Pollution | HIGH | TS | `__proto__` access |
@@ -185,6 +186,13 @@ unknown. Per-resource outcomes are `unsafe`, `safe`, `unknown` or
 Unknown is never a safe result; an explicitly required policy that cannot be
 evaluated produces an analysis error. These rules do not establish general
 cloud compliance or prove that a declaration was applied or is reachable.
+
+#### Envoy listeners and saved Terraform plans
+
+| Rule ID | Name | Severity | Input | What triggers a review |
+|---------|------|----------|-------|------------------------|
+| `SKY-D413` | Ambiguous HTTP/1 request framing | MEDIUM | Envoy YAML | A downstream HTTP/1 connection manager enables `allow_chunked_length`. |
+| `SKY-D414` | DNS retained during S3 deletion | MEDIUM | Terraform plan JSON | A Route 53 CNAME survives a matching S3 bucket deletion or delete-first replacement. |
 
 #### Kubernetes Workload Declaration Policies
 
@@ -3696,6 +3704,22 @@ does not disable the API behind that socket. Finding locations retain the mount
 and host-path source lines so changing either side remains visible in diff
 scans. Prefer a narrowly scoped volume or a suitable persistent volume instead.
 See the [Kubernetes Pod Security Standards](https://kubernetes.io/docs/concepts/security/pod-security-standards/).
+
+---
+
+### SKY-D385 · Concurrent Django debit
+
+A registered Django view checks a numeric field, subtracts from its value in Python and saves the instance. Two requests can read the same balance and overwrite a debit. The warning points to the save and names the earlier read and check. Make the balance condition part of the database update, or lock the row before reading it inside the transaction.
+
+### SKY-D413 · Ambiguous HTTP/1 request framing
+
+A downstream Envoy v3 HTTP connection manager explicitly permits both transfer encoding and content length. The scanner also checks a literal bootstrap in a ConfigMap when a Pod or Deployment in the same manifest mounts that file as the Envoy configuration. Envoy strips the content length. Review the framing policy of every proxy on the route. Removing the option restores the default rejection. This source check runs with `--danger`.
+
+### SKY-D414 · DNS retained during S3 deletion
+
+Run `skylos rules terraform-plan plan.json --format json` on a local export of the saved plan. The check pairs a planned AWS S3 bucket deletion with a matching Route 53 CNAME. A delete-before-create replacement of a shared bucket name can leave a temporary gap. Findings identify the two plan entries by JSON pointer.
+
+Exit 0 means the supported check completed with no match, 1 means a finding, and 2 means incomplete. Review the plan before applying it. Retire or retarget DNS and allow cached answers to expire before releasing the bucket name.
 
 ---
 
