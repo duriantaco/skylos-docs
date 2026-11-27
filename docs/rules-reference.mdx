@@ -220,6 +220,9 @@ The development version checks these APIs under `--danger`.
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
 | `SKY-D417` | PostgreSQL privileged routine inherits search_path | MEDIUM | PostgreSQL | A function or procedure selects `SECURITY DEFINER` with no fixed local `search_path`. |
+| `SKY-D418` | PostgreSQL schema creation privilege granted to PUBLIC | MEDIUM | PostgreSQL | A GRANT gives every role permission to create objects in one or more schemas. |
+| `SKY-D419` | PostgreSQL login role bypasses row-level security | MEDIUM | PostgreSQL | One role declaration enables login together with BYPASSRLS. |
+| `SKY-D420` | PostgreSQL table write privileges granted to PUBLIC | MEDIUM | PostgreSQL | The SQL grants table or column write privileges to PUBLIC. |
 
 #### Kubernetes Workload Declaration Policies
 
@@ -605,9 +608,14 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-Q414` | Unresolved Import | MEDIUM | TypeScript, JavaScript, Vue/Svelte/Astro scripts | A literal relative or path-alias import, `export … from`, `require()` or `import()` names no file; existing assets, virtual modules, ambient `declare module` and unreadable bundler aliases stay quiet; bare packages are SKY-Q408 |
 | `SKY-Q501` | God Class | MEDIUM | Python | 20 methods / 15 attributes |
 | `SKY-Q502` | Class Too Large | MEDIUM | Python | Class has too many methods or attributes for maintainable ownership |
-| `SKY-Q503` | Unused PostgreSQL SELECT CTE | LOW | PostgreSQL | A read-only common table expression has no reference in its query. |
+| `SKY-Q503` | Unused PostgreSQL SELECT CTE | LOW | PostgreSQL | A read-only common table expression feeds only unused CTEs or has no reader. |
 | `SKY-Q504` | PostgreSQL filter compares with NULL | MEDIUM | PostgreSQL | An ordinary equality or inequality comparison against literal `NULL` appears in a filter. |
 | `SKY-Q505` | Literal NULL in a PostgreSQL NOT IN filter | MEDIUM | PostgreSQL | A required `NOT IN` filter has a literal list containing `NULL`. |
+| `SKY-Q506` | Concurrent PostgreSQL index command inside a transaction | MEDIUM | PostgreSQL | The script opens an explicit transaction and requests a concurrent index build or drop before it ends. |
+| `SKY-Q507` | Unsupported concurrent PostgreSQL index drop | MEDIUM | PostgreSQL | The script uses DROP INDEX CONCURRENTLY with more than one index or with CASCADE. |
+| `SKY-Q508` | Mismatched PostgreSQL foreign key column counts | MEDIUM | PostgreSQL | A foreign key lists a different number of columns on each side of REFERENCES. |
+| `SKY-Q509` | Unreachable PostgreSQL CASE arm | LOW | PostgreSQL | A `WHEN` follows an unconditional match or repeats a previous test. |
+| `SKY-Q510` | PostgreSQL COUNT includes every CASE result | MEDIUM | PostgreSQL | A `COUNT` has a `CASE` argument whose results are all non-null literals. |
 | `SKY-Q701` | Coupling Between Objects (CBO) | MEDIUM/HIGH | Python | Ce > 4 |
 | `SKY-Q702` | Lack of Cohesion of Methods (LCOM) | MEDIUM/HIGH | Python | LCOM4 > 2 |
 | `SKY-Q402` | Await in Loop | MEDIUM | TS | Sequential `await` in loop — use `Promise.all` |
@@ -3790,6 +3798,24 @@ who can create objects in the schemas on the path and which objects the
 routine uses. This advisory describes the declaration. Schema permissions
 require a database review.
 
+### SKY-D418 · PostgreSQL schema creation privilege granted to PUBLIC
+
+A GRANT gives every role permission to create objects in one or more schemas. An ALTER DEFAULT PRIVILEGES grant can apply the same permission to future schemas. Skylos checks explicit CREATE and ALL grants on schemas to the PUBLIC grantee. Grants to a named role, USAGE alone and revocations are outside this review.
+
+Grant schema creation to the roles that manage its objects and review existing grants separately.
+
+### SKY-D419 · PostgreSQL login role bypasses row-level security
+
+One role declaration enables login together with BYPASSRLS. CREATE USER supplies LOGIN by default. Skylos checks CREATE ROLE, CREATE USER and ALTER ROLE or USER. An ALTER must set both attributes in the same statement, because earlier settings are unknown.
+
+Decide whether this account should be subject to the same row-level policies as ordinary application users.
+
+### SKY-D420 · PostgreSQL table write privileges granted to PUBLIC
+
+The SQL grants table or column write privileges to PUBLIC. It can grant them on existing objects or set defaults for future tables. Skylos checks INSERT, UPDATE, DELETE, TRUNCATE and ALL on tables for the PUBLIC grantee, including default privileges. A read-only grant stays quiet.
+
+Select the role that should write these tables. Review grants already present on existing tables separately.
+
 ### SKY-D510 · Prototype Pollution
 
 | | |
@@ -4363,10 +4389,12 @@ the mapped array's length, or drops a built-in `.filter(Boolean)` chain.
 
 ### SKY-Q503 · Unused PostgreSQL SELECT CTE
 
-With `--quality`, Skylos reports an unreferenced, read-only common table
-expression defined by `WITH`. It accounts for references inside nested
-queries and later CTEs. A CTE that changes data can still run when its
-result is unread.
+With `--quality`, Skylos follows references between common table expressions.
+If the outer statement reads neither `recent` nor its only consumer `filtered`,
+both read-only CTEs are reported. A data-changing CTE can still write rows when
+its output is unread. Skylos also preserves CTEs that contain a function call
+or row lock and the CTEs they depend on. Nested `WITH` scopes and recursive
+references are accounted for.
 
 ### SKY-Q504 · PostgreSQL filter compares with NULL
 
@@ -4385,6 +4413,48 @@ required conditions in `WHERE`, `HAVING`, joins, aggregate `FILTER` and
 literal values on the right. It skips projections, subqueries used as lists
 and branches under `OR` or `NOT`. See the [PostgreSQL guide](/guides/postgresql)
 for two fixes with different treatment of missing values.
+
+### SKY-Q506 · Concurrent PostgreSQL index command inside a transaction
+
+The script opens an explicit transaction and requests a concurrent index build or drop before it ends. PostgreSQL rejects that command. Skylos follows BEGIN, START TRANSACTION, COMMIT, ROLLBACK and transaction chaining within one session. Savepoints keep the outer transaction open.
+
+Run the concurrent command outside the explicit transaction. Check whether the migration runner wraps it in another transaction.
+
+### SKY-Q507 · Unsupported concurrent PostgreSQL index drop
+
+The script uses DROP INDEX CONCURRENTLY with more than one index or with CASCADE. PostgreSQL accepts a single index with the default RESTRICT behavior. Skylos checks the index list and drop behavior on the parsed command. It reports one finding when both restrictions apply.
+
+Handle each index separately. Inspect its dependencies before planning any removal.
+
+### SKY-Q508 · Mismatched PostgreSQL foreign key column counts
+
+A foreign key lists a different number of columns on each side of REFERENCES. PostgreSQL needs a target column for each referencing column. Skylos compares explicit column lists in CREATE TABLE and ALTER TABLE. An inline column REFERENCES has one local column. An omitted target list depends on the referenced primary key.
+
+Match each referencing column with its intended referenced column, in order. Confirm the target has an eligible key.
+
+### SKY-Q509 · Unreachable PostgreSQL CASE arm
+
+In a searched `CASE`, a later `WHEN` cannot be selected after `WHEN TRUE`.
+Skylos also reports a repeated `IS NULL` or `IS NOT NULL` test on the same
+unqualified column. A dotted name can call a function on the row, so Skylos
+skips it. In a simple `CASE`, it checks repeated integer or boolean literals
+when the selector has a matching literal type or a known built-in cast, such
+as `CASE priority::integer WHEN 1 THEN … WHEN 1 THEN … END`. It skips
+selectors whose comparison depends on an unknown column type. This check
+assumes ordinary equality for the built-in selector types. Read the reported
+`WHEN` and check which condition the author meant to cover.
+
+### SKY-Q510 · PostgreSQL COUNT includes every CASE result
+
+`COUNT(CASE WHEN paid THEN 1 ELSE 0 END)` counts every row because both
+possible results are non-null. To count paid orders, use
+`COUNT(*) FILTER (WHERE paid)`. The check covers `count` and
+`pg_catalog.count` when every result, including an explicit `ELSE`, is a
+non-null literal of the same family. It also applies to window and filtered
+counts. An omitted `ELSE` produces null for an unmatched row. `DISTINCT`
+counts, ordered counts and calls qualified with another schema stay quiet. If
+the project defines its own unqualified `count` overload, check which aggregate
+the database selects.
 
 ### SKY-Q701 · Coupling Between Objects (CBO)
 

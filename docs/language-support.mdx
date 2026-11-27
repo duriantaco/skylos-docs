@@ -38,7 +38,7 @@ and two Terraform/AWS declaration policies.
 | [Kotlin](/kotlin-support) | `.kt`, `.kts` | Partial² | Partial² | No | Unsupported | Lexical symbol extraction; reports only private declarations and imports; Spring, Ktor, servlet and Android WebView security checks |
 | [Swift](#swift) | `.swift` | Partial | No | No | Unsupported | `private`/`fileprivate` declaration reachability, owner and lexical bindings, callbacks and call cycles; runtime and unknown compiler contexts retain conservative handling |
 | [Shell](/shell-support) | `.sh`, `.bash`, `.zsh`, `.ksh`, `.bats` | No | Partial | No | Unsupported | Shell-script security checks for command injection, SSRF, and path traversal |
-| [PostgreSQL](#postgresql) | `.sql` | Unused SELECT CTEs | Partial | Partial | Unsupported | Install `skylos[postgres]` and establish the dialect for the SQL directory. |
+| [PostgreSQL](#postgresql) | `.sql` | Unused CTE chains and unreachable CASE arms | Grants, login roles and routine search paths | Query logic and migration DDL | Unsupported | Install `skylos[postgres]` and establish the dialect for the SQL directory. |
 
 ¹ Go dead-code and security checks need the native `skylos-go` engine. From
 4.50 the PyPI wheels for Linux, macOS and Windows (x86_64 and arm64) include
@@ -145,7 +145,7 @@ limited to that file. See
 | Kotlin | Private declarations and unused imports for dead code, lexical Spring, Ktor, servlet and Android WebView security checks, and shared secret scanning |
 | Swift | Syntax-aware `private`/`fileprivate` reachability and secret scanning; no security-flow or quality checks |
 | Shell | Static security checks for CI/deploy/release scripts, focused on command injection, SSRF, and path traversal |
-| PostgreSQL | Unused SELECT CTEs, equality and NOT IN filters involving literal NULL, and privileged routine search paths |
+| PostgreSQL | Unused CTE chains, unreachable CASE arms, NULL filters, conditional counts, migration DDL, privileged routines and role grants |
 
 ## Language Notes
 
@@ -362,12 +362,12 @@ tree. Set the dialect separately for each database's folder in a mixed
 repository. The `analysis_summary.sql_analysis` field records unknown,
 conflicting and unsupported dialects, missing parsers and parse failures.
 
-Run `--quality` to review unused read-only CTEs and two kinds of NULL
-filter mistakes. Run `--danger` to review the local search path of a
-`SECURITY DEFINER` function or procedure. Skylos can read literal psql
-database switches between complete SQL statements. All four checks are
-report-only. The [PostgreSQL guide](/guides/postgresql) walks through a
-query and shows how to check which files the scanner read.
+Run `--quality` for eight query and migration checks covering CTE chains,
+CASE, NULL filters, counts, indexes and foreign keys. Run `--danger` for
+four checks covering routine search paths, login roles that bypass row-level
+security, and PUBLIC schema or table write grants. All 12 are advisory.
+The [PostgreSQL guide](/guides/postgresql) walks through a query, a migration
+and a plain-text dump, and shows how to see which files Skylos checked.
 
 ## How Scans Run
 

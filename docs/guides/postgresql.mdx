@@ -52,8 +52,27 @@ matches how the application treats an order with a missing status.
 | Known statuses other than closed | `WHERE status <> 'closed'` |
 | Every order except those known to be closed | `WHERE status IS DISTINCT FROM 'closed'` |
 
-The other quality reviews cover an unused read-only SELECT CTE (`SKY-Q503`)
-and an ordinary comparison such as `WHERE deleted_at = NULL` (`SKY-Q504`).
+Skylos also follows unused CTE chains (`SKY-Q503`), checks comparisons such as
+`WHERE deleted_at = NULL` (`SKY-Q504`), and reports shadowed CASE arms
+(`SKY-Q509`). For a conditional count, `COUNT(CASE WHEN paid THEN 1 ELSE 0 END)`
+counts every row because both 1 and 0 are present values (`SKY-Q510`).
+Use `COUNT(*) FILTER (WHERE paid)` to count only paid orders.
+
+## Review a migration
+
+```sql
+BEGIN;
+CREATE INDEX CONCURRENTLY orders_status ON orders(status);
+COMMIT;
+```
+
+`SKY-Q506` points to the index command. PostgreSQL requires a concurrent index
+build or drop to run outside an explicit transaction. Run the concurrent step
+separately and check whether the migration runner itself opens a transaction.
+`SKY-Q507` covers concurrent drops that name several indexes or use CASCADE.
+`SKY-Q508` checks the number of columns in an explicit foreign key, such as
+`FOREIGN KEY (tenant_id, owner_id) REFERENCES owners(id)`. It cannot infer the
+columns of an omitted primary key from a live database.
 
 ## Review a privileged routine
 
@@ -66,6 +85,38 @@ of a fixed path is `SET search_path TO pg_catalog, pg_temp`. A captured
 `SET search_path FROM CURRENT` fixes the value too. Review the actual schemas
 in that value.
 
+## Review role and schema grants
+
+| Rule | What to look for |
+| --- | --- |
+| `SKY-D418` | Does every role need to create objects in this schema? |
+| `SKY-D419` | Should this login role bypass row-level security when it accesses a table? |
+| `SKY-D420` | Does every role need the specified table or column write permissions? |
+
+For example, `ALTER DEFAULT PRIVILEGES IN SCHEMA app GRANT UPDATE ON TABLES TO PUBLIC`
+applies to future tables covered by the grant. Check which role will create those
+tables and whether a named writer role would be sufficient. Effective access to
+existing tables depends on their grants, schema access and row-level policies.
+
+## Scan a plain-text dump
+
+```sql
+\restrict DumpKey42
+COPY statuses (label) FROM stdin;
+open
+closed
+\.
+\unrestrict DumpKey42
+```
+
+Skylos reads the SQL header and resumes checking statements after the end marker.
+Each row between the header and `\.` is data. The dump guard keys must match.
+CSV or binary COPY input, missing terminators and unmatched guards mark the
+whole file unchecked. Ordinary SQL has a 4,000,000-byte parser limit. A text
+dump can be up to 16,000,000 bytes when its SQL fits that limit after Skylos
+removes COPY data and keeps line placeholders. In these larger dumps each COPY
+header must also fit within 65,536 bytes.
+
 ## Read a clean result
 
 Check `checked_files`, `unchecked_files` and each entry in `files` under
@@ -77,13 +128,16 @@ MySQL and SQL Server files are outside current standalone SQL coverage.
 Skylos reads literal psql database switches such as `\c billing` and
 `\connect reporting` on their own lines between complete statements. It
 then scans the SQL in each session and reports original line numbers.
-Includes, conditionals, psql variables such as `:database`, and inline
-`COPY FROM STDIN` data leave the file unchecked. In a reconnect script,
+Standalone `\d`, `\d+`, `\dt` and `\dt+` with a simple literal name
+are accepted as metadata. Includes, conditionals and psql variables such
+as `:database` leave the file unchecked. A backslash before a quote in an
+ordinary string can change its boundary with the server's string settings.
+Use explicit escape strings or dollar quoting for such values in psql scripts. In a reconnect script,
 compact syntax such as `items[1:2]` can refer to a psql variable. A space
 after the colon, as in `items[1: 2]`, makes this slice unambiguous. Skylos reads files locally without opening a
 database connection.
 
-All four PostgreSQL findings are advisory. They appear in reports and
+All twelve PostgreSQL findings are advisory. They appear in reports and
 do not fail the default or strict findings gate. A strict coverage gate
 can still fail on an unchecked file. The scanner cannot see live schema
 permissions or determine which deployed tables and routines are unused.
