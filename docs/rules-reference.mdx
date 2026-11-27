@@ -48,21 +48,21 @@ use the `SKY-A` prefix.
 | `SKY-D204` | Unsafe Deserialization | CRITICAL | Python, PHP | Untrusted deserialization via `pickle.load` or PHP `unserialize()` |
 | `SKY-D205` | `pickle.loads` | CRITICAL | Python | Untrusted deserialization via `pickle.loads` |
 | `SKY-D206` | `yaml.load` | HIGH | Python | `yaml.load()` without SafeLoader |
-| `SKY-D207` | Weak Hash: MD5 | MEDIUM | Python, TS, Go | `hashlib.md5()` / `crypto.createHash('md5')` / `crypto/md5` |
-| `SKY-D208` | Weak Hash: SHA1 | MEDIUM | Python, TS, Go | `hashlib.sha1()` / `crypto.createHash('sha1')` / `crypto/sha1` |
+| `SKY-D207` | Weak Hash: MD5 | MEDIUM | Python, TS, Go, Java, Rust | `hashlib.md5()`, `crypto.createHash('md5')`, `crypto/md5`, or a supported Rust MD5 API hashing exposed secret data |
+| `SKY-D208` | Weak Hash: SHA1 | MEDIUM | Python, TS, Go, Java, Rust | `hashlib.sha1()`, `crypto.createHash('sha1')`, `crypto/sha1`, or a supported Rust SHA-1 API hashing exposed secret data |
 | `SKY-D209` | `subprocess` shell=True | HIGH | Python | `subprocess.*(..., shell=True)` |
-| `SKY-D210` | TLS Verify Disabled | HIGH | Python, Go | `requests.*(verify=False)` / `InsecureSkipVerify: true` |
-| `SKY-D233` | Unsafe Deserialization | CRITICAL | Python | `marshal.loads`, `shelve.open`, `jsonpickle.decode`, `dill.load/loads` |
+| `SKY-D210` | TLS Verify Disabled | HIGH | Python, TS/JS, Go, Rust | `requests.*(verify=False)`, `InsecureSkipVerify: true`, or supported Rust settings that disable certificate or hostname verification |
+| `SKY-D233` | Unsafe Deserialization | Varies by API | Python, Java, Kotlin, C#, TS/JS, Rust | Unsafe object deserialization such as `jsonpickle.decode` or `dill.loads`. The Rust finding is MEDIUM for unbounded network input decoded into a `Vec`. |
 | `SKY-D213` | Hugging Face Remote Code | HIGH | Python | `trust_remote_code=True` in `from_pretrained`, `pipeline` or `load_dataset` |
 
 #### Taint / Data Flow
 
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
-| `SKY-D211` | SQL Injection | CRITICAL | Python, TS, Java, Go, C# | Tainted/interpolated SQL in `execute`, template literals, `PreparedStatement`, `fmt.Sprintf`, or C# command text |
+| `SKY-D211` | SQL Injection | CRITICAL | Python, TS/JS, Java, Kotlin, Go, C#, PHP, Ruby, Rust | Tainted SQL in `execute`, template literals, `PreparedStatement`, `fmt.Sprintf` or C# command text. Rust covers executed queries in rusqlite, SQLx, mysql and mysql_async. |
 | `SKY-D212` | Command Injection | CRITICAL | Python, TS/JS, Java, Go, Rust, Ruby, Dart, C#, Shell | Tainted input to `os.system()`, `child_process.exec()`, `Runtime.exec`, `exec.Command`, Rust `Command::new`, explicit Ruby `Kernel.system`/`exec`/`spawn` or backticks, Dart `Process.*`, C# `Process.Start`, shell `eval`, `source`, or shell `-c` |
 | `SKY-D215` | Path Traversal | HIGH | Python, Java, Go, PHP, Rust, Dart, C#, Shell | Tainted input used in filesystem paths, file sinks, shell file commands, or redirection targets |
-| `SKY-D216` | SSRF | CRITICAL | Python, TS, Java, Go, Dart, C#, Shell | Tainted URL passed to HTTP clients, request builders, `curl`, or `wget` |
+| `SKY-D216` | SSRF | CRITICAL | Python, TS/JS, Go, Java, Kotlin, C#, PHP, Rust, Dart, Shell, Ruby | Tainted URL passed to HTTP clients, request builders, `curl`, or `wget`. In Rust, a request value can select the destination host. |
 | `SKY-D217` | SQL Injection (raw) | CRITICAL | Python | Tainted input in `sqlalchemy.text()`, `pandas.read_sql()`, Django `.raw()` |
 | `SKY-D218` | URL Scheme Audit | MEDIUM | Python | Dynamic urllib URL without a proven HTTP/HTTPS scheme restriction |
 | `SKY-D235` | Remote Command Execution Sink | HIGH | Python | User-controlled values flow into command execution sinks |
@@ -89,11 +89,14 @@ use the `SKY-A` prefix.
 |---------|------|----------|-----------|-------------|
 | `SKY-D226` | XSS | CRITICAL | Python, TypeScript/JavaScript, Go, Java | `mark_safe()`, `innerHTML`, `outerHTML`, `document.write()`, `dangerouslySetInnerHTML` |
 | `SKY-D227` | XSS (Template) | HIGH | Python | Template uses `\|safe` filter or disables autoescape |
-| `SKY-D228` | XSS (HTML Build) | HIGH | Python, TS, Go | HTML string built with unescaped user input |
+| `SKY-D228` | XSS (HTML Build) | HIGH | Python, TS/JS, Go, PHP, C#, Rust | HTML built with unescaped user input |
 | `SKY-D230` | Open Redirect | HIGH | Python, TS, Go, Java, C# | User-controlled URL in `redirect()` / `res.redirect()` / `http.Redirect` / `sendRedirect` / ASP.NET redirect sinks |
 | `SKY-D231` | CORS Misconfiguration | HIGH | Python | Wildcard origins with credentials or open write routes, echoed `Origin` without an allowlist |
 | `SKY-D232` | JWT Vulnerabilities | CRITICAL | Python | `algorithms=['none']`, `verify=False`, weak secrets |
 | `SKY-D234` | Mass Assignment | HIGH | Python | Django `Meta.fields = '__all__'` exposes all model fields |
+| `SKY-D251` | Sensitive Data in Logs | HIGH | Python, TS/JS, Rust | Logs contain passwords, tokens or other secrets (CWE-532). Rust checks exposed `secrecy::SecretString` contents in `log` or `tracing` macros. |
+| `SKY-D252` | Insecure Cookie | MEDIUM | Python, TS/JS, Java, Go, Rust | Cookie missing an HttpOnly or Secure flag (CWE-614). Rust checks the Secure flag when a recognized session cookie is issued. |
+| `SKY-D356` | Cleartext Outbound HTTP | MEDIUM | Python, Rust | A supported Python HTTP API uses an explicit `http://` URL or prefix. In Rust, a reqwest request sends credentials to a literal HTTP destination. |
 | `SKY-D385` | Concurrent Django debit | MEDIUM | Python | A Django view saves a debit calculated from a previously checked model field. |
 | `SKY-D282` | Webhook Signature Verification Issue | HIGH | Python, TS | Matching request payload is not proven verified before body trust or event side effects |
 | `SKY-D283` | Unauthenticated Control, Destructive or Admin Route | HIGH | Python | A route that controls a device or the host, deletes data, acts as admin or runs commands, with nothing that authenticates the caller |
@@ -108,7 +111,6 @@ host validation when assessing a finding's impact.
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
 | `SKY-D355` | Jinja Environment Without Autoescape | HIGH | Python | Jinja environment omits autoescape or explicitly disables it |
-| `SKY-D356` | Cleartext Outbound HTTP | MEDIUM | Python, Rust | A supported Python HTTP API uses an explicit `http://` URL or prefix. In Rust, a reqwest request dispatches credentials over HTTP. |
 | `SKY-D357` | Untrusted Dynamic Python Import | HIGH | Python | An identified input source selects a module for `import_module()` or `__import__()` |
 | `SKY-D358` | Public Gradio Launch Without Configured Auth | HIGH | Python | A visible Gradio launch branch binds to all interfaces without configured authentication |
 | `SKY-D359` | Cached Request-Derived External Flask URL | MEDIUM | Python | Cached content includes an external Flask URL without a proven fixed or trusted host |
@@ -125,8 +127,6 @@ host validation when assessing a finding's impact.
 | `SKY-D247` | CORS Wildcard Origin | MEDIUM | `Access-Control-Allow-Origin: *` (CWE-942) |
 | `SKY-D248` | Hardcoded Internal URL | MEDIUM | `localhost` / `127.0.0.1` URLs in source code (CWE-798) |
 | `SKY-D250` | Insecure Randomness | MEDIUM | `Math.random()` for security-sensitive values (CWE-330) |
-| `SKY-D251` | Sensitive Data in Logs | HIGH | Logging passwords, tokens, or secrets (CWE-532) |
-| `SKY-D252` | Insecure Cookie | MEDIUM | Cookie missing `httpOnly` or `secure` flags (CWE-614) |
 | `SKY-D253` | Timing-Unsafe Comparison | MEDIUM | String comparison for secrets — vulnerable to timing attacks (CWE-208) |
 | `SKY-D270` | Sensitive Data in Storage | MEDIUM | Tokens/passwords in `localStorage` / `sessionStorage` (CWE-922) |
 | `SKY-D271` | Error Info Disclosure (HTTP) | MEDIUM | Stack traces / error details returned in HTTP responses (CWE-209) |
@@ -204,7 +204,7 @@ The development version checks these APIs under `--danger`.
 | `SKY-D387` | Exposed password written to a database | HIGH | A rusqlite or SQLx write binds an exposed secret string directly to a password column. |
 | `SKY-D388` | Symmetric key embedded in source | HIGH | A JWT signing key or a supported AES-GCM key comes from fixed bytes in source. |
 | `SKY-D389` | Request text inserted into a regular expression | MEDIUM | A regex constructor receives unescaped request text between fixed parts of a pattern. |
-| `SKY-D390` | Request controls allocation capacity | HIGH | An unchecked request size is passed to a supported String or Vec capacity operation. |
+| `SKY-D390` | Request controls initial allocation capacity | HIGH | An unchecked request size is passed to a supported String or Vec capacity operation. |
 | `SKY-D391` | Exposed secret in a request URL | HIGH | A dispatched reqwest URL contains an exposed secret in its path or query. |
 | `SKY-D392` | Decoded request text in a log message | MEDIUM | A plain log message displays decoded request text that can contain line breaks. |
 
@@ -899,9 +899,11 @@ $user = json_decode($_POST["payload"], true);
 | | |
 |---|---|
 | **Severity** | MEDIUM |
-| **Languages** | Python, TypeScript, Go |
+| **Languages** | Python, TypeScript/JavaScript, Go, Java, Rust |
 | **What** | Use of MD5 or SHA1 for hashing |
 | **Risk** | Cryptographically broken — vulnerable to collision attacks |
+
+In Rust, the digest input must come from an exposed `secrecy::SecretString` or its bytes. Hashing ordinary data as a checksum stays quiet.
 
 ```python
 # Bad
@@ -934,9 +936,11 @@ sha256.New()                # Go
 | | |
 |---|---|
 | **Severity** | CRITICAL |
-| **Languages** | Python, TypeScript, Go |
+| **Languages** | Python, TypeScript/JavaScript, Java, Kotlin, Go, C#, PHP, Ruby, Rust |
 | **What** | Tainted or string-built SQL in query execution |
 | **Risk** | Database compromise, data theft, data destruction |
+
+Rust checks when request text or a supported reqwest response body becomes part of an executed query. Values bound separately to fixed SQL stay quiet. For async drivers Skylos checks that the operation runs, for example when a SQLx query is awaited.
 
 ```python
 # Bad (Python)
@@ -1109,9 +1113,11 @@ The same applies to TypeScript and JavaScript: use `root + path.sep`, not
 | | |
 |---|---|
 | **Severity** | CRITICAL |
-| **Languages** | Python, TypeScript, Go, Java |
+| **Languages** | Python, TypeScript/JavaScript, Go, Java, Kotlin, C#, PHP, Rust, Dart, Shell, Ruby |
 | **What** | Tainted URL passed to HTTP clients or request builders |
 | **Risk** | Access internal services, cloud metadata endpoints (169.254.169.254) |
+
+For reqwest, Skylos checks whether request data can choose the host of a dispatched request. Building a request and dropping it, or inserting input only into the path of a fixed host, stays quiet.
 
 ```python
 # Bad
@@ -1961,8 +1967,10 @@ el.textContent = userInput
 | | |
 |---|---|
 | **Severity** | HIGH |
-| **Languages** | Python, TypeScript/JavaScript, Go |
+| **Languages** | Python, TypeScript/JavaScript, Go, PHP, C#, Rust |
 | **What** | HTML string built with unescaped user input |
+
+Rust checks unescaped request text inserted into HTML by supported formatting macros such as `format!` or `write!`. Writing the byte length of a string into HTML text stays quiet.
 
 ```python
 # Bad
@@ -2089,10 +2097,12 @@ jwt.decode(token, key=SECRET, algorithms=["HS256"])
 
 | | |
 |---|---|
-| **Severity** | CRITICAL |
-| **Languages** | Python |
-| **What** | Deserialization via `marshal`, `shelve`, `jsonpickle`, or `dill` |
-| **Risk** | Arbitrary code execution — same as pickle but less commonly audited |
+| **Severity** | Varies by API. Python object loaders include HIGH and CRITICAL findings. The Rust finding is MEDIUM. |
+| **Languages** | Python, Java, Kotlin, C#, TypeScript/JavaScript, Rust |
+| **What** | Unsafe object deserialization, or in Rust, an unbounded JSON sequence read into a `Vec` |
+| **Risk** | Some object loaders can execute code. The Rust case can exhaust memory. |
+
+In Rust, Skylos checks `serde_json::from_reader` on an unbounded TCP stream and `from_slice` or `from_str` on a buffer filled by an unlimited read. Limit the amount of data read before parsing it.
 
 ```python
 # Bad
@@ -2153,11 +2163,13 @@ subprocess.run(["status-check", safe_service_name], check=True)
 | | |
 |---|---|
 | **Severity** | MEDIUM |
-| **Languages** | TypeScript / JavaScript, Go, Java |
-| **What** | An HTTP response cookie is missing a proven `httpOnly: true` or `secure: true` setting |
+| **Languages** | Python, TypeScript/JavaScript, Java, Go, Rust |
+| **What** | A supported API issues a cookie with missing protections. The flags checked depend on the language. |
 | **Risk** | Script access or cleartext transport can expose session credentials |
 
 For TypeScript and JavaScript, Skylos follows response-object aliases and evaluates cookie options as `true`, `false`, absent, or unknown. Only proven `true` for both flags establishes the safe case; explicit `false`, missing flags, and unresolved runtime values remain findings.
+
+In Rust, a recognized cookie jar or response must issue a session cookie with Secure absent or disabled. Supported names include `session_id` and `access_token`. Call `secure(true)` on the cookie builder before issuing it. Generic cookie names and unresolved Secure settings stay quiet.
 
 ```typescript
 // Bad

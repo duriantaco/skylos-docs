@@ -209,6 +209,8 @@ sequenceDiagram
 
 ## Vulnerability Categories
 
+For Rust, run `skylos . --danger` from the crate or workspace root. The Rust checks follow request data into supported SQL, command, filesystem, HTML and HTTP calls. They also cover disabled TLS verification, exposed credentials and selected cryptographic APIs. The [Rust guide](/rust-support#reading-a-rust-finding) shows how to check a reported call and which paths the scanner follows.
+
 ### SQL Injection
 
 :::warning
@@ -328,12 +330,12 @@ Beyond taint analysis, Skylos flags inherently dangerous patterns:
 |----------|------|---------|----------|
 | `eval()` | Arbitrary code execution | SKY-D201 | HIGH |
 | `exec()` | Arbitrary code execution | SKY-D202 | HIGH |
-| `pickle.load()` | Deserialization attack | SKY-D203 | CRITICAL |
-| `pickle.loads()` | Deserialization attack | SKY-D204 | CRITICAL |
-| `yaml.load()` | Code execution without SafeLoader | SKY-D205 | HIGH |
-| `hashlib.md5()` | Weak cryptographic hash | SKY-D206 | MEDIUM |
-| `hashlib.sha1()` | Weak cryptographic hash | SKY-D207 | MEDIUM |
-| `requests.get(verify=False)` | SSL verification disabled | SKY-D208 | HIGH |
+| `pickle.load()` | Deserialization attack | SKY-D204 | CRITICAL |
+| `pickle.loads()` | Deserialization attack | SKY-D205 | CRITICAL |
+| `yaml.load()` | Code execution without SafeLoader | SKY-D206 | HIGH |
+| `hashlib.md5()` | Weak cryptographic hash | SKY-D207 | MEDIUM |
+| `hashlib.sha1()` | Weak cryptographic hash | SKY-D208 | MEDIUM |
+| `requests.get(verify=False)` | TLS verification disabled | SKY-D210 | HIGH |
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: "Rust Support"
-description: "Rust dead code and selected security analysis support in Skylos."
+description: "Scan a Rust crate for dead code and security issues. See which SQL, HTTP, TLS and secret-handling patterns Skylos recognizes."
 ---
 
 Skylos analyzes Rust source with tree-sitter parsing for dead code and selected
@@ -27,7 +27,13 @@ conservatively than ordinary private helpers.
 
 ## Security Scope
 
-The development version recognizes these Rust APIs and data flows:
+From the crate or workspace root, run a report at the default confidence setting:
+
+```bash
+skylos . --danger
+```
+
+The following checks are on the development branch. An older installed release may cover fewer APIs.
 
 - Request text used as SQL in an executed rusqlite, SQLx, MySQL or MySQL async query. Fixed query text with separately bound request values stays quiet.
 - Input reaching commands, filesystem paths, HTML output and the destination of a dispatched `reqwest` request.
@@ -36,13 +42,28 @@ The development version recognizes these Rust APIs and data flows:
 - Exposed `secrecy::SecretString` values in logs and password writes, weak ciphers and hashes in supported crypto APIs, and fixed symmetric keys.
 - Decoded request text in plain log messages, unescaped request fragments used in regexes, and selected unbounded allocation or JSON input paths.
 
-Findings depend on the crate, the resolved API and the data path. For example, an async SQLx query usually has to be polled before Skylos reports its SQL text. DNS resolution, arbitrary macros and general cross-crate data flow remain gaps.
+### Reading a Rust finding
 
-```bash
-skylos . --danger
+For a SQL injection finding (`SKY-D211`), start at the reported database call. Check whether a request value can change the SQL text that actually runs. With SQLx, creating a query and dropping its future leaves it unexecuted. For a PostgreSQL lookup, keep the SQL fixed and bind the request value:
+
+```rust
+let rows = sqlx::query("SELECT id FROM users WHERE name = $1")
+    .bind(name)
+    .fetch_all(pool)
+    .await?;
 ```
 
+For reqwest, check both the destination and where the secret goes. Sending credentials over plain HTTP can trigger `SKY-D356`. An exposed `SecretString` in the URL path or query can trigger `SKY-D391` even over HTTPS, because URLs can end up in logs. For bearer authentication, send the token in the authorization header over HTTPS.
+
+For cookies (`SKY-D252`), check where the application issues its session cookie. Use `.secure(true)` on the builder. Skylos recognizes selected session names and outgoing APIs. A custom session name still needs review.
+
+### What the benchmarks cover
+
+The development scanner detected examples in 18 of 20 security categories in GitHub's published Rust query index. The other two concern unsafe pointers. On 23 pinned repositories, all 40 pre-labeled safe operations stayed quiet. Those repository labels measure noise. The report lists the positive cases, individual misses, and the file the parser only partially checked. [Rust security benchmark](https://github.com/duriantaco/skylos/blob/693165be00af187ea556ee32233b89fc2abbce03/benchmarks/security/rust_coverage/README.md)
+
 ## Limitations
+
+Findings depend on the crate, the resolved API and the data path. DNS resolution, arbitrary macros and general cross-crate data flow remain gaps.
 
 Skylos does not run `rustc`, Cargo resolution, borrow checking, or Rust type
 checking. Pair Skylos with `cargo check`, `cargo clippy`, and tests for full
