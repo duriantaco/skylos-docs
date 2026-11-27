@@ -99,6 +99,7 @@ const sidebars = {
         { type: 'doc', id: 'cleanup', label: 'Skylos cleanup' },
         { type: 'doc', id: 'profiling', label: 'Analysis Profiling' },
         'guides/understanding-output',
+        'guides/postgresql',
         'guides/how-it-works',
         'guides/penalty-system',
         'guides/legacy-codebase',

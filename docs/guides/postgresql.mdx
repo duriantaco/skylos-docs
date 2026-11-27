@@ -1,0 +1,89 @@
+---
+title: "Check PostgreSQL scripts"
+description: "Scan PostgreSQL migrations and queries, review NULL filters and privileged routines, and confirm which files Skylos checked."
+---
+
+## Scan a SQL directory
+
+Install the PostgreSQL parser in the same environment as the Skylos CLI.
+
+```bash
+pip install "skylos[postgres]"
+```
+
+For a project with PostgreSQL scripts in `db/postgres/`, put this in
+`db/postgres/skylos.toml`.
+
+```toml
+[sql]
+dialect = "postgresql"
+```
+
+You can also set `dialect` in `[tool.skylos.sql]` in `pyproject.toml`.
+A Prisma `migrations/migration_lock.toml` with `provider = "postgresql"`
+supplies the dialect for that migration tree. In a mixed repository, give
+each database directory its own setting.
+
+Scan from the repository root and inspect the SQL coverage and findings.
+
+```bash
+skylos . --quality --danger --format json --output report.json
+jq '.analysis_summary.sql_analysis' report.json
+jq '[.quality[]?, .danger[]?] | map(select(.file | ascii_downcase | endswith(".sql")))' report.json
+```
+
+## Review a filter
+
+Suppose this query should find orders that are still open.
+
+```sql
+SELECT id FROM orders
+WHERE status NOT IN ('closed', NULL);
+```
+
+Skylos reports `SKY-Q505` on line 2. Under ordinary PostgreSQL equality,
+`'closed'` fails because it matches the list. A different status gives an
+unknown result because the list contains `NULL`. A `WHERE` clause keeps
+only true results, so the query returns no orders. Choose the form that
+matches how the application treats an order with a missing status.
+
+| Intended rows | Filter |
+| --- | --- |
+| Known statuses other than closed | `WHERE status <> 'closed'` |
+| Every order except those known to be closed | `WHERE status IS DISTINCT FROM 'closed'` |
+
+The other quality reviews cover an unused read-only SELECT CTE (`SKY-Q503`)
+and an ordinary comparison such as `WHERE deleted_at = NULL` (`SKY-Q504`).
+
+## Review a privileged routine
+
+`SKY-D417` means the SQL creates a `SECURITY DEFINER` function or procedure
+without a fixed local search path, or explicitly removes that path while
+selecting `SECURITY DEFINER` in one ALTER statement. Check the names the
+routine resolves and who can create objects in those schemas. If the routine
+uses fully qualified application objects and only needs built-ins, an example
+of a fixed path is `SET search_path TO pg_catalog, pg_temp`. A captured
+`SET search_path FROM CURRENT` fixes the value too. Review the actual schemas
+in that value.
+
+## Read a clean result
+
+Check `checked_files`, `unchecked_files` and each entry in `files` under
+`analysis_summary.sql_analysis`. A file marked `checked` was parsed. A missing
+parser, invalid SQL or an unsupported client command gives `unparsed` with a
+reason. Unknown, conflicting and unsupported dialects have separate statuses.
+MySQL and SQL Server files are outside current standalone SQL coverage.
+
+Skylos reads literal psql database switches such as `\c billing` and
+`\connect reporting` on their own lines between complete statements. It
+then scans the SQL in each session and reports original line numbers.
+Includes, conditionals, psql variables such as `:database`, and inline
+`COPY FROM STDIN` data leave the file unchecked. In a reconnect script,
+compact syntax such as `items[1:2]` can refer to a psql variable. A space
+after the colon, as in `items[1: 2]`, makes this slice unambiguous. Skylos reads files locally without opening a
+database connection.
+
+All four PostgreSQL findings are advisory. They appear in reports and
+do not fail the default or strict findings gate. A strict coverage gate
+can still fail on an unchecked file. The scanner cannot see live schema
+permissions or determine which deployed tables and routines are unused.

@@ -145,7 +145,7 @@ limited to that file. See
 | Kotlin | Private declarations and unused imports for dead code, lexical Spring, Ktor, servlet and Android WebView security checks, and shared secret scanning |
 | Swift | Syntax-aware `private`/`fileprivate` reachability and secret scanning; no security-flow or quality checks |
 | Shell | Static security checks for CI/deploy/release scripts, focused on command injection, SSRF, and path traversal |
-| PostgreSQL | Source reviews for unused SELECT CTEs, comparisons against NULL in filters and privileged functions with an inherited search path |
+| PostgreSQL | Unused SELECT CTEs, equality and NOT IN filters involving literal NULL, and privileged routine search paths |
 
 ## Language Notes
 
@@ -362,10 +362,12 @@ tree. Set the dialect separately for each database's folder in a mixed
 repository. The `analysis_summary.sql_analysis` field records unknown,
 conflicting and unsupported dialects, missing parsers and parse failures.
 
-The first three PostgreSQL rules are report-only. Run `--quality` for unused
-read-only CTEs and NULL comparisons, or `--danger` to review function-local
-search paths. These checks read standalone SQL source without connecting
-to a database.
+Run `--quality` to review unused read-only CTEs and two kinds of NULL
+filter mistakes. Run `--danger` to review the local search path of a
+`SECURITY DEFINER` function or procedure. Skylos can read literal psql
+database switches between complete SQL statements. All four checks are
+report-only. The [PostgreSQL guide](/guides/postgresql) walks through a
+query and shows how to check which files the scanner read.
 
 ## How Scans Run
 

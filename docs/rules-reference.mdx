@@ -219,7 +219,7 @@ The development version checks these APIs under `--danger`.
 
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
-| `SKY-D417` | PostgreSQL privileged function inherits search_path | MEDIUM | PostgreSQL | A `SECURITY DEFINER` function declaration omits a fixed local `search_path`. |
+| `SKY-D417` | PostgreSQL privileged routine inherits search_path | MEDIUM | PostgreSQL | A function or procedure selects `SECURITY DEFINER` with no fixed local `search_path`. |
 
 #### Kubernetes Workload Declaration Policies
 
@@ -607,6 +607,7 @@ Go-specific rules scan `.go` files. Secrets and cross-language rules also scan t
 | `SKY-Q502` | Class Too Large | MEDIUM | Python | Class has too many methods or attributes for maintainable ownership |
 | `SKY-Q503` | Unused PostgreSQL SELECT CTE | LOW | PostgreSQL | A read-only common table expression has no reference in its query. |
 | `SKY-Q504` | PostgreSQL filter compares with NULL | MEDIUM | PostgreSQL | An ordinary equality or inequality comparison against literal `NULL` appears in a filter. |
+| `SKY-Q505` | Literal NULL in a PostgreSQL NOT IN filter | MEDIUM | PostgreSQL | A required `NOT IN` filter has a literal list containing `NULL`. |
 | `SKY-Q701` | Coupling Between Objects (CBO) | MEDIUM/HIGH | Python | Ce > 4 |
 | `SKY-Q702` | Lack of Cohesion of Methods (LCOM) | MEDIUM/HIGH | Python | LCOM4 > 2 |
 | `SKY-Q402` | Await in Loop | MEDIUM | TS | Sequential `await` in loop — use `Promise.all` |
@@ -3773,15 +3774,21 @@ On Unix, `std::fs::Permissions::set_readonly(false)` gives the owner, group and 
 
 A decimal or hexadecimal mode passed to a resolved standard Unix permissions extension may select different bits from the ones the author intended. Skylos checks `PermissionsExt::from_mode` and `set_mode`, `OpenOptionsExt::mode`, and `DirBuilderExt::mode` on identified standard types. Values from zero to seven, octal and binary literals, named flags and computed masks are outside this review. Check the intended permissions before choosing their octal representation. This advisory stays visible when the gate passes.
 
-### SKY-D417 · PostgreSQL privileged function inherits search_path
+<span id="sky-d417--postgresql-privileged-function-inherits-search_path" />
 
-A `SECURITY DEFINER` function runs with the privileges of its owner. With
-`--danger`, Skylos flags a function declaration that leaves its local
-`search_path` unset. A declaration using `SET search_path FROM CURRENT`
-captures the value in effect when PostgreSQL creates the function. Review which objects
-the function uses and which schemas their callers can write to. Set a fixed
-path appropriate for those objects. Skylos reads the declaration from source.
-Verifying live schema privileges requires a separate database review.
+### SKY-D417 · PostgreSQL privileged routine inherits search_path
+
+With `--danger`, Skylos reports a `SECURITY DEFINER` function or procedure
+created without a fixed local `search_path`. It also reports an
+`ALTER FUNCTION`, `ALTER PROCEDURE` or `ALTER ROUTINE` that explicitly selects
+`SECURITY DEFINER` and clears the path in the same statement. For example,
+`RESET ALL` followed by `SET search_path TO pg_catalog, pg_temp` leaves a
+fixed path. A bare `ALTER … SECURITY DEFINER` preserves the existing path.
+
+`SET search_path FROM CURRENT` captures the value at declaration time. Check
+who can create objects in the schemas on the path and which objects the
+routine uses. This advisory describes the declaration. Schema permissions
+require a database review.
 
 ### SKY-D510 · Prototype Pollution
 
@@ -4367,6 +4374,17 @@ With `--quality`, Skylos checks ordinary comparisons against literal `NULL`
 in filters such as `WHERE`, `HAVING` and `JOIN ... ON`. Under PostgreSQL's
 default settings, `WHERE deleted_at = NULL` discards every row. Use
 `IS NULL` or `IS NOT NULL` to test whether a value is missing.
+
+### SKY-Q505 · Literal NULL in a PostgreSQL NOT IN filter
+
+With `--quality`, Skylos reports a required predicate such as
+`WHERE status NOT IN ('closed', NULL)`. Under ordinary equality, different
+statuses compare as unknown and also fail the filter. This check covers
+required conditions in `WHERE`, `HAVING`, joins, aggregate `FILTER` and
+`MERGE`. It looks for a plain column or scalar literal on the left and only
+literal values on the right. It skips projections, subqueries used as lists
+and branches under `OR` or `NOT`. See the [PostgreSQL guide](/guides/postgresql)
+for two fixes with different treatment of missing values.
 
 ### SKY-Q701 · Coupling Between Objects (CBO)
 
