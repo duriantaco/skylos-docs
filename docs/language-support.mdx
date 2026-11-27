@@ -30,7 +30,7 @@ and two Terraform/AWS declaration policies.
 | [Java](/java-support) | `.java` | Yes | Yes | Yes | Supported | Tree-sitter parsing, structured security-flow analysis, conservative static-member proof |
 | [Go](/go-support) | `.go` | Yes¹ | Partial¹ | Partial | Supported | Native engine status remains separate from deterministic workspace API proof |
 | [PHP](/php-support) | `.php` | Yes | Yes | No | Unsupported | PHP parser coverage, type and docblock references, Laravel and Drupal conventions (including `.module`/`.install`/`.inc`/`.theme` files); security follows request data (superglobals, Laravel/Symfony/PSR-7/CodeIgniter requests, Drupal Form API) within one function or file into `exec`/`system`/backticks, `eval`/`include`, `echo`/`print`/`<?= ?>` and Blade `{!! !!}` XSS by HTML context, SQL (mysqli, PDO, `$wpdb`, Laravel `DB::raw`/`whereRaw`, Doctrine DBAL), SSRF, `unserialize`, file paths, Drupal `Markup::create()` and inline Twig; not across functions or files, and not Twig templates |
-| [Rust](/rust-support) | `.rs` | Experimental⁴ | Partial | Partial | Unsupported | Rust parser coverage; command/path security checks, direct unreachable statements and duplicate branch bodies |
+| [Rust](/rust-support) | `.rs` | Experimental⁴ | Partial | Partial | Unsupported | Rust parser coverage; selected request-flow, TLS, cookie and credential checks; unreachable statements and duplicate branch bodies |
 | [Ruby](#ruby) | `.rb` | Partial | Partial | No | Unsupported | Tree-sitter parsing; private helpers, exact owner calls and literal Rails controller callbacks; explicit `Kernel.system`/`exec`/`spawn` command checks; see [Ruby](#ruby) for limits |
 | [Dart](/dart-support) | `.dart` | Yes³ | Partial³ | No | Unsupported | Dart parser coverage; security covers command injection, path traversal and SSRF |
 | [C#](/csharp-support) | `.cs` | Partial | Partial | Partial | Unsupported | C# symbols, direct-block unreachable code, ASP.NET-aware security (request sources, receiver-typed sinks, unsafe deserialization, XSS), and NuGet inventory (`.csproj` pins and `packages.lock.json`) |
@@ -136,7 +136,7 @@ limited to that file. See
 | Java | Parser-backed dead-code detection, structured security-flow analysis through local request-data helpers, weak crypto detection, and method quality metrics |
 | Go | Module-aware scanning through the native `skylos-go` engine, Go-specific security rules, unified cross-language security IDs, and selected function quality checks |
 | PHP | Dead-code detection for PHP symbols with Laravel and Drupal conventions, plus request-data security checks within one function or file |
-| Rust | Experimental dead-code coverage for Rust symbols, command execution and filesystem path security checks, direct unreachable statements and duplicate branch bodies |
+| Rust | Experimental dead-code coverage; security checks for selected web, database, crypto and filesystem APIs; direct unreachable statements and duplicate branch bodies |
 | Ruby | Bounded private-method liveness, literal Rails controller callbacks, and explicit Kernel command checks |
 | Dart | Dead-code coverage for Dart and Flutter-style projects plus command injection, path traversal and SSRF checks |
 | C# | Conservative dead-code coverage for C# types and methods, direct-block unreachable code, ASP.NET-aware security checks, and NuGet inventory |

@@ -108,7 +108,7 @@ host validation when assessing a finding's impact.
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
 | `SKY-D355` | Jinja Environment Without Autoescape | HIGH | Python | Jinja environment omits autoescape or explicitly disables it |
-| `SKY-D356` | Cleartext Outbound HTTP | MEDIUM | Python | A supported HTTP API uses an explicit `http://` URL or URL prefix |
+| `SKY-D356` | Cleartext Outbound HTTP | MEDIUM | Python, Rust | A supported Python HTTP API uses an explicit `http://` URL or prefix. In Rust, a reqwest request dispatches credentials over HTTP. |
 | `SKY-D357` | Untrusted Dynamic Python Import | HIGH | Python | An identified input source selects a module for `import_module()` or `__import__()` |
 | `SKY-D358` | Public Gradio Launch Without Configured Auth | HIGH | Python | A visible Gradio launch branch binds to all interfaces without configured authentication |
 | `SKY-D359` | Cached Request-Derived External Flask URL | MEDIUM | Python | Cached content includes an external Flask URL without a proven fixed or trusted host |
@@ -193,6 +193,20 @@ cloud compliance or prove that a declaration was applied or is reachable.
 |---------|------|----------|-------|------------------------|
 | `SKY-D413` | Ambiguous HTTP/1 request framing | MEDIUM | Envoy YAML | A downstream HTTP/1 connection manager enables `allow_chunked_length`. |
 | `SKY-D414` | DNS retained during S3 deletion | MEDIUM | Terraform plan JSON | A Route 53 CNAME survives a matching S3 bucket deletion or delete-first replacement. |
+
+#### Rust web and cryptographic APIs
+
+The development version checks these APIs under `--danger`.
+
+| Rule ID | Name | Severity | What triggers a finding |
+|---------|------|----------|-------------------------|
+| `SKY-D386` | Legacy cipher used for encryption | HIGH | OpenSSL encrypts with DES, RC2 or RC4, or a RustCrypto CBC encryptor uses single DES. |
+| `SKY-D387` | Exposed password written to a database | HIGH | A rusqlite or SQLx write binds an exposed secret string directly to a password column. |
+| `SKY-D388` | Symmetric key embedded in source | HIGH | A JWT signing key or a supported AES-GCM key comes from fixed bytes in source. |
+| `SKY-D389` | Request text inserted into a regular expression | MEDIUM | A regex constructor receives unescaped request text between fixed parts of a pattern. |
+| `SKY-D390` | Request controls allocation capacity | HIGH | An unchecked request size is passed to a supported String or Vec capacity operation. |
+| `SKY-D391` | Exposed secret in a request URL | HIGH | A dispatched reqwest URL contains an exposed secret in its path or query. |
+| `SKY-D392` | Decoded request text in a log message | MEDIUM | A plain log message displays decoded request text that can contain line breaks. |
 
 #### Rust Unix file permissions
 

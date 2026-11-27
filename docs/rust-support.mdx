@@ -12,8 +12,8 @@ security checks.
 |:---|:---|
 | Extensions | `.rs` |
 | Dead code | Modules, structs, enums, traits, type aliases, functions, methods, fields, and imports |
-| Security | Selected command injection and path traversal checks |
-| Quality | No dedicated Rust quality rules yet |
+| Security | Partial, with checks for selected web, database, filesystem and cryptographic APIs |
+| Quality | Unreachable statements and duplicate branch bodies |
 
 ## Dead Code Detection
 
@@ -27,12 +27,16 @@ conservatively than ordinary private helpers.
 
 ## Security Scope
 
-Rust security checks focus on tainted path-like and command-like values:
+The development version recognizes these Rust APIs and data flows:
 
-- `std::process::Command::new` with tainted executable names
-- shell command construction with `sh`, `bash`, `zsh`, `cmd`, or PowerShell and a tainted command string
-- filesystem calls such as `read`, `read_to_string`, `write`, `copy`, `remove_file`, `rename`, `open`, and `create`
-- path mutation calls such as `push`, `set_extension`, and `set_file_name`
+- Request text used as SQL in an executed rusqlite, SQLx, MySQL or MySQL async query. Fixed query text with separately bound request values stays quiet.
+- Input reaching commands, filesystem paths, HTML output and the destination of a dispatched `reqwest` request.
+- Certificate and hostname verification disabled by supported TLS APIs, plus sensitive session cookies issued without the Secure flag.
+- HTTP authentication sent to a cleartext destination and exposed secrets put in request URLs, including HTTPS URLs.
+- Exposed `secrecy::SecretString` values in logs and password writes, weak ciphers and hashes in supported crypto APIs, and fixed symmetric keys.
+- Decoded request text in plain log messages, unescaped request fragments used in regexes, and selected unbounded allocation or JSON input paths.
+
+Findings depend on the crate, the resolved API and the data path. For example, an async SQLx query usually has to be polled before Skylos reports its SQL text. DNS resolution, arbitrary macros and general cross-crate data flow remain gaps.
 
 ```bash
 skylos . --danger
