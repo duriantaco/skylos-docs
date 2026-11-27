@@ -8,9 +8,9 @@ by extension, parsed with the language-specific frontend, and normalized into
 the same finding model used by the CLI, CI gate, JSON output, SARIF output, MCP
 server, and Cloud upload.
 
-Skylos supports 13 languages: Python, TypeScript/JavaScript, Java, Go, PHP,
-Rust, Ruby, Dart, C#, C++, Kotlin, Swift and Shell. Python has the deepest
-coverage. TypeScript/JavaScript and Java also get dead-code, security and
+Skylos scans Python, TypeScript/JavaScript, Java, Go, PHP, Rust, Ruby, Dart,
+C#, C++, Kotlin, Swift and Shell, with different checks per language. Python
+has the deepest coverage. TypeScript/JavaScript and Java also get dead-code, security and
 quality checks; PHP and Dart get dead-code and security checks; Rust gets
 command-injection and path-traversal checks and experimental dead code. Go
 dead-code and security checks need the native `skylos-go` engine. C# support

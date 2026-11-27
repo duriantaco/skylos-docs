@@ -69,14 +69,6 @@ Dead code still needs to be:
 - Included in test coverage metrics
 - Migrated during major upgrades
 
-```mermaid
-xychart-beta
-    title "Time Spent Maintaining Dead Code"
-    x-axis ["10% dead", "20% dead", "30% dead", "40% dead"]
-    y-axis "Wasted Dev Hours/Month" 0 --> 50
-    bar [5, 12, 22, 40]
-```
-
 ### 3. Hidden Security Vulnerabilities
 
 "Unused" code can still be exploited:
@@ -95,12 +87,12 @@ If it's in the codebase, it's in the attack surface.
 
 Dead code skews your metrics:
 
-| Metric | With Dead Code | Without |
-|--------|----------------|---------|
-| Lines of Code | 100,000 | 70,000 |
-| Test Coverage | 60% | 85% |
-| Complexity Score | High | Medium |
-| Onboarding Time | 3 weeks | 2 weeks |
+| Metric | How dead code skews it |
+|--------|------------------------|
+| Lines of Code | Counts code nobody runs |
+| Test Coverage | Untested dead code lowers the percentage |
+| Complexity Score | Dead branches still add to the total |
+| Onboarding Time | New developers read code that does nothing |
 
 ### 5. Slower Builds & Larger Bundles
 
