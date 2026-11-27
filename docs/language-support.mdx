@@ -1,6 +1,6 @@
 ---
 title: "Language Support"
-description: "Scanner scope for Python, TypeScript, JavaScript, Java, Go, PHP, Rust, Ruby, Dart, C#, C++, Kotlin, Swift, Shell, and security-relevant CI, deployment, and Terraform config."
+description: "Scanner scope for Python, TypeScript, JavaScript, Java, Go, PHP, Rust, Ruby, Dart, C#, C++, Kotlin, Swift, Shell, PostgreSQL, and security-relevant CI, deployment, and Terraform config."
 ---
 
 Skylos scans mixed-language repositories in one pass. Source files are discovered
@@ -8,8 +8,8 @@ by extension, parsed with the language-specific frontend, and normalized into
 the same finding model used by the CLI, CI gate, JSON output, SARIF output, MCP
 server, and Cloud upload.
 
-Skylos supports 13 languages: Python, TypeScript/JavaScript, Java, Go, PHP,
-Rust, Ruby, Dart, C#, C++, Kotlin, Swift and Shell. Python has the deepest
+Skylos supports 14 languages: Python, TypeScript/JavaScript, Java, Go, PHP,
+Rust, Ruby, Dart, C#, C++, Kotlin, Swift, Shell and PostgreSQL. Python has the deepest
 coverage. TypeScript/JavaScript and Java also get dead-code, security and
 quality checks; PHP and Dart get dead-code and security checks; Rust gets
 command-injection and path-traversal checks and experimental dead code. Go
@@ -38,6 +38,7 @@ and two Terraform/AWS declaration policies.
 | [Kotlin](/kotlin-support) | `.kt`, `.kts` | Partial² | Partial² | No | Unsupported | Lexical symbol extraction; reports only private declarations and imports; Spring, Ktor, servlet and Android WebView security checks |
 | [Swift](#swift) | `.swift` | Partial | No | No | Unsupported | `private`/`fileprivate` declaration reachability, owner and lexical bindings, callbacks and call cycles; runtime and unknown compiler contexts retain conservative handling |
 | [Shell](/shell-support) | `.sh`, `.bash`, `.zsh`, `.ksh`, `.bats` | No | Partial | No | Unsupported | Shell-script security checks for command injection, SSRF, and path traversal |
+| [PostgreSQL](#postgresql) | `.sql` | Unused SELECT CTEs | Partial | Partial | Unsupported | Install `skylos[postgres]` and establish the dialect for the SQL directory. |
 
 ¹ Go dead-code and security checks need the native `skylos-go` engine. From
 4.50 the PyPI wheels for Linux, macOS and Windows (x86_64 and arm64) include
@@ -144,6 +145,7 @@ limited to that file. See
 | Kotlin | Private declarations and unused imports for dead code, lexical Spring, Ktor, servlet and Android WebView security checks, and shared secret scanning |
 | Swift | Syntax-aware `private`/`fileprivate` reachability and secret scanning; no security-flow or quality checks |
 | Shell | Static security checks for CI/deploy/release scripts, focused on command injection, SSRF, and path traversal |
+| PostgreSQL | Source reviews for unused SELECT CTEs, comparisons against NULL in filters and privileged functions with an inherited search path |
 
 ## Language Notes
 
@@ -342,6 +344,28 @@ and
 
 Shell gets security checks only: command injection, SSRF, and path traversal.
 See [Shell Support](/shell-support).
+
+### PostgreSQL
+
+Install `pip install "skylos[postgres]"` and run
+`skylos . --quality --danger --format json` from the project root. Set the
+dialect for a SQL directory in its `skylos.toml`:
+
+```toml
+[sql]
+dialect = "postgresql"
+```
+
+For `pyproject.toml`, use `[tool.skylos.sql]`. A Prisma
+`migrations/migration_lock.toml` also supplies the provider for that migration
+tree. Set the dialect separately for each database's folder in a mixed
+repository. The `analysis_summary.sql_analysis` field records unknown,
+conflicting and unsupported dialects, missing parsers and parse failures.
+
+The first three PostgreSQL rules are report-only. Run `--quality` for unused
+read-only CTEs and NULL comparisons, or `--danger` to review function-local
+search paths. These checks read standalone SQL source without connecting
+to a database.
 
 ## How Scans Run
 
