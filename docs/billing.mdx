@@ -67,12 +67,15 @@ credits stay yours. Credits work on every plan, Free included.
 
 ## What Costs Credits
 
-Three actions in Skylos Cloud cost credits:
+These actions in Skylos Cloud cost credits:
 
 | Action | Credits |
 |--------|---------|
 | AI fix PR | 3 |
 | Weekly cleanup PR | 3 |
+| [Logic-change report](/graph) on a pull request | 1, once per pull request |
+| Describe functions in the codebase graph | 1 per 100 functions |
+| Explain changed functions in the codebase graph | 1 per 20 changes |
 | [Compliance report](/compliance-reports) | 500 |
 
 Each action shows its price before it runs. These actions work on every
@@ -231,8 +234,8 @@ skylos . --upload
 ```
 
 Uploads keep working at zero credits. They never cost credits, so results are
-still stored and your PR checks and merge gate keep working. Only AI fix
-PRs, cleanup PRs and compliance reports stop until you add credits.
+still stored and your PR checks and merge gate keep working. Only the actions
+that cost credits stop until you add credits.
 
 ### MCP Server
 
@@ -267,7 +270,7 @@ Yes. Startup and Workspace renew each month or year, as chosen, until you turn r
 Refunds follow the checkout terms, the law, and any written agreement with Skylos. Contact `founder@skylos.dev`. A full refund removes that payment's credits and its month or year of the plan.
 
 **What happens if my balance hits zero mid-CI-run?**
-Nothing changes for the scan. Uploads never cost credits, so the upload, PR checks and merge gate keep working. Only AI fix PRs, cleanup PRs and compliance reports stop until you add credits.
+Nothing changes for the scan. Uploads never cost credits, so the upload, PR checks and merge gate keep working. Only the actions that cost credits stop until you add credits.
 
 **Is there a free trial?**
 Yes. Your first workspace gets a 14-day Workspace trial with 50 credits, and no card. Local scanning is free with no limits.
