@@ -188,15 +188,16 @@ Add the cloud when you need:
 
 ### Workspace Views
 
-Skylos Cloud currently gives you workspace-level navigation for:
-- `Overview`
-- `Projects`
-- `Scans`
-- `Issues`
-- `Exceptions`
-- `Rules`
-- `Trends`
-- `Supply chain`: packages your branches use that were later reported as malware, each repository's install protections, and the [exposure map](#supply-chain-exposure-map) for an alert. See [Supply Chain](/supply-chain#in-skylos-cloud).
+The workspace sidebar groups pages by job:
+- **Code:** `Home`, `Pull requests`, `Issues`, `Supply chain`
+- **AI:** `Coding agents` (see [Coding Agents](#coding-agents)), `AI app safety`, `Deep scans` (coming soon)
+- **Governance:** `Policy`, `Not fixing`, `Audit evidence`, `Compliance reports`
+- **Workspace:** `Settings`, `Billing`
+
+Older pages open from the page that owns them now: all uploads from
+`Pull requests`, `Trends` from `Home`, and `Rules` from `Policy`.
+
+`Supply chain` shows packages your branches use that were later reported as malware, each repository's install protections, and the [exposure map](#supply-chain-exposure-map) for an alert. See [Supply Chain](/supply-chain#in-skylos-cloud).
 
 ### Project Views
 
@@ -222,6 +223,63 @@ The **Scanner proof** tab stores bounded, tamper-evident comparison receipts fro
 - team members
 - workspace/project policy
 - policy inheritance
+
+### Coding Agents
+
+`Coding agents` is one page for the pull requests your coding agents write,
+from the `skylos done` results uploaded with your scans. It shows how many
+pull requests were checked and how many were blocked at least once, by agent,
+by reason and by week. Each number opens the pull requests it counts.
+
+`Agent checks`, opened from there, lists each pull request with one verdict
+and its reason: `Blocked` (`Failed` where merges are not blocked),
+`Didn't finish`, `Overridden` or `Passed`. `Overridden` means a person
+overrode the gate so the pull request can merge. It has its own count and is
+not counted as failed or unfinished. A blocked check's page opens with
+**Fix first**: the first failing check, how to fix it, and a command such as
+`skylos done --base origin/main` to run in your copy of the branch before you
+push.
+
+Done gate policy and history need a paid plan. `skylos done` itself is free.
+
+### Verified Stacks and the Skylos Compiler
+
+Both need a paid plan and a project for the whole repository, connected
+through the Skylos GitHub App. A workspace owner or admin turns them on in the
+project's **Settings → Verified Stacks**. The checks run in your own CI, and
+Skylos never charges per pull request, layer or stack.
+
+**Verified Stacks** posts the **Skylos Verified Stack** check on every layer of
+a GitHub stacked pull request. A layer passes when your CI ran `skylos done` on
+its exact commit and every blocking check passed. The stack passes only when
+every layer does. When a layer fails, every layer's check title names it, for
+example "Blocked by #203: 1 flaky test", and that layer's check says what
+failed and what to do next. Done runs when a layer is opened, reopened, pushed
+or retargeted. Editing its title or description, or marking it ready for
+review, does not start a run. A stack over your large-change limits also waits
+until a person approves each layer's current commit: a maintainer with write
+access who is not the layer's author, a bot or an AI reviewer.
+
+**Compile large agent pull requests** turns a large agent pull request into a
+stack of small draft pull requests, opened by the Skylos GitHub App:
+
+- Adding the `skylos:compile` label compiles the pull request's current head. A push or another label does not. To compile a new head, remove the label and add it again.
+- When the pull request has several commits, the parts follow the agent's own commits.
+- Every edit lands in exactly one part, the final files are identical to the original, and each part's commit passed your tests.
+- Each draft opens with three short lines: which part it is, the tests its commit passed and what was not checked, and what to do.
+- The source pull request gets one comment, which links the stack's page in Skylos. The source stays open until someone closes it.
+- A new compile closes the earlier stack's drafts with "Superseded by #N." Their branches are kept.
+- The source pull request's author cannot approve the compiled layers.
+- If the source pull request changes after compiling, the stack's check stops passing and says to re-label it.
+- When there is no useful split, or the pull request cannot be compiled, the run ends green with a one-line notice. A failed compile says what failed and what to do next.
+- Compiling works on private and internal repositories only.
+
+Skylos checks its workflow files in your repository byte for byte. After a
+Cloud release changes them, as the 28 November 2026 release did, install the
+current files on the default branch and rebase open layers onto it. Until
+then, stack checks say "The approved Skylos workflows were not found on the
+default branch." and compiling is refused. Skylos provides the files when it
+sets this up with you; email `founder@skylos.dev` for the current ones.
 
 ### Enterprise Trust Controls
 
