@@ -339,6 +339,20 @@ comments. Use `--max-comments` to cap review noise on large diffs.
 Fork PRs still get the scan and annotations; the comment step is skipped
 because their GitHub token has read-only permissions.
 
+## Checking production PostgreSQL migrations
+
+By default, ordinary SQL quality advisories stay in the full report. GitHub
+groups new access findings by rule. For a production migration directory,
+you can also require every changed SQL file to parse and optionally forbid
+new PUBLIC table writes.
+
+Set the directory and policy in the target branch's root `pyproject.toml`.
+In the reusable GitHub Action, enable the `postgres-policy` input in gate or
+review mode and use `fetch-depth: 0` on checkout. In other CI systems, run
+`skylos cicd postgres-check` with the base and head commit IDs. Require the
+job in your branch rules for a failure to prevent merging.
+[PostgreSQL setup and examples](/guides/postgresql#protect-a-production-migration-directory)
+
 ## Pulling Policy in CI
 
 The generated default-branch upload job pulls policy with its GitHub OIDC

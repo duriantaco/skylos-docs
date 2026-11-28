@@ -365,9 +365,11 @@ conflicting and unsupported dialects, missing parsers and parse failures.
 Run `--quality` for eight query and migration checks covering CTE chains,
 CASE, NULL filters, counts, indexes and foreign keys. Run `--danger` for
 four checks covering routine search paths, login roles that bypass row-level
-security, and PUBLIC schema or table write grants. All 12 are advisory.
-The [PostgreSQL guide](/guides/postgresql) walks through a query, a migration
-and a plain-text dump, and shows how to see which files Skylos checked.
+security, and PUBLIC schema or table write grants. All 12 are advisory in
+regular scans. GitHub keeps quality findings in the full report and groups
+new security findings by rule. A separate production migration check can
+require changed SQL to parse and can block new PUBLIC table writes. The guide
+covers queries, dumps and the CI settings. [PostgreSQL guide](/guides/postgresql)
 
 ## How Scans Run
 

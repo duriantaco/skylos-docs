@@ -215,7 +215,7 @@ The development version checks these APIs under `--danger`.
 | `SKY-D415` | Unix permission value grants write access to all users | MEDIUM | Rust | A standard filesystem permission value is made writable for the owner, group and others. |
 | `SKY-D416` | Non-octal Unix permission mode literal | MEDIUM | Rust | A decimal or hexadecimal literal sets a Unix permission mode through a standard filesystem extension. |
 
-#### PostgreSQL function security
+#### PostgreSQL routine and access security {#postgresql-function-security}
 
 | Rule ID | Name | Severity | Languages | Description |
 |---------|------|----------|-----------|-------------|
@@ -3815,6 +3815,11 @@ Decide whether this account should be subject to the same row-level policies as 
 The SQL grants table or column write privileges to PUBLIC. It can grant them on existing objects or set defaults for future tables. Skylos checks INSERT, UPDATE, DELETE, TRUNCATE and ALL on tables for the PUBLIC grantee, including default privileges. A read-only grant stays quiet.
 
 Select the role that should write these tables. Review grants already present on existing tables separately.
+
+GitHub groups new findings under this rule. To block a new PUBLIC write, name
+the production migration directories on the target branch and set
+`forbid_public_writes = true`. The dedicated check reports the affected path
+and the fingerprint needed for an intentional exception. [Production migration setup](/guides/postgresql#protect-a-production-migration-directory)
 
 ### SKY-D510 · Prototype Pollution
 

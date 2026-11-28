@@ -1097,6 +1097,26 @@ skylos cicd gate --input skylos-report.json
 | `--strict` | Fail on any issues found |
 | `--summary` | Write markdown summary to `$GITHUB_STEP_SUMMARY` |
 
+### `skylos cicd postgres-check`
+
+Check changed SQL in the production migration directories named by the base
+commit's root `pyproject.toml`. Run it at the repository root with
+`skylos[postgres]` installed.
+
+```bash
+skylos cicd postgres-check --base "$BASE_SHA" --head "$HEAD_SHA" --format json
+```
+
+| Flag | Description |
+| --- | --- |
+| `--base` | Required. Full commit ID supplying the trusted policy and original SQL. |
+| `--head` | Required. Full commit ID containing the proposed migration changes. |
+| `--format` | `text` (default) or `json`. JSON includes `status`, `checked_files`, `violations` and `unchecked_files`. |
+
+Exit `0` means the policy passed, including when no directories are configured.
+Exit `1` means a protected check was incomplete or a prohibited write was
+found. [Production migration policy and exceptions](/guides/postgresql#protect-a-production-migration-directory)
+
 ### `skylos cicd annotate`
 
 Emit GitHub Actions annotations (inline warnings/errors on PR diffs).

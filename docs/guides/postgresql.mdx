@@ -137,7 +137,65 @@ compact syntax such as `items[1:2]` can refer to a psql variable. A space
 after the colon, as in `items[1: 2]`, makes this slice unambiguous. Skylos reads files locally without opening a
 database connection.
 
-All twelve PostgreSQL findings are advisory. They appear in reports and
-do not fail the default or strict findings gate. A strict coverage gate
-can still fail on an unchecked file. The scanner cannot see live schema
-permissions or determine which deployed tables and routines are unused.
+The full report lists all twelve checks. GitHub keeps the eight query and
+migration quality advisories out of PR feedback. It groups the four security
+checks by rule, with each location available in the full report. The default
+and strict findings gates treat all twelve as advisory. A strict coverage
+gate can still fail on an unchecked file.
+
+## Protect a production migration directory
+
+Put the policy in the root `pyproject.toml` on your target branch. Use the
+directories your deployment actually reads.
+
+```toml
+[tool.skylos.sql.production]
+directories = ["db/production"]
+forbid_public_writes = true
+```
+
+Run the command from the repository root with full Git commit IDs.
+
+```bash
+skylos cicd postgres-check --base "$BASE_SHA" --head "$HEAD_SHA" --format json
+```
+
+| Change | Result |
+| --- | --- |
+| Skylos cannot read or parse a changed production SQL file | Fail, with the path and reason |
+| A production migration adds a PUBLIC table write or widens an existing grant | Fail when `forbid_public_writes` is enabled |
+| A production migration grants PUBLIC read access only | Pass |
+| An existing table grant moves down a few lines in the same migration | Pass |
+| An ordinary grant is split into separate statements for the same tables, columns and rights | Pass |
+| A change replaces ROLLBACK with COMMIT and makes a PUBLIC write effective | Fail when the write prohibition is enabled |
+| A query has a quality finding, or an explicit backup login has `BYPASSRLS` | Pass this policy check. The backup role still appears in security review |
+| A change only touches SQL outside the specified directories | Pass this policy check |
+
+Omit `forbid_public_writes` to require parsing alone. For an intentional
+exception, use the file path and SHA-256 fingerprint printed for the grant.
+Add an `allow_public_writes` entry with those two fields on the trusted
+target branch before merging the migration. Changes to the policy in the
+migration PR take effect after it lands.
+
+The write check covers explicit INSERT, UPDATE, DELETE, TRUNCATE and ALL
+table grants. SQL constructed at runtime, role membership, and permissions
+from other migrations or server configuration can also change who has access.
+Skylos follows explicit transactions and savepoints in the file. It assumes
+that statements outside those transactions commit individually. Use your own
+migration runner for access tests if it wraps or batches statements.
+A public write at a commit can fail the check even when a later transaction
+revokes it. An unresolved or two-phase transaction involving these writes
+also fails because Skylos cannot establish its outcome.
+Very large permission rewrites can need manual review when they exceed the
+limit for comparing individual rights.
+
+With the reusable GitHub Action, check out with `fetch-depth: 0`, pin the
+action to a trusted commit, and set `postgres-policy: 'true'` in `gate` or
+`review` mode. Require the job through branch protection and require owner
+review for edits to the workflow and policy.
+
+For tenant isolation, apply your migrations to a disposable database and
+exercise your actual application roles. For example, check that each tenant
+sees only its own rows, that a writer can insert a row for its tenant, and
+that the same writer is denied a row for another tenant. An owner or backup
+role can see a different result. [PostgreSQL row security policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
