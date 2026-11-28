@@ -191,8 +191,10 @@ limit for comparing individual rights.
 
 With the reusable GitHub Action, check out with `fetch-depth: 0`, pin the
 action to a trusted commit, and set `postgres-policy: 'true'` in `gate` or
-`review` mode. Require the job through branch protection and require owner
-review for edits to the workflow and policy.
+`review` mode. Run the workflow on `pull_request`. If you use a merge queue,
+also enable `merge_group`. A push-only workflow skips the migration check.
+Require the job through branch protection and require owner review for edits
+to the workflow and policy.
 
 For tenant isolation, apply your migrations to a disposable database and
 exercise your actual application roles. For example, check that each tenant

@@ -348,7 +348,9 @@ new PUBLIC table writes.
 
 Set the directory and policy in the target branch's root `pyproject.toml`.
 In the reusable GitHub Action, enable the `postgres-policy` input in gate or
-review mode and use `fetch-depth: 0` on checkout. In other CI systems, run
+review mode and use `fetch-depth: 0` on checkout. Run the workflow on
+`pull_request` and, if you use a merge queue, `merge_group`. A push-only
+workflow skips the migration check. In other CI systems, run
 `skylos cicd postgres-check` with the base and head commit IDs. Require the
 job in your branch rules for a failure to prevent merging.
 [PostgreSQL setup and examples](/guides/postgresql#protect-a-production-migration-directory)
