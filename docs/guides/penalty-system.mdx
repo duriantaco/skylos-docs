@@ -212,13 +212,24 @@ class UserModel(BaseModel):
 
 ### ORM Model Columns
 
+SQLAlchemy reads these columns when it maps the class. Skylos follows the
+base back to the SQLAlchemy import, including when your project calls the
+base something else.
+
 ```python
-from sqlalchemy import Column, String
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+class Base(DeclarativeBase):
+    pass
 
 class User(Base):
-    name = Column(String)        # Skipped
-    email = Column(String)       # Skipped
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str]
 ```
+
+An ordinary helper on `User` can still be reported as unused.
+See [Framework Awareness](/framework-awareness) for examples of registered callbacks.
 
 ### Type Aliases
 

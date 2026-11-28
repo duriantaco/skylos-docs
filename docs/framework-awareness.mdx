@@ -3,15 +3,19 @@ title: "Framework Awareness"
 description: "Reduce false positives with framework-aware analysis. Skylos recognizes Django views, Flask routes, FastAPI endpoints, Pydantic models, and pytest fixtures."
 ---
 
-Skylos recognizes patterns from popular Python frameworks to reduce false positives in dead code detection. Framework-specific functions that are called implicitly by the framework are not flagged as unused.
+Python frameworks call code through routes, plugins and model declarations. Skylos follows registrations it can see in the scanned files to decide which functions and fields are in use.
+
+The examples below for registered task classes, pytest plugins, Starlette
+route lists, Flask blueprints and mapped model fields use the changes in
+[Skylos PR #1312](https://github.com/duriantaco/skylos/pull/1312).
 
 ## Supported Frameworks
 
 - Django (views, signals, URL routing, DRF)
-- Flask (routes, error handlers)
-- FastAPI (routes, dependencies)
-- Pydantic (models, validators)
-- Celery (tasks)
+- Flask (routes, blueprints, error handlers)
+- FastAPI and Starlette (routes, dependencies and mounted applications)
+- Pydantic, SQLAlchemy and SQLModel (model fields and framework hooks)
+- Celery (task decorators and registered task classes)
 - Pytest (fixtures, hooks)
 - AST visitors (libcst, lark, etc.)
 
@@ -69,11 +73,12 @@ __post_init__  # dataclasses
 ```
 
 ### Pytest Hooks
-```python
-pytest_configure, pytest_unconfigure, pytest_addoption
-pytest_collection_modifyitems, pytest_runtest_setup
-pytest_fixture_setup, pytest_generate_tests
-```
+
+Pytest calls hooks such as `pytest_addoption` and `pytest_configure` in a
+`conftest.py` or a plugin it loads. Skylos can follow a literal
+`pytest_plugins = ["myapp.test_plugin"]` declaration and a package's
+`pytest11` entry points in `pyproject.toml`. The same function name in an
+ordinary module can still appear as unused.
 
 ### Unittest Lifecycle
 ```python
@@ -219,6 +224,10 @@ class UserViewSet(viewsets.ModelViewSet):
 
 ## Flask
 
+Skylos follows `app.register_blueprint(...)`, including nested blueprint
+registrations. A handler on a blueprint that the app never attaches can
+still appear in the report.
+
 ### Routes
 
 Route handlers are recognized via decorators:
@@ -248,6 +257,11 @@ def after(response):
 ```
 
 ## FastAPI
+
+For an app factory, the launch command can explain why a function has
+no Python caller. For example, a Dockerfile with
+`CMD ["uvicorn", "service:build_app", "--factory"]` tells Skylos that
+Uvicorn calls `build_app` in `service.py`.
 
 ### Route Handlers
 ```python
@@ -289,7 +303,35 @@ async def create_user(user: CreateUser):  # CreateUser recognized
     return user
 ```
 
+## Starlette
+
+Skylos follows route lists passed to a Starlette application, including
+routes inside a `Mount`. In this example the application uses `health`:
+
+```python
+from starlette.applications import Starlette
+from starlette.responses import PlainTextResponse
+from starlette.routing import Route
+
+async def health(request):
+    return PlainTextResponse("ok")
+
+app = Starlette(routes=[Route("/health", health)])
+```
+
+If a second route list is never attached, its handlers can still be reported.
+
+## Celery
+
+For a class-based task, `worker.register_task(Notify())` connects the
+worker to its `Task` subclass. Skylos then recognizes `Notify.run` and
+callbacks such as `on_success`. An unrelated method on the same class can
+still be unused.
+
 ## Pydantic
+
+Skylos follows imported model bases, including aliases and local subclasses,
+to recognize fields and validators.
 
 ### Models
 
@@ -318,6 +360,13 @@ class User(BaseModel):
     def validate_model(self):
         return self
 ```
+
+## SQLAlchemy and SQLModel
+
+SQLAlchemy reads mapped members such as `Mapped[str]` on a declarative model.
+SQLModel also reads relationship fields. Skylos checks the field declaration
+and the class it belongs to. For example, an unused helper can still be
+reported on a model with mapped columns. [Mapped column example](/guides/penalty-system#orm-model-columns)
 
 ## AST Visitors
 

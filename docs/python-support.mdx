@@ -24,12 +24,15 @@ Skylos recognizes common Python entrypoints and framework-managed code so they
 are less likely to be reported as dead code:
 
 - Django views, models, serializers, management commands, settings, and URL routes
-- Flask and FastAPI route handlers
-- Starlette handlers and middleware patterns
+- Flask blueprints and FastAPI route handlers and dependencies
+- Starlette route tables, mounted routes and middleware patterns
 - Pydantic models and validators
-- SQLAlchemy models
-- pytest and unittest tests, fixtures, and lifecycle hooks
-- Celery tasks and common async worker entrypoints
+- SQLAlchemy mapped columns and SQLModel fields and relationships
+- pytest and unittest tests, fixtures, lifecycle hooks and registered pytest plugins
+- Celery tasks, including registered task classes and their callbacks
+
+See [Framework Awareness](/framework-awareness) for examples of the source code
+that connects a handler or field to its framework.
 
 ## Security Scope
 
