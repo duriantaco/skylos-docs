@@ -496,21 +496,21 @@ skylos graph --since origin/main          # mark everything this branch changed
 skylos graph show load_config --format json
 skylos graph impact load_config
 skylos graph describe                     # plain-English descriptions, your model key
-skylos graph describe --via skylos        # Skylos writes them for credits (not live in Skylos Cloud yet)
-skylos graph --since origin/main --upload # logic-change report to Skylos Cloud (not live in Skylos Cloud yet)
+skylos graph describe --via skylos        # Skylos writes them for credits
+skylos graph --since origin/main --upload # logic-change report to Skylos Cloud
 ```
 
 | Subcommand or flag | Description |
 |------|-------------|
 | `--since <ref>` | Compare with this ref and give each changed function a verdict. Default: `HEAD`; `none` skips it |
 | `--format text\|json` | Output format. Default: `text` |
-| `--upload` | Send the logic-change report to Skylos Cloud (not live in Skylos Cloud yet). Needs committed changes and `skylos login` or CI; the project must have Logic changes reports turned on (1 credit per pull request) |
+| `--upload` | Send the logic-change report to Skylos Cloud. Needs committed changes and `skylos login` or CI; the project must have Logic changes reports turned on (1 credit per pull request) |
 | `open` | Build and open the local viewer; rebuilds when files change |
 | `show NAME` / `find QUERY` / `impact NAME` | One function's card, a name search, everything that depends on it |
 | `areas [ID]` | The codebase split into areas that work together, or one area's members |
 | `relevant FILE...` | The code that matters most to these files, within `--budget` tokens (default 2,000) |
 | `changes --base <ref>` | Changed functions with verdicts and evidence, in read first, read, skim and skip sections |
-| `describe` | Plain-English descriptions with your own model key. `--via skylos` (not live in Skylos Cloud yet) uses Skylos's key: 1 credit per 100 functions, or per 20 changes with `--changes` |
+| `describe` | Plain-English descriptions with your own model key. `--via skylos` uses Skylos's key: 1 credit per 100 functions, or per 20 changes with `--changes` |
 | `pending` / `import FILE` | Let your coding agent write the descriptions. `pending --changes --base <ref>` lists changed code to explain |
 | `report --base <ref>` | Build the report Skylos Cloud stores: verdicts and reasons, no source code |
 
