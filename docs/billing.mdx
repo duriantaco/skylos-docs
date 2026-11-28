@@ -1,24 +1,38 @@
 ---
 title: "Billing & Credits"
-description: "Skylos Cloud plans (Free, Workspace, Growth, Enterprise), yearly prices, the 14-day trial, credit packs, and what costs credits"
+description: "Skylos Cloud plans (Free, Startup, Workspace, Enterprise), monthly and yearly prices, the paid pilot, the 14-day trial, credit packs, and what costs credits"
 ---
 
-Skylos Cloud has four plans: **Free**, **Workspace**, **Growth** and
-**Enterprise**. The paid plans have a flat yearly price. Nothing is charged
+Skylos Cloud has four plans: **Free**, **Startup**, **Workspace** and
+**Enterprise**. The CLI, the agent hooks and the PR gate in your own CI are
+free, with no account. The team gate and the stack compiler are paid.
+Startup and Workspace have a flat monthly or yearly price. Nothing is charged
 by seat, line of code or pull request.
 
 | Plan | Price | Credits included |
 |------|-------|------------------|
 | **Free** | $0 | Buy packs when you need them |
-| **Workspace** | $3,000 a year | 1,000 a year |
-| **Growth** | $12,000 a year | 3,000 a year |
-| **Enterprise** | From $30,000 a year | 5,000 a year |
+| **Startup** | $125 a month or $1,500 a year | 41 a month or 500 a year |
+| **Workspace** | $250 a month or $3,000 a year | 83 a month or 1,000 a year |
+| **Enterprise** | Contact us, from $12,000 a year | 5,000 a year |
 
-Credits pay for AI fix PRs, cleanup PRs and compliance reports. Workspace and Growth renew each year
-until you turn renewal off (see [How the yearly plans work](#how-the-yearly-plans-work)).
+Startup includes everything in Workspace, for teams with up to 10
+contributing developers: GitHub accounts, bots left out, that opened a pull
+request in the workspace's connected repositories in the last 90 days. Where
+these docs say the Workspace plan, Startup counts too.
 
-The CLI, the agent hooks and the PR gate in your own CI are free, with no
-account.
+What only the paid plans add for coding agents:
+
+- **Skylos Compiler and Verified Stacks**: a large agent pull request becomes a stack of checked commits, and every layer of a GitHub stack is checked as it changes. See [Verified Stacks](/cloud#verified-stacks-and-the-skylos-compiler).
+- **AI approval guard**: when an AI reviewer approves a risky pull request, its Skylos check waits for a person.
+- **Done gate policy and history**: choose which agent checks block in every repository, and see each pull request's results. `skylos done` itself is free in the CLI.
+
+Credits pay for AI fix PRs, cleanup PRs and compliance reports. Startup and
+Workspace renew each month or year until you turn renewal off (see
+[How Plans Renew](#how-plans-renew)).
+
+Growth is no longer offered. Enterprise now includes its single sign-on,
+extra projects and yearly invoice. Workspaces that bought Growth keep it.
 
 ## New User Onboarding
 
@@ -82,12 +96,13 @@ Credits never expire.
 
 ---
 
-## How The Yearly Plans Work
+## How Plans Renew
 
-- Each payment keeps the plan on for one year and adds that year's credits.
-- The plan renews each year at the same price. Billing shows the renewal date and price.
-- Workspace owners get an email before the paid year ends, with the renewal date and price.
-- You can turn renewal off at any time from **Manage renewal** on Billing. Nothing more is charged, and the plan runs to the end of the year you paid for.
+- Startup and Workspace are paid by the month or by the year. Each payment keeps the plan on for that month or year and adds its credits.
+- The plan renews at the same price. Billing shows the renewal date and price.
+- Workspace owners get an email before each yearly renewal, with the date and price.
+- You can turn renewal off at any time with **Cancel monthly renewal** or **Cancel yearly renewal** on Billing. Nothing more is charged, and the plan runs to the end of the month or year you paid for.
+- A workspace has one renewing plan at a time. To move between monthly and yearly, turn renewal off on one before starting the other.
 - When a plan ends, the workspace moves to Free. Its settings and issues stay, and new scans keep the newest 10 per project.
 - Your credits stay.
 
@@ -105,11 +120,12 @@ Credits never expire. Only the plan has an end date.
 
 These features depend on the plan, not on credits.
 
-Growth includes everything in Workspace, with 50 projects and single sign-on, which is set up on request.
-
-| | Free | Workspace | Enterprise |
+| | Free | Startup and Workspace | Enterprise |
 |---|---|---|---|
-| Cloud projects | 1 | 10 (50 on Growth) | Up to 9,999 |
+| Skylos Compiler and Verified Stacks | No | Yes | Yes |
+| AI approval guard | No | Yes | Yes |
+| Done gate policy and history | No | Yes | Yes |
+| Cloud projects | 1 | 10 | Up to 9,999 |
 | Stored scans per project | Newest 10 | Newest 500 | Newest 10,000 |
 | Data retention you can set | 30 to 365 days | Up to 1,095 days | Up to 1,095 days |
 | PR pass or fail check | Yes | Yes | Yes |
@@ -126,23 +142,40 @@ Growth includes everything in Workspace, with 50 projects and single sign-on, wh
 | Teams, outbound webhooks and Jira | No | Yes | Yes |
 | GitHub organization connect and bulk add | No | Yes | Yes |
 | Members | No invites | Unlimited | Unlimited |
-| Single sign-on (SAML), set up on request | No | Growth only | Yes |
+| Single sign-on (SAML), set up on request | No | No | Yes |
 | Audit export of who wrote each change | No | No | Yes |
 
 ---
 
 ## Enterprise
 
-Enterprise starts at **$30,000 a year** and includes **5,000 credits a year**.
-Skylos sets it up by hand.
+For Enterprise, contact us. It is priced by the year with a yearly invoice,
+from **$12,000 a year**, and includes **5,000 credits a year**. Skylos sets it
+up by hand. It includes everything in Workspace, plus:
 
-Talk to us when you need:
-
-- More than 50 projects
-- Invoice or purchase-order billing
-- A security questionnaire
+- Single sign-on (SAML), set up on request
+- Up to 9,999 projects
+- Yearly invoice or purchase-order billing
+- An audit export of who wrote each change: a person or an AI agent
+- A custom security questionnaire filled in for you (standard answers are free in the [trust center](https://skylos.dev/trust))
 
 Contact `founder@skylos.dev`.
+
+---
+
+## Pilot
+
+One paid pilot for teams of 10–200 engineers: **$1,000 for 30 days**. The
+founder sets up both paid parts of Skylos with you, on your repositories:
+
+- **The team gate:** the Done gate (`skylos done`) and the AI approval guard as required checks, tuned with you, with Workspace policy and history.
+- **The Skylos Compiler with Verified Stacks:** large coding-agent pull requests compiled into stacks of checked commits, every layer verified as it changes.
+
+The pilot includes the Workspace plan for those 30 days. Its full price is
+credited toward any yearly plan, so a Workspace year then costs $2,000 and a
+Startup year $500. Nothing renews or charges you when it ends. It is sold on a
+call, not at checkout: see [skylos.dev/design-partners](https://skylos.dev/design-partners)
+or email `founder@skylos.dev`.
 
 ---
 
@@ -180,11 +213,12 @@ workspace owners can buy and see billing activity.
 ## How Purchasing Works
 
 1. Go to **skylos.dev/dashboard/billing** (or run `skylos credits` in the CLI to get the link).
-2. Pick the Workspace plan or a credit pack. A credit pack adds credits only; it does not turn a plan on.
-3. You're redirected to a secure checkout page (powered by Lemon Squeezy).
-4. After payment, credits are added to the workspace. A plan purchase also turns the plan on for the year.
+2. Pick Startup or Workspace, monthly or yearly, or a credit pack. A credit pack adds credits only; it does not turn a plan on. Startup can be bought while the workspace has 10 contributing developers or fewer.
+3. You're redirected to a secure Stripe checkout. Stripe sells Skylos plans and credits as merchant of record, so your statement and receipts name Link.
+4. After payment, credits are added to the workspace. A plan purchase also turns the plan on for the month or year.
 
-To start Growth or Enterprise, email `founder@skylos.dev`.
+If Billing says a plan's checkout is not open yet, or to start Enterprise or
+the pilot, email `founder@skylos.dev`.
 
 ---
 
@@ -227,10 +261,10 @@ on the [billing page](https://skylos.dev/dashboard/billing).
 No. Credits never expire. Buy them once, use them whenever.
 
 **Does the Workspace plan renew?**
-Yes. Workspace and Growth renew each year until you turn renewal off on Billing. With renewal off, the plan runs to the end of the paid year, then the workspace moves to Free and keeps its credits.
+Yes. Startup and Workspace renew each month or year, as chosen, until you turn renewal off on Billing. With renewal off, the plan runs to the end of the month or year you paid for, then the workspace moves to Free and keeps its credits.
 
 **Can I get a refund?**
-Refunds follow the Lemon Squeezy checkout terms, the law, and any written agreement with Skylos. Contact `founder@skylos.dev`. A full refund removes that payment's credits and its year of the plan.
+Refunds follow the checkout terms, the law, and any written agreement with Skylos. Contact `founder@skylos.dev`. A full refund removes that payment's credits and its month or year of the plan.
 
 **What happens if my balance hits zero mid-CI-run?**
 Nothing changes for the scan. Uploads never cost credits, so the upload, PR checks and merge gate keep working. Only AI fix PRs, cleanup PRs and compliance reports stop until you add credits.
@@ -239,4 +273,4 @@ Nothing changes for the scan. Uploads never cost credits, so the upload, PR chec
 Yes. Your first workspace gets a 14-day Workspace trial with 50 credits, and no card. Local scanning is free with no limits.
 
 **What's the difference between plan-gated and credit-gated?**
-Plan features (longer history, team review, integrations, PR comments) need the Workspace plan but don't cost credits. Credit actions (AI fix PRs, weekly cleanup PRs, compliance reports) cost credits on every plan, Free and Enterprise included. Scan uploads, scan comparisons and MCP tools never cost credits.
+Plan features (longer history, team review, integrations, PR comments, Verified Stacks, Done gate policy) need a paid plan but don't cost credits. Credit actions (AI fix PRs, weekly cleanup PRs, compliance reports) cost credits on every plan, Free and Enterprise included. Scan uploads, scan comparisons and MCP tools never cost credits.
