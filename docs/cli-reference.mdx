@@ -69,8 +69,8 @@ The report commands have different gate and network behavior:
   failure, so review the completion output.
 - `done` exits `0` on pass, `1` when a blocking check fails or does not
   finish, and `2` when Skylos could not run (for example, the base is not
-  fetched). It reads its settings from the base commit, so a change cannot
-  loosen its own gate.
+  fetched, or there is nothing to compare). It reads its settings from the
+  base commit, so a change cannot loosen its own gate.
 
 ## Common Workflows
 
@@ -141,7 +141,7 @@ installed family map and `skylos <family> --help` for its real parser options.
 | `skylos suite [DIRECTORY]` | Build one static, debt, defense, and provenance report |
 | `skylos verify [path]` | Scan source for AI-code mistakes and separately model supported Python working changes |
 | `skylos preflight [ARTIFACT]` | Check an exact local built GPU artifact against its fleet; OCI is `UNKNOWN` in the CLI |
-| `skylos done [map\|receipt]` | Run the tests and completion checks on a change, show the change map (`map`), or print the latest receipt (`receipt`) |
+| `skylos done [map\|receipt\|replay]` | Run the tests and completion checks on a change, show the change map (`map`), print the latest receipt (`receipt`), or check whether one pytest test catches a regression (`replay`, prototype) |
 | `skylos cleanup [path]` | Review findings, organize local plans, preview supported edits, and explicitly apply and check a selected patch |
 | `skylos clean [path]` | Preview or apply Python import/function cleanup |
 | `skylos review [path]` | Record and manage local finding decisions |
@@ -349,26 +349,70 @@ proof; it is not silently treated as a pass.
 
 ### `skylos done [path]`
 
-Run the repository's tests and completion checks and write a receipt. Settings
-come from the trusted baseline. `--base REF` compares against the merge base;
-without it, Done compares uncommitted changes against HEAD.
+Run the repository's tests and completion checks on a change and write a
+receipt to `.skylos/receipts/`.
 
 ```bash
-skylos done --base main
+skylos done --base origin/main   # a pull request, compared with its merge base
+skylos done                      # uncommitted changes, compared with HEAD
+skylos done --session SESSION    # everything since the agent session began
+skylos done receipt              # print the latest receipt again
 ```
 
-`skylos done` compares the branch with its merge base and runs your tests. It
-flags deleted or skipped tests, loosened test settings and CI test steps,
-silenced lint or type checks, and code that special-cases the tests, advises
-on code the branch left without callers, then writes a receipt to
-`.skylos/receipts/`. It runs pytest automatically; other test runners need one
-`test_command` line in `[tool.skylos.done]`.
+It flags deleted, skipped or weakened tests, loosened test settings and CI
+test steps, silenced lint or type checks, and code that special-cases the
+tests, and advises on code the branch left without callers. It runs pytest
+automatically; other test runners need one `test_command` line in
+`[tool.skylos.done]`.
+
+Done never compares a commit with itself. Without `--base`, uncommitted
+changes are compared with HEAD; when nothing is uncommitted, the branch's
+commits are compared with the merge base of the branch pull requests merge
+into (`origin/HEAD`, else `origin/main`, `origin/master`, `main` or `master`),
+and the output says so. When that finds no changes either, Done exits `2`,
+writes no receipt and asks for a base, for example `skylos done --base HEAD~1`.
+
+| Flag | Description |
+|------|-------------|
+| `--base <ref>` | Compare with the merge base of this ref, used as given |
+| `--session <id>` | Compare the whole working tree with the agent session's starting snapshot |
+| `--format text\|json\|markdown` | Output format. Default: `text` |
+| `--no-tests` | Skip the tests; a blocking tests check is then unfinished, so the run cannot pass |
+| `--agent <client>` | Agent named on the receipt, such as `claude-code`, `codex` or `cursor`; detected inside Claude Code and Codex |
+| `--map` | Print the [change map](#skylos-done-map-path) after the verdict |
+
+The verdict comes first, then only the checks that did not pass:
+
+```text
+Verdict: FAIL: tests were deleted, skipped or weakened. The tests were not run because of this
+Compared 1a2b3c4…5d6e7f8 (merge base with origin/main)
+FAIL       No tests deleted, skipped or weakened: 1 test change(s) weaken what the tests check
+           tests/test_cart.py:14  SKY-A110 test_partial_stock was deleted; no test with the same body exists now
+NOT RUN    Tests pass when Skylos runs them, Tests check the changed lines: run once the problems above are fixed
+6 checks passed
+Receipt: .skylos/receipts/5d6e7f8a9b0c-1a2b3c4d5e6f.json
+Next: Put back the removed tests and assertions, then rerun skylos done --base origin/main
+```
+
+| Word | Meaning |
+|------|---------|
+| `FAIL`, `UNFINISHED` | A blocking check failed, or could not finish; the run cannot pass |
+| `WARN` | Advice to act on; never blocks |
+| `NOT RUN` | The check did not run: it waits for the problems above, an advisory check could not finish, or the change edits test files Skylos cannot read yet (Go, Java, Kotlin, C#, Ruby, PHP and others). Never counted as a pass, and does not block on its own |
+
+Passing checks are folded into one count, and a change that touches only
+docs, settings or data says `No code changed`. Each problem is listed once. A
+blocked run ends with one `Next:` line: the first fix and the exact command to
+rerun.
 
 Exit `0` on pass, `1` when a blocking check fails or does not finish, and `2`
-when Skylos could not run (for example, the base is not fetched). It reads its
-settings from the base commit, so a change cannot loosen its own gate. See the
+when Skylos could not run. Settings come only from `[tool.skylos.done]` at the
+base (see [Where Settings Come From](./configuration#where-settings-come-from)),
+so a change cannot loosen its own gate. See the
 [done gate guide](https://github.com/duriantaco/skylos/blob/main/docs/done-gate.md)
-for every check and its limits.
+for every check and its limits, and
+[`skylos done replay`](https://github.com/duriantaco/skylos/blob/main/docs/regression-replay-prototype.md)
+for the prototype that checks whether one pytest test catches a regression.
 
 The **unreleased source implementation** also supports installed project type
 checking:

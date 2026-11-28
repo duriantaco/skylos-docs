@@ -271,10 +271,10 @@ and output contract.
 | `SKY-A104` | Public CLI Surface Drift | MEDIUM | Diff-aware CLI | Public CLI flag removed from argparse, Click, or Typer surface |
 | `SKY-A105` | Contract Route Guard Missing | HIGH | Python contract verify | Route handler is missing a guard decorator required by an AI hallucination contract |
 | `SKY-A106` | Suspicious Dependency Version Bump | LOW | Python manifests and lock files in Git changes | A dependency's old and new versions exactly match the project's own version change |
-| `SKY-A110` | Test Deleted | HIGH | Python tests (`skylos done`) | An existing test disappears without a matching moved or renamed test, or loses parametrized cases |
-| `SKY-A111` | Test Newly Skipped | HIGH | Python tests (`skylos done`) | An existing test gains skip, skipif, xfail, `pytest.skip()`, `importorskip`, or `skipTest` |
-| `SKY-A112` | Test Settings Loosened | HIGH | pytest, coverage, GitHub Actions (`skylos done`) | Test selection, local hooks, coverage floors, or CI test failure handling weaken the test run |
-| `SKY-A113` | Tests Fail When Skylos Runs Them | HIGH | Any test command (`skylos done`) | The configured test command fails, or an expected Python test does not report a result |
+| `SKY-A110` | Test Deleted | HIGH | Python and JS/TS tests (`skylos done`) | An existing test disappears without a matching moved, renamed or rewritten test, loses parametrize or `.each` cases, or is left with no countable assertion |
+| `SKY-A111` | Test Newly Skipped | HIGH | Python and JS/TS tests (`skylos done`) | An existing test, or an existing `pytest.param` row, gains skip, skipif, xfail, `pytest.skip()`, `importorskip` or `skipTest`; a JS/TS test gains a skip, or a file gains a focus such as `.only` |
+| `SKY-A112` | Test Settings Loosened | HIGH | pytest, coverage, Jest, Vitest, package.json, GitHub Actions (`skylos done`) | Test selection, local hooks, coverage floors, test scripts or CI test failure handling weaken the test run |
+| `SKY-A113` | Tests Fail When Skylos Runs Them | HIGH | Any test command (`skylos done`) | The test command fails, or an expected test reports no result, or is skipped here although it passes on the base |
 | `SKY-A114` | Skylos Settings or Hooks Changed | HIGH | Repository files (`skylos done`) | Protected paths, `[tool.skylos]`, or a CI workflow that runs Skylos change |
 | `SKY-A115` | Test Answer Hard-Coded in Code | HIGH | Python, JavaScript/TypeScript (`skylos done`) | Added production code answers an existing test's literal input with that test's expected value; weaker matches advise |
 | `SKY-A116` | Code Detects the Test Run | HIGH | Python, JavaScript/TypeScript (`skylos done`) | Production code detects a test runner or reads the tests' own files; general environment switches advise |
@@ -1359,7 +1359,7 @@ archive.extractall(dest)
 Skylos reads the unified diff for changed test files and reports the evidence:
 the removed assertion, the added weaker assertion, and the weakening type. It is
 diff-aware by design, so existing weak tests are not reported unless the PR
-weakens them.
+weakens them. In `skylos done` it is always advice and never blocks.
 
 ---
 
@@ -1527,43 +1527,74 @@ ignore = ["SKY-A106"]
 
 The following rules run through `skylos done`, rather than the ordinary
 `--ai-defects` scan. Their evidence is stored in the done receipt's
-`checks[*].findings`. Settings come from the trusted base commit: HEAD for a
-local comparison, or the requested base reference for `--base origin/main`.
-A check configured to block cannot pass when it is skipped or unfinished.
+`checks[*].findings`. Settings come only from `[tool.skylos.done]` at the base:
+the tip of the `--base` branch, HEAD for uncommitted changes, the tip of the
+branch pull requests merge into for committed work checked without `--base`,
+or HEAD at the session start for `--session`. A check configured to block
+cannot pass when it is skipped or unfinished.
 
 ### SKY-A110 · Test Deleted
 
 | | |
 |---|---|
 | **Severity** | HIGH |
-| **Languages** | Python tests |
-| **What** | An existing test is deleted without a matching moved or renamed test, or loses parametrized cases |
+| **Languages** | Python and JavaScript/TypeScript tests |
+| **What** | An existing test is deleted without a matching moved, renamed or rewritten test, loses parametrize or `.each` cases, or is left with no countable assertion |
 
-Matching test bodies preserve moved and renamed tests. A deleted test that
-directly references a deleted production module is reported as feature-removal
-advice; deleting an unrelated module does not qualify.
+Matching test bodies preserve moved and renamed tests. Tests merged into one
+parametrized test whose cases run at least as many assertions get one advice
+message, not a deletion. A deleted test whose code the change also removed is
+feature-removal advice; deleting an unrelated module does not qualify.
+
+JS/TS test files are `*.test.*`, `*.spec.*` and `__tests__/` files, plus
+plainly named files such as `test/assert.js` that the package's runner
+selects: a Mocha `spec`, a test script that runs mocha, ava, tap, uvu or
+`node --test`, or else the package's `test/` or `tests/` folder. Such a file
+counts only when it declares a test or `describe` at its top level; fixtures,
+helpers and setup files never count.
+
+Go, Rust, Java, Kotlin, C#, Ruby, PHP, Dart, Swift, Elixir and C/C++ tests
+have no inventory yet. When the change edits or deletes their test files, the
+check shows `NOT RUN` ("Skylos can't read Go tests yet, so deleted or skipped
+tests weren't checked") instead of a pass. That line does not block on its
+own.
 
 ### SKY-A111 · Test Newly Skipped
 
 | | |
 |---|---|
 | **Severity** | HIGH |
-| **Languages** | Python tests |
-| **What** | An existing test gains skip, skipif, xfail, `pytest.skip()`, `importorskip`, or `skipTest` |
+| **Languages** | Python and JavaScript/TypeScript tests |
+| **What** | An existing test gains skip, skipif, xfail, `pytest.skip()`, `importorskip` or `skipTest`, or a JS/TS test gains a skip or focus |
 
 The check compares existing tests with the base. Skips in a newly added test
-are not treated as a change to an existing test's protections.
+are not treated as a change to an existing test's protections. It also
+reports:
+
+- a skip or xfail mark added to one existing row of a literal parametrize
+  table (`pytest.param(..., marks=pytest.mark.xfail)`), matched by its `id=`,
+  its values or its position; a new row may be marked freely;
+- a module or class `pytestmark` skip in any form that runs when the file
+  loads (`=`, `: list =`, `+=`, `.append(...)`, a name bound to marks, inside
+  `if` or `try`); a mark that moves from a decorator to `pytestmark` is not new;
+- JS/TS `.skip`, `xit`/`xdescribe`, `.todo`, `.fixme`, `skipIf`/`runIf`,
+  `.failing`/`.fails` and runtime skips, and any added focus (`.only`, `fit`,
+  `fdescribe`), which stops the other tests from running.
+
+A newly skipped test is reported once, not also as `SKY-A101` advice.
 
 ### SKY-A112 · Test Settings Loosened
 
 | | |
 |---|---|
 | **Severity** | HIGH |
-| **Languages** | pytest, coverage configuration, GitHub Actions |
+| **Languages** | pytest, coverage configuration, Jest, Vitest, Playwright, package.json test scripts, GitHub Actions |
 | **What** | Test settings are changed to run fewer tests, rewrite results, lower coverage floors, or allow CI test failures |
 
 Examples include added pytest selectors or ignored paths, local `conftest.py`
-hooks that drop tests or alter outcomes, and CI test steps that swallow errors.
+hooks that drop tests or alter outcomes, Jest or Vitest settings that stop
+running existing test files, removed Playwright projects, test scripts that
+filter tests or swallow failures, and CI test steps that swallow errors.
 Assertion weakening remains separate advice under `SKY-A101` in the done gate.
 
 ### SKY-A113 · Tests Fail When Skylos Runs Them
@@ -1571,14 +1602,25 @@ Assertion weakening remains separate advice under `SKY-A101` in the done gate.
 | | |
 |---|---|
 | **Severity** | HIGH |
-| **Languages** | Any configured test command; Python test inventory and JUnit XML for detailed evidence |
-| **What** | Skylos runs the configured test command and observes failure or missing expected Python test results |
+| **Languages** | Any configured test command; Python and JS/TS test inventories and JUnit XML for detailed evidence |
+| **What** | Skylos runs the configured test command and observes failures, or expected tests that report no result or stopped running |
 
 Pytest failures can be rerun within the time budget; a failure that passes on
-rerun is reported as flaky. A timeout, missing expected result, unavailable
-command, or `--no-tests` leaves a blocking check unfinished rather than passed.
-Trusted base collection settings may explain intentionally excluded tests;
-unexplained runtime deselection does not.
+rerun is reported as flaky. Each failing test is rerun on the base and labeled
+introduced, already failing, new test or not checked; every failure still
+blocks unless the base sets `allow_preexisting_failures = true`.
+
+An existing test that is skipped here, or reports no result although its file
+ran, is rerun on the base. If it passes there, it is reported as "did not run
+although its file did". This covers runtime pytest
+skips, JS/TS results from Vitest, Playwright, `jest-junit`, Mocha's `xunit`
+reporter and node:test, and JUnit results from other languages. pytest-xdist
+`loadgroup` results are read by their test names.
+
+A timeout, missing expected result, unavailable command, or `--no-tests`
+leaves a blocking check unfinished rather than passed. Tests the base's own
+collection leaves out, under unchanged pytest settings and `conftest.py`
+files, are excused; unexplained runtime deselection is not.
 
 ### SKY-A114 · Skylos Settings or Hooks Changed
 
@@ -1717,10 +1759,9 @@ working tree is not modified. Uncovered lines and surviving mutations are
 listed as unverified on the receipt.
 
 Import-only or untraceable code and time or mutant limits are reported as not
-checked. A line without a supported mutation has coverage-only evidence.
+checked. A line tests run that no mutation applies to counts as checked.
 The `changed_lines_checked` check in `[tool.skylos.done.checks]` advises by
-default; configure it to block when failed or unfinished checks should stop
-the gate.
+default and never blocks unless the base sets it to `block`.
 
 ### SKY-A121 · CI Check Weakened
 

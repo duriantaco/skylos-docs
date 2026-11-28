@@ -456,8 +456,14 @@ root = true
 
 In PR CI, settings come from the base commit only, with the same rules, and
 `skylos done` reports an added or edited `skylos.toml` as a change to Skylos
-settings (SKY-A114). `[done]` and `[approval]` settings are read from the
-repository root's file.
+settings (SKY-A114). `[done]` and `[approval]` settings are read only from the
+base's repository root, from the first of `.skylos.toml`, `skylos.toml` and
+`pyproject.toml` that exists there: a `[tool.skylos.done]` table in
+`pyproject.toml` is ignored when the base also has a `.skylos.toml` or
+`skylos.toml`. For `skylos done --base origin/main` the base is the tip of
+`origin/main`; without `--base` it is HEAD, or the tip of the branch pull
+requests merge into when nothing is uncommitted; for `--session` it is HEAD
+when the session began.
 
 ### One Explicit File
 
