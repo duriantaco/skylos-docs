@@ -23,8 +23,8 @@ Each command answers a different question. The source scan requires a path.
 | How is this branch doing on Skylos Cloud? | `skylos cloud [PATH]` | Every main source analyzer, then the findings and this commit's Done receipt are uploaded and the branch's quality gate is printed with one link |
 | Did the agent really finish this branch? | `skylos done --base main` | The branch's changes since its merge base with `main`: Skylos runs your tests (pytest automatically; other runners need `test_command` in `[tool.skylos.done]`) and compares the tests, test settings and CI steps with the base; writes a receipt to `.skylos/receipts/` |
 | What does this change touch, and what should I read first? | `skylos done map --base main` | Each changed Python or TypeScript/JavaScript function since the merge base, with its old and new code, calls added and removed, its callers and removed security checks, sorted into read first, read, skim and skip (skip only when the logic is proven the same); computed from the code, so the same commit gives the same map |
-| What AI-code mistakes are in this source? | `skylos verify [path]` | AI-defect checks over the selected file or tree, plus a separate Git HEAD behavior comparison for supported Python working changes |
-| Should a model review static dead-code findings? | `skylos agent verify [path]` | LLM by default; optional [Jev-only or Jev-plus-LLM review](https://github.com/duriantaco/skylos/blob/main/docs/dead-code-review.md) |
+| What AI-code mistakes are in this source? | `skylos verify [path]` | AI-defect checks over the selected file or tree, with no LLM, plus a separate Git HEAD behavior comparison for supported Python working changes |
+| Should a model review static dead-code findings? | `skylos agent verify <path>` | LLM review of unused-code findings by default; optional [Jev-only or Jev-plus-LLM review](https://github.com/duriantaco/skylos/blob/main/docs/dead-code-review.md) |
 | What do I tell my CTO? | `skylos report [path]` | Every main source analyzer locally, then one self-contained HTML page (or `--format md`): verdict, top five risks with fixes, issue counts, coverage gaps, scan date, commit and version |
 | What does the combined repo report contain? | `skylos suite [DIRECTORY]` | Static analysis, technical debt, AI app safety, and provenance; local findings are report-only by default |
 | Does an agent implementation have deployment guardrails? | `skylos defend [DIRECTORY]` | Recognized Python and TypeScript/JavaScript LLM integrations; gating requires a threshold flag or policy |
@@ -103,7 +103,6 @@ The report commands have different gate and network behavior:
 | Incumbent scanner comparison | `skylos compare . --against incumbent.sarif` | Runs Skylos beside the current scanner and produces a revision-aware scorecard: active overlap, raw unique findings by category, and eligible findings inside evidence-backed unused symbols, without replacing the current gate | [Scanner comparison](/scanner-comparison) |
 | Runtime-assisted dead-code check | `skylos . --trace` | Uses runtime traces to reduce dynamic-code false positives | [Smart tracing](/smart-tracing) |
 | Local rule pack | `skylos rules init` | Scaffolds `.skylos/rules/local.yml`, project-specific YAML checks that `--quality` and `-a` scans apply | [`skylos rules`](#skylos-rules) |
-| Security agent quick scan | `skylos agent security-quick .` | One-shot LLM security audit; compatibility alias for `skylos agent scan . --security` | [AI features](/ai-features) |
 | Security agent deep scan | `skylos agent security-deep .` | Three-stage security workflow with threat-model context, static threat traces, discovery/validation, and remediation handoff | [AI features](/ai-features) |
 | AI-assisted review | `skylos agent scan .` | Static analysis plus optional LLM review and fix suggestions | [AI features](/ai-features) |
 | Agent harness replay | `skylos agent replay .skylos/runs/<run-id>` | Validates and summarizes saved agent verification phases, tool calls, decisions, and budgets | [Evidence artifacts](/agent-behavior-testing#evidence-artifacts) |
@@ -155,7 +154,7 @@ installed family map and `skylos <family> --help` for its real parser options.
 | `skylos ingest <trivy\|claude-security>` | Normalize findings from an external tool |
 | `skylos compare [path] --against REPORT` | Compare Skylos with an incumbent report |
 | `skylos provenance [path]` | Detect AI-authored code in PR changes |
-| `skylos agent <command>` | Run LLM review, Deep Mode, remediation, behavior tests, or agent-state workflows; install the agent hooks (`install-hooks`) and print hardened agent settings (`harden`, see [Supply Chain](./supply-chain#harden-the-agents-own-settings)) |
+| `skylos agent <command>` | Run LLM review, Deep Mode, remediation or behavior tests; install the agent hooks (`install-hooks`) and print hardened agent settings (`harden`, see [Supply Chain](./supply-chain#harden-the-agents-own-settings)) |
 | `skylos cicd <command>` | Generate or run CI gates, annotations, and PR review output |
 | `skylos rules <command>` | Initialize, validate, list, install, or remove rule packs |
 | `skylos contract <command>` | Initialize, validate, or inspect AI hallucination contracts |
@@ -290,10 +289,13 @@ HEAD; it does not narrow all analyzer findings to changed files. Path targets
 enable dependency hallucination checks by default and may query public package
 registries. Use `--no-dependency-hallucinations` to disable those lookups.
 
-On a terminal, the command renders a human report. It emits versioned JSON with
+On a terminal, the command renders a human report that lists each defect once:
+findings on the same line with the same fix are merged, with every rule ID on
+that line, most severe first. It emits versioned JSON with
 `tool: "verify_change"` when stdout is redirected, when `--stdin` is used, or
-to the file selected by `--output`. That result contains a `status`, target
-file/range, and findings shaped for agent consumption:
+to the file selected by `--output`. That result keeps every finding and
+contains a `status`, target file/range, and findings shaped for agent
+consumption:
 
 ```json
 {
@@ -640,6 +642,11 @@ Findings are report-only and exit `0` unless `--fail-on`, `--min-score`, or an
 explicit policy requests a gate. Upload and requested gate failures exit `1`.
 If no supported integration is detected, the empty result does not prove that
 an unsupported or unrecognized implementation has guardrails.
+
+The terminal report shows one defense score, at the end; ops checks are
+listed as not scored. OWASP coverage is always in JSON and `--format md`, and
+on the terminal only when an `--owasp`, `--owasp-framework` or
+`--owasp-version` option is given.
 
 ### `skylos agent harden`
 

@@ -58,8 +58,8 @@ Defense checks (weighted; drive the defense score and the gate):
 | `model-pinned` | medium (3) | LLM03 | Model version is pinned, not floating |
 | `input-length-limit` | low (1) | LLM01 | Input length is limited before prompting |
 
-Ops checks (scored separately as the ops score; never gate CI and never
-inflate the defense score):
+Ops checks (not part of the defense score and never gate CI; the terminal
+lists them as not scored, and JSON reports them as `ops_score`):
 
 | Check | Severity | OWASP LLM | Verifies |
 |---|---|---|---|
@@ -91,6 +91,9 @@ counterpart, so one artifact answers both "LLM risks" and "agentic risks".
 `--format table` (default), `--format json` (alias: `--json`), `--format md`,
 `--format sarif`. `-o/--output` writes any format to a file.
 
+- **table** — one defense score at the end. Each integration shows its
+  points and the checks that add up to them; ops checks are listed as not
+  scored. OWASP coverage appears only when you pass an `--owasp` option.
 - **json** — schema `1.1`: `version`, `skylos_version`, `timestamp`,
   `project`, `summary` (scores, by-severity), `integrations[]` (inventory +
   per-integration scores), `findings[]` (every check result with remediation),

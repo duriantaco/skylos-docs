@@ -117,41 +117,35 @@ skylos defend .
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ Skylos AI Defense Report                                                 │
-│ Scanned: 1 files | Found: 2 LLM integration(s) | Score: 50% (MEDIUM)    │
+│ Skylos AI app safety report                                              │
+│ Scanned: 1 files | Found: 2 LLM integration(s)                           │
 ├──────────────────────────────────────────────────────────────────────────┤
 
 Integration 1: app.py:11
-  Weighted Score: 0/16 (0%) — CRITICAL RISK
-  ✗ no-dangerous-sink   LLM output flows to dangerous sink(s): eval (L16) [-8]
-  ✗ output-validation   LLM output used without structured validation     [-5]
-  ✗ model-pinned        Model uses floating alias 'gpt-4o'                [-3]
-  ✗ logging-present     No logging detected around LLM call               [-3]
-  ✗ cost-controls       No max_tokens set — unbounded token consumption   [-3]
+  Points: 0/16
+  ✗ no-dangerous-sink        LLM output flows to dangerous sink(s): eval (L16) [-8]
+  ✗ output-validation        LLM output used without structured validation [-5]
+  ✗ model-pinned             Model uses floating alias 'gpt-4o'       [-3]
+  Not scored:
+  ✗ logging-present          No logging detected around LLM call
+  ✗ cost-controls            No max_tokens set — unbounded token consumption
 
 Integration 2: app.py:25
-  Weighted Score: 16/16 (100%) — SECURE RISK
-  ✓ no-dangerous-sink   LLM output does not flow to any dangerous sink    [+8]
-  ✓ output-validation   Output validation present at app.py:31            [+5]
-  ✓ model-pinned        Model pinned to gpt-4o-2024-11-20                 [+3]
-  ✓ logging-present     Logging detected near LLM call                    [+3]
-  ✓ cost-controls       max_tokens set on LLM call                        [+3]
+  Points: 16/16
+  ✓ no-dangerous-sink        LLM output does not flow to any dangerous sink [+8]
+  ✓ output-validation        Output validation present at app.py:31   [+5]
+  ✓ model-pinned             Model pinned to gpt-4o-2024-11-20        [+3]
+  Not scored:
+  ✓ logging-present          Logging detected near LLM call
+  ✓ cost-controls            max_tokens set on LLM call
 
 ──────────────────────────────────────────────────────────────────────────
 
-AI Defense Score: 50% (MEDIUM)
-  16/32 weighted points | 3/6 checks passing
-
-AI Ops Score: 50% (FAIR)
-  2/4 ops checks passing
-
-OWASP LLM Top 10 Coverage:
-  ◐ LLM02 Insecure Output Handling              50% (2/4)
-  ◐ LLM03 Training Data Poisoning / Supply Chain 50% (1/2)
-  ◐ LLM10 Unbounded Consumption                 50% (1/2)
+Defense score: 50% (MEDIUM)
+  16/32 points | 3/6 scored checks pass | 4 not scored
 ```
 
-`ask_ai` scores 0% — it passes LLM output straight to `eval()`, uses a floating model alias, has no logging, and no token limit. `safe_ask` scores 100% — it validates output with `json.loads()`, pins the model version, logs calls, and sets `max_tokens`.
+`ask_ai` gets 0 of 16 points — it passes LLM output straight to `eval()` and uses a floating model alias; it also has no logging and no token limit, which are listed but not scored. `safe_ask` gets 16 of 16 — it validates output with `json.loads()`, pins the model version, logs calls, and sets `max_tokens`. The report shows one score, at the end. OWASP coverage is in `--json` and `--format md` output, and on the terminal only when you pass an `--owasp` option.
 
 ### Filtering by OWASP Category
 
@@ -229,9 +223,9 @@ For each integration found, Discover extracts:
 | `output-validation` | HIGH | LLM02, LLM09 | LLM output is validated/parsed |
 | `prompt-delimiter` | HIGH | LLM01 | Prompt uses structural delimiters |
 | `model-pinned` | MEDIUM | LLM03 | Model version is pinned (dated suffix) |
-| `input-length-limit` | MEDIUM | LLM01 | Input length is bounded |
-| `tool-schema-present` | HIGH | LLM04, LLM07 | Agent tools have schemas |
-| `tool-scope` | HIGH | LLM04, LLM07, LLM08 | Tools don't use `subprocess`/`exec` |
+| `input-length-limit` | LOW | LLM01 | Input length is bounded |
+| `tool-schema-present` | CRITICAL | LLM04, LLM07 | Agent tools have schemas |
+| `tool-scope` | CRITICAL | LLM04, LLM07, LLM08 | Tools don't use `subprocess`/`exec` |
 | `rag-context-isolation` | HIGH | LLM01 | RAG context has prompt delimiters |
 | `output-pii-filter` | HIGH | LLM06 | Output is filtered for PII |
 
@@ -244,18 +238,18 @@ For each integration found, Discover extracts:
 | `rate-limiting` | MEDIUM | Rate limiting is applied |
 
 :::tip
-Ops checks are tracked separately and do **not** affect your defense score or CI gating. They provide operational best-practice guidance.
+Ops checks do **not** affect your defense score or CI gating. The terminal lists them as not scored; JSON reports them as `ops_score`. They provide operational best-practice guidance.
 :::
 
 ### Scoring
 
-Defense and ops scores are calculated using weighted severity:
+The defense score uses weighted severity:
 
 | Severity | Weight |
 |----------|--------|
-| CRITICAL | 4 |
-| HIGH | 3 |
-| MEDIUM | 2 |
+| CRITICAL | 8 |
+| HIGH | 5 |
+| MEDIUM | 3 |
 | LOW | 1 |
 
 **Defense score** = (weighted passes / weighted maximum) as a percentage.
@@ -265,12 +259,12 @@ Defense and ops scores are calculated using weighted severity:
 | Score | Rating |
 |-------|--------|
 | >= 90% | SECURE |
-| >= 70% | LOW |
-| >= 40% | MEDIUM |
-| >= 20% | HIGH |
-| < 20% | CRITICAL |
+| >= 75% | LOW |
+| >= 50% | MEDIUM |
+| >= 25% | HIGH |
+| < 25% | CRITICAL |
 
-**Ops score ratings:**
+**Ops score ratings** (JSON `ops_score`: passing ops checks / ops checks, unweighted):
 
 | Score | Rating |
 |-------|--------|

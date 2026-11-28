@@ -137,8 +137,8 @@ extra_network_timeout_calls = ["vendor_sdk.fetch"]
 ### LLM Prompt Templates
 
 LLM prompt templates are not read from the repository: pass a trusted file
-with `--prompt-template KIND=PATH` to `skylos agent scan`, `agent audit`,
-`agent security-quick` or `agent security-deep` (KIND is `security`,
+with `--prompt-template KIND=PATH` to `skylos agent scan`, `agent audit` or
+`agent security-deep` (KIND is `security`,
 `quality`, `security_audit` or `review`). A template extends Skylos' built-in
 prompt; it does not replace the JSON-only output contract or untrusted-code
 safety rules.
