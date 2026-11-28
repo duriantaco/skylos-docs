@@ -47,11 +47,11 @@ use the `SKY-A` prefix.
 | `SKY-D203` | `os.system()` | CRITICAL | Python | OS command execution |
 | `SKY-D204` | Unsafe Deserialization | CRITICAL | Python, PHP | Untrusted deserialization via `pickle.load` or PHP `unserialize()` |
 | `SKY-D205` | `pickle.loads` | CRITICAL | Python | Untrusted deserialization via `pickle.loads` |
-| `SKY-D206` | `yaml.load` | HIGH | Python | `yaml.load()` without SafeLoader |
+| `SKY-D206` | Unsafe YAML Load | HIGH or MEDIUM | Python, Ruby | A Python YAML load without a proven data-only loader, or a Ruby YAML or Psych unsafe load with nonliteral input |
 | `SKY-D207` | Weak Hash: MD5 | MEDIUM | Python, TS, Go, Java, Rust | `hashlib.md5()`, `crypto.createHash('md5')`, `crypto/md5`, or a supported Rust MD5 API hashing exposed secret data |
 | `SKY-D208` | Weak Hash: SHA1 | MEDIUM | Python, TS, Go, Java, Rust | `hashlib.sha1()`, `crypto.createHash('sha1')`, `crypto/sha1`, or a supported Rust SHA-1 API hashing exposed secret data |
 | `SKY-D209` | `subprocess` shell=True | HIGH | Python | `subprocess.*(..., shell=True)` |
-| `SKY-D210` | TLS Verify Disabled | HIGH | Python, TS/JS, Go, Rust | `requests.*(verify=False)`, `InsecureSkipVerify: true`, or supported Rust settings that disable certificate or hostname verification |
+| `SKY-D210` | TLS Verify Disabled | HIGH | Python, TS/JS, Go, Rust, Java, Dart, PHP | A supported TLS setting, trust manager, or certificate callback disables certificate or hostname checks |
 | `SKY-D233` | Unsafe Deserialization | Varies by API | Python, Java, Kotlin, C#, TS/JS, Rust | Unsafe object deserialization such as `jsonpickle.decode` or `dill.loads`. The Rust finding is MEDIUM for unbounded network input decoded into a `Vec`. |
 | `SKY-D213` | Hugging Face Remote Code | HIGH | Python | `trust_remote_code=True` in `from_pretrained`, `pipeline` or `load_dataset` |
 
@@ -67,7 +67,7 @@ use the `SKY-A` prefix.
 | `SKY-D218` | URL Scheme Audit | MEDIUM | Python | Dynamic urllib URL without a proven HTTP/HTTPS scheme restriction |
 | `SKY-D235` | Remote Command Execution Sink | HIGH | Python | User-controlled values flow into command execution sinks |
 | `SKY-D229` | XPath Injection | CRITICAL | Java | Request data in an `XPath` `compile`/`evaluate` expression |
-| `SKY-D236` | XML External Entity (XXE) | HIGH | Java | XML parser used without disabling DTDs or external entities |
+| `SKY-D236` | XML External Entity (XXE) | Varies by API | Java, Kotlin, TS/JS, Python, C# | A supported XML parser can resolve external entities |
 | `SKY-D237` | Expression, JNDI or Script Injection | CRITICAL | Java | Request data evaluated as SpEL/OGNL/MVEL/EL/JEXL, looked up via JNDI, or run by a script engine |
 | `SKY-D238` | NoSQL Injection | HIGH | TS | Request data used as a MongoDB/Mongoose query object or `$where` |
 | `SKY-D239` | LDAP Injection | CRITICAL | Java | Request data in an LDAP search base or filter |
@@ -223,6 +223,21 @@ The development version checks these APIs under `--danger`.
 | `SKY-D418` | PostgreSQL schema creation privilege granted to PUBLIC | MEDIUM | PostgreSQL | A GRANT gives every role permission to create objects in one or more schemas. |
 | `SKY-D419` | PostgreSQL login role bypasses row-level security | MEDIUM | PostgreSQL | One role declaration enables login together with BYPASSRLS. |
 | `SKY-D420` | PostgreSQL table write privileges granted to PUBLIC | MEDIUM | PostgreSQL | The SQL grants table or column write privileges to PUBLIC. |
+
+#### Transport, Browser and Platform Security
+
+| Rule ID | Name | Severity | Languages | Description |
+|---------|------|----------|-----------|-------------|
+| [SKY-D380](#sky-d380) | SSH Host-Key Verification Disabled | HIGH | Python, Go | A Paramiko or Go SSH client configuration accepts unknown host keys. |
+| [SKY-D384](#sky-d384) | ECB Mode Selected for Encryption | MEDIUM | Python, Kotlin | A supported cipher selects ECB explicitly. |
+| [SKY-D430](#sky-d430) | Obsolete TLS Protocol Configured | HIGH | Python | A TLS context explicitly selects TLS 1.0, TLS 1.1, or an older SSL protocol. |
+| [SKY-D431](#sky-d431) | Unvalidated Browser Message Origin | HIGH | TS/JS | A Window sends runtime data to any origin, or uses unchecked incoming message data in a sensitive action. |
+| [SKY-D432](#sky-d432) | Spring Boot Actuator Wildcard Exposure | MEDIUM | YAML, Java properties | An application configuration exposes all enabled Actuator endpoints over HTTP. |
+| [SKY-D433](#sky-d433) | Spring Security CSRF Disabled | MEDIUM | Java | A Spring Security configuration explicitly disables CSRF protection. |
+| [SKY-D434](#sky-d434) | Sensitive Data Stored in UserDefaults | HIGH | Swift | A Foundation UserDefaults write uses a credential-like key or value name. |
+| [SKY-D435](#sky-d435) | Unbounded C Library Write | MEDIUM | C++ | A direct C library call writes to a buffer without receiving its capacity. |
+| [SKY-D436](#sky-d436) | Repeated Free of a Local Allocation | HIGH | C++ | Code frees the same tracked allocation twice in one straight-line block. |
+| [SKY-D437](#sky-d437) | Local Pointer Used After Free | HIGH | C++ | Code accesses a tracked allocation after freeing it in the same straight-line block. |
 
 #### Kubernetes Workload Declaration Policies
 
@@ -1135,6 +1150,8 @@ The same applies to TypeScript and JavaScript: use `root + path.sep`, not
 | **Risk** | Access internal services, cloud metadata endpoints (169.254.169.254) |
 
 For reqwest, Skylos checks whether request data can choose the host of a dispatched request. Building a request and dropping it, or inserting input only into the path of a fixed host, stays quiet.
+
+For Go, a project scan can follow a directly resolved call into another file in the same buildable package. For Ruby on Rails, Skylos checks supported request parameters that can reach an outbound HTTP call.
 
 ```python
 # Bad
@@ -2412,12 +2429,14 @@ Auth evidence includes guard decorators, `Depends` / `Security` / `Header` / `Co
 
 | | |
 |---|---|
-| **Severity** | HIGH (CRITICAL when request data is parsed) |
-| **Languages** | Java |
-| **What** | An XML parser is created and used without disabling DTDs or external entities: `DocumentBuilderFactory`, `SAXParserFactory`, `XMLReader`, `XMLInputFactory`, `TransformerFactory`, `SchemaFactory`, JDOM `SAXBuilder`, dom4j `SAXReader`, Commons `Digester` |
+| **Severity** | Varies by API and input source |
+| **Languages** | Java, Kotlin, TypeScript/JavaScript, Python, C# |
+| **What** | A supported XML parser or reader is configured to allow external entities |
 | **Risk** | A crafted document can read local files, reach internal hosts or exhaust memory (CWE-611) |
 
-Settings are checked on the same factory variable in statement order. `FEATURE_SECURE_PROCESSING` alone does not count, a setting applied after `newDocumentBuilder()` does not protect that builder, and hardening in only one branch does not count.
+In Java, Skylos checks settings on the same factory variable before the builder is created. Apply parser settings on every path that reaches the parse call. `FEATURE_SECURE_PROCESSING` alone can leave external entities enabled.
+
+In C#, Skylos follows `System.Xml.XmlReaderSettings` to `XmlReader.Create`. It reports when `DtdProcessing.Parse` and a resolved `XmlUrlResolver` are both effective at the call. Prohibit DTDs or keep `XmlResolver` null before creating the reader.
 
 ```java
 // Bad
@@ -3370,6 +3389,12 @@ not checked.
 
 ---
 
+### SKY-D380 · SSH Host-Key Verification Disabled {#sky-d380}
+
+Skylos checks Paramiko clients configured with `AutoAddPolicy` or `WarningPolicy` and Go SSH client settings that use `InsecureIgnoreHostKey`. It follows supported aliases and helper calls. An SSH client that accepts unknown host keys can connect to a server posing as the intended host.
+
+Load trusted host keys and keep Paramiko's default `RejectPolicy`. In Go, use a `knownhosts` callback or verify a trusted pinned host key.
+
 ### SKY-D383 · Weak RSA key size {#sky-d383}
 
 | | |
@@ -3381,6 +3406,12 @@ not checked.
 - Skylos checks Django form defaults and integer settings registered with Oslo (`cfg.IntOpt`).
 - It warns when `openssl genrsa` can use a default below 2048 bits. The warning points to the line that sets the size.
 - For example, if a Django form sets `initial=1024`, change it to `initial=2048` or higher. New keys that use the default will then use the larger size.
+
+### SKY-D384 · ECB Mode Selected for Encryption {#sky-d384}
+
+Skylos looks for explicit ECB mode in Python PyCA and PyCryptodome cipher calls and in Kotlin JCA block cipher transformations. ECB can reveal repeated blocks in encrypted data.
+
+Use authenticated encryption such as AES-GCM or ChaCha20-Poly1305. Follow the library's nonce and authentication tag requirements.
 
 ---
 
@@ -3820,6 +3851,54 @@ GitHub groups new findings under this rule. To block a new PUBLIC write, name
 the production migration directories on the target branch and set
 `forbid_public_writes = true`. The dedicated check reports the affected path
 and the fingerprint needed for an intentional exception. [Production migration setup](/guides/postgresql#protect-a-production-migration-directory)
+
+### SKY-D430 · Obsolete TLS Protocol Configured {#sky-d430}
+
+Skylos checks supported Python `ssl` and pyOpenSSL contexts that explicitly select TLS 1.0, TLS 1.1, or an older SSL protocol. This includes an obsolete minimum version on a recognized context.
+
+Require TLS 1.2 or newer and keep certificate and hostname checks enabled.
+
+### SKY-D431 · Unvalidated Browser Message Origin {#sky-d431}
+
+Skylos checks browser Window messages in JavaScript and TypeScript. It flags runtime data sent to a wildcard `targetOrigin` and supported handlers that pass unchecked incoming message data to a sensitive action.
+
+Set the expected recipient origin when sending. Check the exact sender origin and validate the message data before taking action.
+
+### SKY-D432 · Spring Boot Actuator Wildcard Exposure {#sky-d432}
+
+Skylos checks Spring Boot `application` YAML and properties files, including profile-specific files. A wildcard in `management.endpoints.web.exposure.include` exposes all enabled Actuator endpoints over HTTP unless a wildcard exclusion takes precedence in the same configuration.
+
+List the endpoints the app needs. Check which endpoints the deployed profile exposes and who can reach them.
+
+### SKY-D433 · Spring Security CSRF Disabled {#sky-d433}
+
+Skylos checks explicit calls that disable cross-site request forgery protection on a resolved Java Spring Security `HttpSecurity` configuration. It recognizes legacy chains and supported callback forms.
+
+Keep CSRF protection enabled for routes where browsers send credentials automatically. Review the route's authentication and the security chain that applies to it.
+
+### SKY-D434 · Sensitive Data Stored in UserDefaults {#sky-d434}
+
+Skylos checks Foundation `UserDefaults` writes in Swift, including supported local aliases. It uses a credential-like key or value name as a reason to review the write.
+
+Store passwords and tokens in the Keychain or an approved credential store. Use `UserDefaults` for ordinary preferences.
+
+### SKY-D435 · Unbounded C Library Write {#sky-d435}
+
+Skylos checks direct C library calls such as `sprintf`, `strcpy`, and `strcat` in C++. These calls write to a buffer without receiving its capacity.
+
+Use a managed string or pass the destination capacity to a bounded API. Handle truncation when a fixed-size buffer is necessary.
+
+### SKY-D436 · Repeated Free of a Local Allocation {#sky-d436}
+
+Skylos tracks a local `malloc` or `calloc` allocation and simple pointer aliases within one straight-line C++ block. It reports the second `free` of the same allocation.
+
+Give the allocation one owner. Where possible, use a C++ owner or container that releases the memory automatically.
+
+### SKY-D437 · Local Pointer Used After Free {#sky-d437}
+
+Skylos tracks direct pointer, array, or member accesses after a known local allocation has been freed in the same straight-line C++ block. Review ownership and lifetimes across branches and functions separately.
+
+Finish all accesses before releasing the allocation. Use an owning C++ type to manage its lifetime where possible.
 
 ### SKY-D510 · Prototype Pollution
 

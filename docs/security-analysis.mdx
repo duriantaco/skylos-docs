@@ -291,10 +291,12 @@ requests.get(user_provided_url)
 # -> Accesses AWS instance metadata, potentially leaking credentials
 ```
 
-Skylos also checks Java and Go SSRF patterns. Java coverage includes servlet
-input flowing into `URL.openStream()` / `openConnection()`, Java
-`HttpRequest` builders, and typed `RestTemplate` URL calls. Go coverage
-includes direct `http.Get` style calls and `http.NewRequest*` construction.
+Skylos also checks Java, Go, and Rails SSRF patterns. Java coverage includes
+servlet input flowing into URL calls, `HttpRequest` builders, and typed
+`RestTemplate` calls. The Go engine can follow request data into a directly
+resolved helper in another file of the same buildable package. In Rails,
+Skylos checks whether controller input can choose the destination of a
+supported outbound HTTP call. Review which part of the URL the input controls.
 
 ### Path Traversal
 
@@ -332,10 +334,63 @@ Beyond taint analysis, Skylos flags inherently dangerous patterns:
 | `exec()` | Arbitrary code execution | SKY-D202 | HIGH |
 | `pickle.load()` | Deserialization attack | SKY-D204 | CRITICAL |
 | `pickle.loads()` | Deserialization attack | SKY-D205 | CRITICAL |
-| `yaml.load()` | Code execution without SafeLoader | SKY-D206 | HIGH |
+| Unsafe YAML loaders in Python and Ruby | The loader can build objects from YAML data | SKY-D206 | HIGH or MEDIUM |
 | `hashlib.md5()` | Weak cryptographic hash | SKY-D207 | MEDIUM |
 | `hashlib.sha1()` | Weak cryptographic hash | SKY-D208 | MEDIUM |
-| `requests.get(verify=False)` | TLS verification disabled | SKY-D210 | HIGH |
+| TLS verification settings for supported clients | The client may accept an untrusted certificate or hostname | SKY-D210 | HIGH |
+
+---
+
+## Review security settings across languages
+
+Run `skylos . --danger --format json` from the repository root. Use the rule
+ID and reported line to find the setting or call, then check where it is used.
+
+### Connections, encryption, and XML
+
+- **TLS.** Skylos checks selected ways to disable verification in Python,
+  TypeScript and JavaScript, Go, Java, Rust, Dart, and PHP. Keep certificate
+  and hostname checks on. Configure a trusted CA for private certificates.
+  In Python, [SKY-D430](./rules-reference#sky-d430) also flags explicit TLS
+  1.0, TLS 1.1, or older SSL settings. Use a minimum of TLS 1.2 or newer.
+- **SSH.** [SKY-D380](./rules-reference#sky-d380) checks Python Paramiko and
+  Go SSH client settings that accept unknown host keys. Load trusted host
+  keys and reject unexpected ones.
+- **Encryption.** [SKY-D384](./rules-reference#sky-d384) checks explicit
+  ECB selection in supported Python and Kotlin cipher calls. Use an
+  authenticated encryption mode such as AES-GCM with a fresh nonce for each
+  encryption.
+- **XML.** In C#, SKY-D236 reports an `XmlReader` call when its effective
+  settings allow DTD parsing and use a URL resolver. Review the settings used
+  at the parse call. Prohibit DTDs and keep the resolver null when the
+  application does not need external resources.
+
+### Browser, Spring, and Swift apps
+
+- **Browser messages.** [SKY-D431](./rules-reference#sky-d431) checks
+  supported browser Window messages. Use an exact target origin when sending
+  data. Check `event.origin` before incoming data reaches a sensitive action.
+- **Spring Boot.** [SKY-D432](./rules-reference#sky-d432) flags wildcard
+  Actuator exposure in application YAML and properties files, including
+  profile-specific files. List the endpoints each profile needs and review
+  who can reach them in the deployed app.
+- **Spring Security.** [SKY-D433](./rules-reference#sky-d433) checks Java
+  configurations that disable CSRF protection. Keep it on for routes where
+  browsers attach credentials automatically, including routes that use
+  session cookies.
+- **Swift.** [SKY-D434](./rules-reference#sky-d434) checks writes with
+  credential-like keys or values in Foundation `UserDefaults`. Use the
+  Keychain for tokens and passwords.
+
+### C++ buffers and memory
+
+- [SKY-D435](./rules-reference#sky-d435) checks calls such as `sprintf`
+  and `strcpy` that write without a capacity argument. Use a managed string
+  or use an API that takes the destination capacity and handle truncation.
+- [SKY-D436](./rules-reference#sky-d436) checks for repeated frees and
+  [SKY-D437](./rules-reference#sky-d437) checks accesses after free.
+  Skylos follows visible allocations and simple aliases in one straight-line
+  block. Use an owning container or RAII wrapper to manage the lifetime.
 
 ---
 
